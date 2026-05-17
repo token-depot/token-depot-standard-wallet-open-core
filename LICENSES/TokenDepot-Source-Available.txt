@@ -1,0 +1,5 @@
+# Token Depot Source-Available Reference Terms
+
+Copyright (c) 2026 Token Depot Corp.
+
+Reference source files are published for review and verification. Separate written permission from Token Depot Corp is required for commercial platform operation or redistribution.
