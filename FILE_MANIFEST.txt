@@ -1,6 +1,6 @@
 .gitignore
 FILE_MANIFEST.txt
-LICENSES/MIT.txt
+LICENSE
 LICENSES/TokenDepot-Source-Available.txt
 NOTICE.md
 README.md
