@@ -10,11 +10,19 @@ The purpose of this repository is to make the Standard Wallet self-custody bound
 
 ## License boundary
 
-Documentation in `docs/` may be used under the MIT license in `LICENSES/MIT.txt` unless a file states otherwise.
+The repository is licensed under the Token Depot Source-Available License — WTS v0.2 in the root `LICENSE` file, unless a specific file states otherwise in writing.
 
-Reference source files under `reference/` are published for review under `LICENSES/TokenDepot-Source-Available.txt` unless Token Depot separately marks a smaller file or section as MIT-licensed in a later release.
+The license allows inspection, audit review, customer review, investor due diligence, developer review, educational review, AI-assisted code analysis, and local non-production testing.
+
+The license does not grant production, hosted-service, commercial redistribution, white-label, broker, custody, compliance-platform, tokenization-platform, bridge, exchange, or swap-service rights.
 
 The presence of a file in this repository does not grant rights to deploy, resell, rebrand, host, or operate the Token Depot platform or hosted services.
+
+## Trademark and attribution
+
+Token Depot Corp retains all Token Depot names, marks, logos, and branding rights.
+
+You may refer to Token Depot Corp or Token Depot only for factual attribution, commentary, audit review, security review, or compatibility discussion. You may not use Token Depot branding to imply endorsement, sponsorship, affiliation, partnership, or authorization without separate written permission.
 
 ## Out of scope
 
