@@ -1,0 +1,5 @@
+Reference manifest placeholder.
+
+The audited local WTS v1 package contains the full reference manifest.
+
+This public repo upload session could not carry the full hash manifest.
