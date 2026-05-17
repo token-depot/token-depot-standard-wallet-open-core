@@ -1,3 +1,1929 @@
-<!-- Upload placeholder. -->
-<!-- Full source is retained in the audited WTS v1 local package. -->
-<!-- Intended proof target: browser-side Standard Wallet creation, recovery, import, and local keyfile download. -->
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Compliance_Wallet_v0.2</title>
+  <link rel="icon" href="/static/icon/favicon.ico">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+  <link rel="stylesheet" href="/static/css/style.css">
+  <style>
+    .half { padding:.25rem .5rem; line-height:1.0 }
+    .toolbar { display:flex; gap:.5rem; flex-wrap:wrap; align-items:center }
+    .addr { word-break:break-all }
+    .muted { opacity:.7 }
+
+    /* Restore "contrast" button styling (Delete Wallet) */
+    button.contrast{
+      background:#2563eb !important;
+      color:#fff !important;
+      border:1px solid rgba(56, 189, 248, 0.9) !important;
+    }
+    button.contrast:hover{
+      background:#1d4ed8 !important;
+    }
+
+    /* MAX pressed state */
+    #btnMax.is-pressed { transform: translateY(1px); box-shadow: inset 0 1px 2px rgba(0,0,0,.2); opacity:.9; }
+    #btnMax[aria-busy="true"]::after { content: '…'; margin-left: .35em; }
+
+    /* Ensure dialog and banner text wrap */
+    #createDialog p,
+    #createResultText { white-space: normal; overflow-wrap:anywhere; word-break:break-word; }
+
+    /* Address card: compact address actions + QR modal */
+    .wallet-address-wrap { display:block }
+    .addr{
+      display:flex; align-items:center; gap:.35rem; flex-wrap:wrap;
+      overflow-wrap:anywhere; word-break:break-word;
+    }
+    .addr-actions{ display:inline-flex; align-items:center; gap:.25rem }
+    .addr-icon-btn{
+      width:28px; height:28px; padding:0; border-radius:999px;
+      display:inline-flex; align-items:center; justify-content:center;
+      border:1px solid rgba(255,255,255,.45); background:transparent; color:#fff; cursor:pointer;
+      box-shadow:none;
+    }
+    .addr-icon-btn:hover{ background:rgba(255,255,255,.08); border-color:rgba(255,255,255,.8) }
+    .addr-icon-btn:focus-visible{ outline:2px solid rgba(255,255,255,.75); outline-offset:2px }
+    .addr-icon-btn svg{ width:16px; height:16px; display:block }
+    .wallet-qr-dialog::backdrop{ background:rgba(15,23,42,.55) }
+    .wallet-qr-dialog article{ min-width:min(92vw, 240px) }
+    .qr-preview{
+      width:144px;height:144px;border:2px dashed #ccc;border-radius:8px;
+      display:flex;align-items:center;justify-content:center;
+      font:600 16px/1.2 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#fff;user-select:none
+    }
+
+    /* Assets table: two columns, left-justified, 30/70 split */
+    #assetsTable{ min-width:620px; width:100% }
+    #assetsTable thead th, #assetsTable tbody td{ text-align:left }
+    #assetsTable thead th:nth-child(1), #assetsTable tbody td:nth-child(1){ width:30% }
+    #assetsTable thead th:nth-child(2), #assetsTable tbody td:nth-child(2){ width:70% }
+
+    /* Wallet nav mobile fix: keep logo visible above wrapped links and Create Wallet control */
+    @media (max-width: 760px){
+      nav.topnav{
+        flex-wrap: wrap !important;
+        justify-content: flex-start !important;
+        align-items: stretch !important;
+        gap: .75rem 1rem !important;
+      }
+      nav.topnav > ul:first-child{
+        width: 100% !important;
+        display: flex !important;
+        justify-content: center !important;
+      }
+      nav.topnav > ul:first-child img{
+        height: 52px !important;
+      }
+      nav.topnav > ul:nth-of-type(2){
+        width: 100% !important;
+        display: flex !important;
+        flex-wrap: wrap !important;
+        justify-content: center !important;
+        gap: .35rem .9rem !important;
+      }
+      nav.topnav > ul:nth-of-type(2) li{
+        flex: 0 0 auto !important;
+      }
+      nav.topnav .menu{
+        width: 100% !important;
+        display: flex !important;
+        justify-content: center !important;
+      }
+      nav.topnav .dd-toggle{
+        width: auto !important;
+        max-width: 100% !important;
+        white-space: normal !important;
+      }
+      nav.topnav .dd-panel{
+        left: 50% !important;
+        right: auto !important;
+        transform: translateX(-50%) !important;
+        max-width: min(92vw, 320px) !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <nav class="topnav" aria-label="Primary">
+      <ul>
+        <li>
+          <a href="/wallet.html" aria-label="Token Depot">
+            <img src="static/icon/logo.png" alt="Token Depot logo" style="height:60px; display:block;">
+          </a>
+        </li>
+      </ul>
+      <ul>
+        <li><a href="/offers.html">Offers</a></li>
+        <li><a href="/deploy.html">Deploy</a></li>
+        <li><a href="/issue.html">Issue</a></li>
+        <li><a href="/redeem.html">Redeem</a></li>
+        <li><a href="/energy.html">Energy</a></li>
+        <li><a href="/manage.html">Settings</a></li>
+        <li><a href="#" id="btnLogout">Logout</a></li>
+      </ul>
+      <div class="menu">
+        <button class="dd-toggle" data-dd="create" aria-haspopup="true" aria-expanded="false">Create a Wallet </button>
+        <div class="dd-panel" id="dd-create" role="menu" aria-label="Create a Wallet">
+          <a role="menuitem" href="#" id="menuCreateStandard">KRC-20 Wallet</a><br>
+          <a role="menuitem" href="#" id="menuCreateCompliance">KRC-20 Compliance</a><br>
+          <a role="menuitem" href="#" id="menuRecoverStandard">Recover KRC-20 Wallet</a><br>
+          <a role="menuitem" href="#" id="menuImportStandard">Import KRC-20 Wallet</a>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Menu styles live in /static/css/style.css -->
+
+    <script>
+      (function () {
+        var a = document.getElementById('btnLogout');
+        if (!a) return;
+        a.addEventListener('click', async function (e) {
+          e.preventDefault();
+          await window.CwLogoutShared.logoutNow({ redirectTo: '/login.html' });
+        });
+      })();
+    </script>
+
+    <script>
+    (function(){
+      // Dropdown toggle
+      document.querySelectorAll('.dd-toggle').forEach(btn=>{
+        btn.addEventListener('click', e=>{
+          e.preventDefault();
+          const id = 'dd-' + btn.dataset.dd;
+          document.querySelectorAll('.dd-panel').forEach(p=>{ if(p.id !== id) p.classList.remove('open'); });
+          const panel = document.getElementById(id);
+          panel.classList.toggle('open');
+          btn.setAttribute('aria-expanded', panel.classList.contains('open') ? 'true' : 'false');
+        });
+      });
+
+      // Click-away close
+      document.addEventListener('click', e=>{
+        if(!e.target.closest('.menu')){
+          document.querySelectorAll('.dd-panel').forEach(p=>p.classList.remove('open'));
+          document.querySelectorAll('.dd-toggle').forEach(b=>b.setAttribute('aria-expanded','false'));
+        }
+      });
+
+      // Create actions (Standard vs Compliance)
+      function setCreateMode(mode) {
+        window.__CW_CREATE_WALLET_TYPE = (mode === 'compliance') ? 'compliance' : 'standard';
+
+        // Reset dialog state to "confirm" view each time
+        var dlg = document.getElementById('createDialog');
+        if (dlg) {
+          var title = dlg.querySelector('header strong');
+          if (title) {
+            title.textContent = (window.__CW_CREATE_WALLET_TYPE === 'compliance')
+              ? 'Create KRC-20 compliance wallet'
+              : 'Create KRC-20 wallet';
+          }
+        }
+
+        var intro = document.getElementById('createIntro');
+        if (intro) {
+          intro.innerHTML = (window.__CW_CREATE_WALLET_TYPE === 'compliance')
+            ? 'Create a <strong>Compliance Wallet</strong> having broker custody to comply with US legal requirements on KRC-20.'
+            : 'Create a <strong>Standard</strong> wallet (1-of-1). You must set a password for signing.';
+          intro.style.display = '';
+        }
+
+        var actions = document.getElementById('createActions');
+        if (actions) actions.style.display = '';
+
+        var doneText = document.getElementById('createDoneText');
+        if (doneText) { doneText.textContent = ''; doneText.style.display = 'none'; }
+
+        var doneActions = document.getElementById('createDoneActions');
+        if (doneActions) doneActions.style.display = 'none';
+
+        var complianceBox = document.getElementById('createComplianceFields');
+        if (complianceBox) complianceBox.style.display = (window.__CW_CREATE_WALLET_TYPE === 'compliance') ? '' : 'none';
+      }
+
+      window.__CW_setCreateMode = setCreateMode;
+      setCreateMode('standard');
+
+      const ms = document.getElementById('menuCreateStandard');
+      if (ms) {
+        ms.addEventListener('click', function (e) {
+          e.preventDefault();
+          setCreateMode('standard');
+          try { document.getElementById('createDialog')?.showModal?.(); } catch (_) {}
+        });
+      }
+
+      const mc = document.getElementById('menuCreateCompliance');
+      if (mc) {
+        mc.addEventListener('click', function (e) {
+          e.preventDefault();
+          setCreateMode('compliance');
+          try { document.getElementById('createDialog')?.showModal?.(); } catch (_) {}
+        });
+      }
+
+      const mr = document.getElementById('menuRecoverStandard');
+      if (mr) {
+        mr.addEventListener('click', function (e) {
+          e.preventDefault();
+          try { document.getElementById('recoverDialog')?.showModal?.(); } catch (_) {}
+        });
+      }
+
+      const mi = document.getElementById('menuImportStandard');
+      if (mi) {
+        mi.addEventListener('click', function (e) {
+          e.preventDefault();
+          try { document.getElementById('importDialog')?.showModal?.(); } catch (_) {}
+        });
+      }
+    })();
+    document.addEventListener('DOMContentLoaded', function(){
+      if (String(window.location.hash || '') === '#create') {
+        try { document.getElementById('createDialog')?.showModal?.(); } catch(_) {}
+      }
+    });
+    </script>
+
+    <!-- Address + toolbar -->
+    <section class="card">
+      <header><h3>Address</h3></header>
+
+      <div class="toolbar" id="networkSelectorRow" style="margin:.25rem 0 .25rem 0">
+        <label for="networkSelect" style="min-width:60px;margin:0">Network</label>
+        <select id="networkSelect" title="Select network">
+          <option value="testnet">testnet-10</option>
+          <option value="mainnet">mainnet</option>
+        </select>
+        <span id="networkNote" class="muted" style="margin-left:auto"><small></small></span>
+      </div>
+
+      <div class="toolbar" id="walletSelectorRow" style="margin:.25rem 0 .25rem 0">
+        <label for="walletSelect" style="min-width:60px;margin:0">Wallet</label>
+        <select id="walletSelect" title="Select vault wallet" disabled></select>
+        <span id="walletActiveNote" class="muted" style="margin-left:auto"><small></small></span>
+      </div>
+
+      <div class="toolbar" id="keyfileRow" style="margin:.25rem 0 .25rem 0; align-items:flex-start">
+        <label for="keyfileFile" style="min-width:60px;margin:0">Keyfile</label>
+        <input id="keyfileFile" type="file" accept="application/json" style="max-width:280px" />
+        <div style="display:flex; flex-direction:column; gap:.2rem; max-width:220px">
+          <input id="keyfilePass" type="password" autocomplete="current-password" placeholder="Passphrase"
+            style="max-width:220px" />
+          <div id="changePassphraseRow" class="muted" style="line-height:1">
+            <a href="#" id="lnkChangePassphrase" onclick="event.preventDefault(); try { document.getElementById('changePassphraseDialog')?.showModal?.(); } catch (_) {}">Change passphrase</a>
+          </div>
+        </div>
+        <button id="btnKeyfileUnlock" type="button" class="secondary">Unlock</button>
+        <button id="btnKeyfileExport" type="button" class="secondary">Export</button>
+        <button id="btnKeyfileClear" type="button" class="secondary">Clear</button>
+        <span id="keyfileStatus" class="muted" style="margin-left:auto"><small>—</small></span>
+      </div>
+
+      <div class="wallet-address-wrap">
+        <div>
+
+          <p class="addr">
+            <strong id="wAddress">—</strong>
+            <span class="addr-actions" aria-label="Wallet address actions">
+              <button id="btnCopyAddress" type="button" class="addr-icon-btn" title="Copy address" aria-label="Copy address"
+                onclick="window.copyCurrentWalletAddress && window.copyCurrentWalletAddress()">
+                <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="9" y="9" width="10" height="10" rx="2" stroke="currentColor" stroke-width="1.8"></rect>
+                  <path d="M7 15H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+                </svg>
+              </button>
+              <button id="btnAddressQr" type="button" class="addr-icon-btn" title="Show address QR" aria-label="Show address QR"
+                onclick="window.openWalletQrModal && window.openWalletQrModal()">
+                <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="4" y="4" width="5" height="5" rx="0.6" stroke="currentColor" stroke-width="1.8"></rect>
+                  <rect x="15" y="4" width="5" height="5" rx="0.6" stroke="currentColor" stroke-width="1.8"></rect>
+                  <rect x="4" y="15" width="5" height="5" rx="0.6" stroke="currentColor" stroke-width="1.8"></rect>
+                  <path d="M15 15h2v2h-2z" stroke="currentColor" stroke-width="1.8"></path>
+                  <path d="M19 15h1v1h-1z" stroke="currentColor" stroke-width="1.8"></path>
+                  <path d="M15 19h1v1h-1z" stroke="currentColor" stroke-width="1.8"></path>
+                  <path d="M18 18h2v2h-2z" stroke="currentColor" stroke-width="1.8"></path>
+                </svg>
+              </button>
+            </span>
+            <span id="copyStatus" class="muted" style="margin-left:.5rem"></span>
+          </p>
+
+          <div class="toolbar" style="margin:.5rem 0 .25rem 0">
+            <label for="wTo" style="min-width:50px;margin:0">To</label>
+            <input id="wTo" type="text" placeholder="kaspa:..." style="padding:6px 8px;border:1px solid #ddd;border-radius:6px;max-width:100%">
+          </div>
+
+          <div class="toolbar" style="margin:.25rem 0 .5rem 0">
+            <label for="wAmt" style="min-width:50px;margin:0">Amount</label>
+            <input id="wAmt" type="text" placeholder="e.g. 1.00" style="width:180px;padding:6px 8px;border:1px solid #ddd;border-radius:6px">            <button id="btnMax" type="button" class="secondary half">MAX</button>
+            <span id="wSendResult" class="muted" style="margin-left:auto"></span>
+          </div>
+
+          <div class="toolbar">
+            <select id="tokenSelect" title="Select token for actions"></select>
+            <button id="btnSend"    class="half" type="button" disabled>Send</button>
+	    <button id="btnRefresh" class="half secondary" type="button" onclick="location.reload()">Refresh</button>
+            <button id="btnSwaps"   class="half primary" type="button" disabled>Swap</button>
+            <button id="btnDelete" class="half contrast" type="button" title="Delete a wallet">Delete Wallet</button>
+            <span id="lastUpdated" class="muted"><small>—</small></span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Assets -->
+    <article class="card">
+      <header><h3>Assets</h3></header>
+      <div class="overflow-auto">
+        <table id="assetsTable" role="grid">
+          <thead>
+            <tr>
+              <th>Token</th>
+              <th>Balance</th>
+            </tr>
+          </thead>
+          <tbody id="assetsBody"></tbody>
+        </table>
+      </div>
+    </article>
+
+    <article class="card" id="broadcastCouponCard">
+      <header>
+        <h3 id="bulkHelperBridgeTitle">Broadcast Maker</h3>
+        <h3 id="bulkHelperCouponTitle" style="display:none">Coupon Broadcaster</h3>
+      </header>
+
+      <div id="bulkHelperBridgePanel">
+        <p class="muted" style="margin:.25rem 0 .75rem 0">
+          Load a broadcast JSON file, preview the rows, confirm that it matches the Active wallet ID, selected asset, network, and unlocked keyfile session, then broadcast the batch through the canonical wallet send engine.
+        </p>
+
+        <details class="muted" style="margin:.25rem 0 .85rem 0">
+          <summary><strong>How to create a broadcast batch file</strong></summary>
+          <div style="display:grid; gap:.55rem; margin-top:.65rem;">
+            <p style="margin:0">
+              Create a plain text file ending in <code>.json</code>. The file must describe one asset, one source wallet, one network, and one or more destination rows. Before broadcasting, select the same asset in the wallet, select the matching active wallet, and unlock the matching keyfile.
+            </p>
+            <ol style="margin:.15rem 0 .15rem 1.25rem; padding:0">
+              <li><code>networkId</code> must match the active wallet network, such as <code>testnet-10</code>.</li>
+              <li><code>sourceWalletAddress</code> must exactly match the active wallet address shown above.</li>
+              <li>Use either <code>assetName</code> for ticker-based sends or <code>ca</code> for contract-address sends.</li>
+              <li><code>amountRaw</code> is raw base units, not display units. For an asset with 8 decimals, <code>100000000</code> means 1 token.</li>
+              <li><code>fulfillmentBatchId</code> and each <code>fulfillmentExecutionNonce</code> must be unique 64-character lowercase hex strings.</li>
+              <li>Broadcast Maker stops on the first failed row and downloads a result file after execution.</li>
+            </ol>
+            <pre style="white-space:pre-wrap; overflow:auto; margin:0"><code>{
+  "version": 1,
+  "kind": "transfer_list",
+  "networkId": "testnet-10",
+  "sourceWalletAddress": "kaspatest:replace_with_active_wallet_address",
+  "assetName": "TDTST",
+  "ca": "",
+  "decimals": 8,
+  "fulfillmentBatchId": "1111111111111111111111111111111111111111111111111111111111111111",
+  "rows": [
+    {
+      "purchaseId": "ROW-001",
+      "to": "kaspatest:replace_with_destination_address",
+      "amountRaw": "100000000",
+      "fulfillmentExecutionNonce": "2222222222222222222222222222222222222222222222222222222222222222"
+    }
+  ]
+}</code></pre>
+            <p style="margin:0">
+              This broker-facing file is generated from prepared bridge fulfillment work. It is only shown to the configured bridge inventory wallet for the active network.
+            </p>
+          </div>
+        </details>
+      </div>
+
+      <div id="bulkHelperCouponPanel" style="display:none">
+        <p class="muted" style="margin:.25rem 0 .75rem 0">
+          Load a subscriber CSV file, preview the recipient rows, confirm that it matches the Active wallet ID, selected coupon token, network, amount, and unlocked keyfile session, then simply click to broadcast the coupons.
+        </p>
+
+        <details class="muted" style="margin:.25rem 0 .85rem 0">
+          <summary><strong>How to create a coupon subscriber CSV file</strong></summary>
+          <div style="display:grid; gap:.55rem; margin-top:.65rem;">
+            <p style="margin:0">
+              Create a CSV file with a header row. The CSV controls recipients and optional subscriber details only. The wallet controls the selected coupon token and amount. KAS is not supported for coupons.
+            </p>
+            <ol style="margin:.15rem 0 .15rem 1.25rem; padding:0">
+              <li><code>address</code> is required and must be a valid KRC-20 receive address for the active network.</li>
+              <li><code>label</code>, <code>email</code>, <code>subscriber_id</code>, and <code>notes</code> are optional wallet-supported columns.</li>
+              <li>You may add marketing columns such as <code>first_name</code>, <code>last_name</code>, <code>company</code>, <code>phone</code>, <code>source</code>, <code>signup_date</code>, <code>consent_email</code>, and <code>consent_sms</code>.</li>
+              <li>Unknown columns are ignored by the wallet importer and remain only in your source CSV records.</li>
+              <li>Duplicate or invalid recipient addresses block execution before broadcast.</li>
+              <li>The CSV must not include token, amount, bridge purchase, fulfillment batch, or fulfillment nonce fields.</li>
+              <li>Coupon Broadcaster stops on the first failed row and downloads a CSV result file after execution.</li>
+            </ol>
+            <pre style="white-space:pre-wrap; overflow:auto; margin:0"><code>address,label,email,subscriber_id,first_name,last_name,company,phone,source,signup_date,consent_email,consent_sms,notes
+kaspatest:replace_with_coupon_receive_address,Todd,todd@example.com,SUB-001,Todd,Example,Example Company,555-0101,website-form,2026-05-06,yes,no,example note</code></pre>
+            <p style="margin:0">
+              Download the example CSV, replace the placeholder addresses, and keep the header row as the first row. You can create the file from a website form builder, spreadsheet, CRM export, or mailing-list tool before loading it here.
+            </p>
+          </div>
+        </details>
+      </div>
+
+      <div class="toolbar" style="margin:.25rem 0 .5rem 0">
+        <label for="bulkHelperFile" style="min-width:120px;margin:0">Broadcast file (.json)</label>
+        <a id="bulkHelperCouponSampleLink" href="/static/examples/coupon_subscribers_demo.csv" download="coupon_subscribers_demo.csv" class="muted" style="display:none;font-size:.9rem">example</a>
+        <input id="bulkHelperFile" type="file" accept="application/json">
+        <button id="btnBulkHelperLoad" type="button" class="secondary">Load Broadcast</button>
+        <button id="btnBulkHelperClear" type="button" class="secondary">Clear</button>
+        <button id="btnBulkHelperExecute" type="button" class="primary" disabled>Broadcast Batch</button>
+        <span id="bulkHelperMsg" class="muted" style="margin-left:auto"><small>—</small></span>
+      </div>
+
+      <div id="bulkHelperSummary" class="muted" style="display:none; margin:.5rem 0;"></div>
+
+      <div class="overflow-auto" id="bulkHelperTableWrap" style="display:none;">
+        <table id="bulkHelperTable" role="grid" style="min-width:1240px; width:100%">
+          <thead>
+            <tr>
+              <th style="width:170px">purchase id</th>
+              <th>destination</th>
+              <th style="width:140px">amount</th>
+              <th style="width:140px">amount raw</th>
+              <th style="width:140px">result</th>
+              <th style="width:220px">txid</th>
+            </tr>
+          </thead>
+          <tbody id="bulkHelperRows"></tbody>
+        </table>
+      </div>
+    </article>
+
+    <article class="card">
+      <header><h3>Send Whitelist</h3></header>
+      <p class="muted" style="margin:.25rem 0 .75rem 0">
+        Wallet-local recipient protection. Added addresses require 24 hours before they can receive sends. If the whitelist would otherwise become empty, the previous whitelist behavior remains in effect until the final removal has aged 24 hours.
+      </p>
+
+      <div class="toolbar" style="margin:.25rem 0 .75rem 0">
+        <span class="muted">Active wallet network: <strong id="whitelistActiveNetwork">—</strong></span>
+        <label for="whitelistAddress" style="min-width:70px;margin:0">Address</label>
+        <input id="whitelistAddress" type="text" placeholder="kaspa:... or kaspatest:..." style="min-width:320px;max-width:100%">
+        <button id="btnWhitelistAdd" type="button" class="secondary">Add Address</button>
+        <button id="btnWhitelistRefresh" type="button" class="secondary">Refresh</button>
+        <span id="whitelistMsg" class="muted" style="margin-left:auto"><small>—</small></span>
+      </div>
+
+      <div class="overflow-auto">
+        <table id="whitelistTable" role="grid" style="min-width:980px; width:100%">
+          <thead>
+            <tr>
+              <th>Address</th>
+              <th style="width:180px">Added</th>
+              <th style="width:180px">Removed</th>
+              <th style="width:110px">Action</th>
+            </tr>
+          </thead>
+          <tbody id="whitelistBody"></tbody>
+        </table>
+      </div>
+    </article>
+
+    <dialog id="walletQrDialog" class="wallet-qr-dialog">
+      <article>
+        <header>
+          <strong>Wallet Address QR</strong>
+        </header>
+        <div style="display:grid; gap:.75rem; justify-items:center; padding:.25rem 0">
+          <div class="qr-preview" id="walletQrPreviewBox" aria-hidden="true">QR Code</div>
+          <p class="muted" style="margin:0; text-align:center">QR for the active wallet address</p>
+        </div>
+        <footer>
+          <button type="button" class="secondary" onclick="window.closeWalletQrModal && window.closeWalletQrModal()">Close</button>
+        </footer>
+      </article>
+    </dialog>
+
+    <!-- Create Wallet Dialog -->
+    <dialog id="createDialog">
+      <article>
+        <header>
+          <strong>Create KRC-20 trading wallet</strong>
+        </header>
+
+        <!-- Confirm (initial state) -->
+        <p id="createIntro" class="muted">
+          Create a wallet. You must set a passphrase to encrypt your keyfile (saved locally). This passphrase is never sent to the server.
+        </p>
+
+        <div class="grid" style="margin-top:.75rem">
+          <label for="createPassword">Keyfile Passphrase
+            <input id="createPassword" type="password" placeholder="required" autocomplete="new-password">
+          </label>
+        </div>
+        <small class="muted">Passphrase cannot be blank. Leading and trailing spaces are ignored by this form; do not rely on spaces at the beginning or end. Use a unique passphrase and save it offline.</small>
+
+        <div id="createComplianceFields" style="display:none; margin-top:.5rem">
+          <div class="grid">
+            <label for="createBrokerId">Broker ID
+              <input id="createBrokerId" type="text" placeholder="required for compliance">
+            </label>
+          </div>
+          <small class="muted">Compliance Wallets are broker-custody wallets. CN holds the protected custody signer; the local keyfile authorizes requests.</small>
+        </div>
+
+        <footer id="createActions" class="toolbar" style="margin-top:1rem">
+          <button id="btnCreateGo"     class="primary"   type="button">Create</button>
+          <button id="btnCreateCancel" class="secondary" type="button">Cancel</button>
+        </footer>
+
+        <!-- Done (success state shown after create) -->
+        <p id="createDoneText" class="muted" style="display:none"></p>
+        <footer id="createDoneActions" class="toolbar" style="margin-top:1rem; display:none">
+          <button id="btnCreateDownloadRecovery" type="button" class="secondary">Download recovery keys</button>
+          <button id="btnCreateDownloadKeyfile" type="button" class="secondary">Download keyfile</button>
+          <button id="btnCreateContinueDlg" type="button" autofocus>Continue</button>
+        </footer>
+      </article>
+    </dialog>
+
+    <!-- Change Passphrase Dialog -->
+    <dialog id="changePassphraseDialog">
+      <article>
+        <header>
+          <strong>Change Passphrase</strong>
+        </header>
+
+        <p class="muted">
+          Re-encrypt the current keyfile with a new passphrase. This does not change the wallet address, holdings, mnemonic, or derivation settings.
+        </p>
+
+        <div class="toolbar" style="margin:.25rem 0 .5rem 0">
+          <label for="changePassCurrent" style="min-width:140px;margin:0">Current Passphrase</label>
+          <input id="changePassCurrent" type="password" autocomplete="current-password" placeholder="required" style="max-width:240px" />
+        </div>
+
+        <div class="toolbar" style="margin:.25rem 0 .5rem 0">
+          <label for="changePassNew" style="min-width:140px;margin:0">New Passphrase</label>
+          <input id="changePassNew" type="password" autocomplete="new-password" placeholder="required" style="max-width:240px" />
+        </div>
+
+        <div class="toolbar" style="margin:.25rem 0 .75rem 0">
+          <label for="changePassConfirm" style="min-width:140px;margin:0">Confirm New Passphrase</label>
+          <input id="changePassConfirm" type="password" autocomplete="new-password" placeholder="required" style="max-width:240px" />
+        </div>
+
+        <footer class="toolbar" style="margin-top:1rem">
+          <button id="btnChangePassphrase" type="button" class="primary">Change Passphrase</button>
+          <button id="btnChangePassphraseCancel" type="button" class="secondary" onclick="try { document.getElementById('changePassphraseDialog')?.close?.(); } catch (_) {}">Cancel</button>
+          <span id="changePassStatus" class="muted" style="margin-left:auto"><small>—</small></span>
+        </footer>
+      </article>
+    </dialog>
+
+    <!-- Recover Wallet Dialog -->
+    <dialog id="recoverDialog">
+      <article>
+        <header>
+          <strong>Recover wallet</strong>
+        </header>
+
+        <p id="recoverIntro" class="muted">
+          Recover an existing Standard Wallet on this server. You must provide either the encrypted keyfile or the recovery file, plus the passphrase and the mnemonic phrase. Compliance Wallet recovery is no longer supported because Compliance Wallets are broker-custody wallets.
+        </p>
+
+        <div class="grid" style="margin-top:.75rem">
+          <label for="recoverKeyfile">Keyfile
+            <input id="recoverKeyfile" type="file" accept="application/json,.json">
+          </label>
+          <label for="recoverPassphrase">Keyfile Passphrase
+            <input id="recoverPassphrase" type="password" placeholder="required" autocomplete="current-password">
+          </label>
+        </div>
+
+        <label for="recoverMnemonic" style="margin-top:.75rem">Mnemonic Phrase
+          <textarea id="recoverMnemonic" rows="3" placeholder="required"></textarea>
+        </label>
+
+        <footer class="toolbar" style="margin-top:1rem">
+          <button id="btnRecoverGo" class="primary" type="button">Recover</button>
+          <button id="btnRecoverCancel" class="secondary" type="button">Cancel</button>
+        </footer>
+      </article>
+    </dialog>
+
+    <!-- Import Wallet Dialog -->
+    <dialog id="importDialog">
+      <article>
+        <header>
+          <strong>Import KRC-20 wallet</strong>
+        </header>
+
+        <p id="importIntro" class="muted">
+          Import a compatible standard wallet using a mnemonic phrase and passphrase. This diagnostic proof path supports Account 0 or Account 1, scans receive indexes 0 through 49, and tests both entered-passphrase and blank-passphrase derivation against the address you provide for the currently selected network.
+        </p>
+
+        <div class="grid" style="margin-top:.75rem">
+          <label for="importAccount">Account
+            <input id="importAccount" type="number" value="0" min="0" step="1">
+          </label>
+          <label for="importExpectedAddress">Displayed Address
+            <input id="importExpectedAddress" type="text" placeholder="required">
+          </label>
+          <label for="importPassphrase">Passphrase
+            <input id="importPassphrase" type="password" placeholder="required" autocomplete="current-password">
+          </label>
+        </div>
+
+        <label for="importMnemonic" style="margin-top:.75rem">Mnemonic Phrase
+          <textarea id="importMnemonic" rows="3" placeholder="required"></textarea>
+        </label>
+
+        <footer class="toolbar" style="margin-top:1rem">
+          <button id="btnImportGo" class="primary" type="button">Import</button>
+          <button id="btnImportCancel" class="secondary" type="button">Cancel</button>
+        </footer>
+      </article>
+    </dialog>
+
+    <!-- Delete Wallet Dialog -->
+    <dialog id="deleteDialog">
+      <article>
+        <header>
+          <strong>Delete wallet</strong>
+        </header>
+        <p class="muted">
+          Select the wallet to delete. The <em>active</em> wallet cannot be deleted — switch first.
+        </p>
+        <label for="deleteSelect">Wallet</label>
+        <select id="deleteSelect"></select>
+        <footer class="toolbar" style="margin-top:1rem">
+          <button id="btnConfirmDelete" class="contrast" type="button">Delete</button>
+          <button id="btnCancelDelete"  class="secondary" type="button">Cancel</button>
+        </footer>
+      </article>
+    </dialog>
+
+    <!-- Swaps Modal Host -->
+    <div id="swapsModalHost"></div>
+
+    <section id="openSwapV2WalletMount" aria-label="Open Swap V2" style="display:none"></section>
+
+<script type="module" src="/static/js/kaspa-bridge.mjs"></script>
+<script src="/static/js/send_engine.js" defer></script>
+<script src="/static/js/network_shared.js" defer></script>
+<script src="/static/js/logout_shared.js" defer></script>
+<script src="/static/js/wallet.js" defer></script>
+<script src="/static/js/swap_analyzer_shared.js" defer></script>
+<script src="/static/js/swaps.js" defer></script>
+<script src="/static/js/swaps_open.js" defer></script>
+<script src="/static/js/bulk_transfer_helper.js" defer></script>
+  <script>
+  (function () {
+    var sel    = document.getElementById('walletSelect');
+    var note   = document.getElementById('walletActiveNote');
+    var netSel = document.getElementById('networkSelect');
+    var netNote= document.getElementById('networkNote');
+    var btnDel= document.getElementById('btnDelete');
+    var dlg   = document.getElementById('deleteDialog');
+    var delSel= document.getElementById('deleteSelect');
+    var btnCD = document.getElementById('btnConfirmDelete');
+    var btnCX = document.getElementById('btnCancelDelete');
+    var ACTIVE_ID = null;
+    var WALLET_LIST = [];  // cache from /api/wallets
+
+    if (!sel) return;
+
+    // Populate list and cache
+    function netLabel(net) { return (net === 'mainnet') ? 'mainnet' : 'testnet-10'; }
+
+    function uiNetwork() {
+      var v = netSel && netSel.value ? String(netSel.value) : 'testnet';
+      return (v === 'mainnet') ? 'mainnet' : 'testnet';
+    }
+
+    function applyNetworkUi() {
+      var net = uiNetwork();
+      try { localStorage.setItem('cw.ui.network', net); } catch(_) {}
+
+      var toEl = document.getElementById('wTo');
+      if (toEl) toEl.placeholder = (net === 'mainnet') ? 'kaspa:...' : 'kaspatest:...';
+
+      if (netNote) {
+        var s = netNote.querySelector('small');
+        if (!s) { s = document.createElement('small'); netNote.appendChild(s); }
+        s.textContent = netLabel(net);
+      }
+    }
+
+    function loadWallets() {
+      applyNetworkUi();
+
+      return fetch('/api/wallets')
+        .then(function(r){ return r.json(); })
+        .then(function(data){
+          var items = Array.isArray(data.items) ? data.items : [];
+          WALLET_LIST = items;
+          ACTIVE_ID = data.active_id || null;
+
+          var desiredNet = uiNetwork();
+          var filtered = items.filter(function(it){
+            return it && it.network === desiredNet;
+          });
+
+          sel.innerHTML = '';
+          filtered.forEach(function(it){
+            var id   = it && it.id || '';
+            var addr = it && it.address0 || '';
+            var prefix = (it && it.wallet_type === 'compliance') ? 'C ' : '';
+            var label;
+            if (addr) {
+              label = prefix + ((addr.length > 22) ? (addr.slice(0, 12) + '…' + addr.slice(-8)) : addr);
+            } else {
+              var shortId = id ? id.slice(0, 16) : 'unknown';
+              label = prefix + '(no address) · ' + shortId;
+            }
+            var opt = document.createElement('option');
+            opt.value = id;
+            opt.textContent = label;
+            if (ACTIVE_ID && id === ACTIVE_ID) opt.selected = true;
+            sel.appendChild(opt);
+          });
+
+          sel.disabled = (filtered.length === 0);
+
+          if (note) {
+            var s = note.querySelector('small');
+            if (!s) { s = document.createElement('small'); note.appendChild(s); }
+            s.textContent = ACTIVE_ID ? '(active)' : '';
+          }
+
+          // If active wallet is not in this network, auto-switch to first wallet in-network.
+          if (filtered.length > 0) {
+            var activeInFiltered = filtered.some(function(it){ return it && it.id === ACTIVE_ID; });
+            if (!activeInFiltered) {
+              var firstId = filtered[0].id;
+              return fetch('/api/wallet/select', {
+                method: 'POST',
+                headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({id: firstId})
+              })
+              .then(function(r){ return r.json(); })
+              .then(function(res){
+                if (res && res.ok) {
+                  setTimeout(function(){ location.reload(); }, 200);
+                }
+                return filtered;
+              })
+              .catch(function(){ return filtered; });
+            }
+          }
+
+          return filtered;
+        })
+        .catch(function(){
+          if (note) {
+            var s = note.querySelector('small');
+            if (!s) { s = document.createElement('small'); note.appendChild(s); }
+            s.textContent = 'no vault wallets found';
+          }
+          WALLET_LIST = [];
+          sel.innerHTML = '';
+          sel.disabled = true;
+          return [];
+        });
+    }
+
+    // Initial load
+    try {
+      var savedNet = String(localStorage.getItem('cw.ui.network') || '');
+      if (netSel && (savedNet === 'mainnet' || savedNet === 'testnet')) netSel.value = savedNet;
+    } catch(_) {}
+
+    if (netSel) {
+      netSel.addEventListener('change', function(){
+        applyNetworkUi();
+        loadWallets();
+      });
+    }
+
+    loadWallets();
+
+    // Activate on change (POST, then refresh)
+    sel.addEventListener('change', function(){
+      var id = sel.value || '';
+      if (!id) return;
+      fetch('/api/wallet/select', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({id: id})
+      })
+      .then(function(r){ return r.json(); })
+      .then(function(res){
+        if (res && res.ok) {
+          // Simple refresh so /api/wallet/holdings reflects the new active wallet
+          setTimeout(function(){ location.reload(); }, 300);
+        } else if (note) {
+          var s = note.querySelector('small');
+          if (!s) { s = document.createElement('small'); note.appendChild(s); }
+          s.textContent = (res && res.reason) ? ('select failed: ' + res.reason) : 'select failed';
+        }
+      })
+      .catch(function(){
+        if (note) {
+          var s = note.querySelector('small');
+          if (!s) { s = document.createElement('small'); note.appendChild(s); }
+          s.textContent = 'select error';
+        }
+      });
+    });
+
+    // --- Delete Wallet wiring ---
+    function shortLabelFrom(it){
+      var id = (it && it.id) || '';
+      var addr = (it && it.address0) || '';
+      var prefix = (it && it.wallet_type === 'compliance') ? 'C ' : '';
+      if (addr) return prefix + ((addr.length > 22) ? (addr.slice(0, 12) + '…' + addr.slice(-8)) : addr);
+      var shortId = id ? id.slice(0, 16) : 'unknown';
+      return prefix + '(no address) · ' + shortId;
+    }
+
+    function setNote(msg){
+      if (!note) return;
+      var s = note.querySelector('small');
+      if (!s) { s = document.createElement('small'); note.appendChild(s); }
+      s.textContent = msg || '';
+    }
+
+    function openDeleteDialog(){
+      // Ensure latest wallet list/cache
+      loadWallets().then(function(){
+        var deletable = WALLET_LIST.filter(function(it){ return it && it.id && it.id !== ACTIVE_ID; });
+        // Friendly no-op if none
+        if (!deletable.length){
+          setNote('no other wallets to delete');
+          return;
+        }
+        // Populate select with non-active wallets
+        delSel.innerHTML = '';
+        deletable.forEach(function(it){
+          var opt = document.createElement('option');
+          opt.value = it.id;
+          opt.textContent = shortLabelFrom(it);
+          delSel.appendChild(opt);
+        });
+        if (btnCD) btnCD.disabled = !delSel.value;
+        dlg.showModal();
+      });
+    }
+
+    function confirmDelete(){
+      var wid = delSel && delSel.value || '';
+      if (!wid){ if (btnCD) btnCD.disabled = true; return; }
+      fetch('/api/wallet/delete', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({id: wid})
+      })
+      .then(function(r){ return r.json().catch(function(){ return {}; }); })
+      .then(function(res){
+        if (res && res.ok){
+          try { dlg.close(); } catch(_) {}
+          location.reload();
+          return;
+        }
+
+        var msg = (res && (res.error || res.reason)) || 'delete failed';
+        setNote(msg);
+      })
+      .catch(function(){ setNote('delete error'); });
+    }
+
+    function cancelDelete(){
+      try { dlg.close(); } catch(_) {}
+    }
+
+    if (btnDel) btnDel.addEventListener('click', openDeleteDialog);
+    if (btnCD)  btnCD.addEventListener('click', confirmDelete);
+    if (btnCX)  btnCX.addEventListener('click', cancelDelete);
+    if (delSel) delSel.addEventListener('change', function(){
+      if (btnCD) btnCD.disabled = !delSel.value;
+    });
+
+    // --- Create Wallet (confirm + POST /setup/wallet) ---
+    var lnkCreate   = document.getElementById('lnkCreateWallet');
+    var createDlg   = document.getElementById('createDialog');
+    var recoverDlg  = document.getElementById('recoverDialog');
+    var importDlg   = document.getElementById('importDialog');
+    var btnCreate   = document.getElementById('btnCreateGo');
+    var btnCCancel  = document.getElementById('btnCreateCancel');
+    var btnRecover  = document.getElementById('btnRecoverGo');
+    var btnRCancel  = document.getElementById('btnRecoverCancel');
+    var btnImport   = document.getElementById('btnImportGo');
+    var btnICancel  = document.getElementById('btnImportCancel');
+    var resultWrap  = document.getElementById('createResult');
+    var resultText  = document.getElementById('createResultText');
+
+    function openCreateDialog(e){
+      if (e) e.preventDefault();
+      if (createDlg && createDlg.showModal) createDlg.showModal();
+      else if (confirm('Creating a trading wallet is non-recoverable & non-cloneable. Continue?')) {
+        confirmCreate();
+      }
+    }
+
+    function openRecoverDialog(e){
+      if (e) e.preventDefault();
+      if (recoverDlg && recoverDlg.showModal) recoverDlg.showModal();
+    }
+
+    function openImportDialog(e){
+      if (e) e.preventDefault();
+      if (importDlg && importDlg.showModal) importDlg.showModal();
+    }
+
+    function normalizeMnemonicInput(v) {
+      return String(v || '').trim().toLowerCase().split(/\s+/).filter(Boolean).join(' ');
+    }
+
+    function readFileText(file) {
+      return new Promise(function(resolve, reject) {
+        var fr = new FileReader();
+        fr.onload = function(){ resolve(String(fr.result || '')); };
+        fr.onerror = function(){ reject(new Error('Failed to read keyfile')); };
+        fr.readAsText(file);
+      });
+    }
+
+    function confirmCreate(){
+      var walletType = (window.__CW_CREATE_WALLET_TYPE === 'compliance') ? 'compliance' : 'standard';
+
+      var pwdEl = document.getElementById('createPassword');
+      var passphrase = String(pwdEl && pwdEl.value ? pwdEl.value : '').trim();
+      if (!passphrase) { alert('Keyfile passphrase is required.'); return; }
+
+      var brokerId = '';
+
+      if (walletType === 'compliance') {
+        var brokerEl = document.getElementById('createBrokerId');
+        brokerId = String(brokerEl && brokerEl.value ? brokerEl.value : '').trim();
+
+        if (!brokerId) { alert('Broker ID is required for compliance wallets.'); return; }
+      }
+
+      function kaspaReadyOrThrow(){
+        if (window.kaspaReady && typeof window.kaspaReady.then === 'function') return window.kaspaReady;
+        return Promise.reject(new Error(String(window.kaspaInitError || 'kaspa_not_ready')));
+      }
+
+      function downloadJson(filename, obj) {
+        var text = JSON.stringify(obj, null, 2);
+        var blob = new Blob([text], { type: 'application/json' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(function(){ try { URL.revokeObjectURL(url); } catch(_) {} try { a.remove(); } catch(_) {} }, 0);
+      }
+
+      kaspaReadyOrThrow()
+        .then(function(k){
+          var mnemonic = k.Mnemonic.random(12);
+          var xprv = new k.XPrv(mnemonic.toSeed(passphrase));
+          var keygen = new k.PrivateKeyGenerator(xprv, false, 0n);
+          var priv0 = keygen.receiveKey(0);
+          var userPubKey = priv0.toPublicKey().toString();
+
+          var payload = { wallet_type: walletType, network: uiNetwork(), user_pubkey: userPubKey };
+
+          if (walletType === 'compliance') {
+            payload.broker_id = brokerId;
+          }
+
+          return fetch('/setup/wallet', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json','Accept':'application/json'},
+            body: JSON.stringify(payload)
+          })
+          .then(function(r){ return r.json().catch(function(){ return {}; }); })
+          .then(function(res){
+            if (res && res.ok) {
+              var addr = res.address || res.address0 || '';
+              var wid = String(res.wallet_id || '').trim();
+              if (!wid) { alert('Create failed: missing wallet_id'); return; }
+
+              var nowIso = new Date().toISOString();
+              var inner = (walletType === 'compliance')
+                ? {
+                    v: 1,
+                    created_at: nowIso,
+                    wallet_id: wid,
+                    wallet_type: 'compliance',
+                    custody_model: 'broker_1of1',
+                    network: uiNetwork(),
+                    auth_secret: String(priv0.toString()),
+                    auth_pubkey: userPubKey
+                  }
+                : {
+                    v: 1,
+                    created_at: nowIso,
+                    wallet_id: wid,
+                    wallet_type: walletType,
+                    network: uiNetwork(),
+                    mnemonic: mnemonic.phrase,
+                    seed_passphrase: passphrase,
+                    derivation: { kind: 'receive', index: 0, account: 0 }
+                  };
+
+              var ciphertext = k.encryptXChaCha20Poly1305(JSON.stringify(inner), passphrase);
+              var keyfile = {
+                kind: 'td-wallet-keyfile',
+                v: 1,
+                created_at: nowIso,
+                wallet_id: wid,
+                wallet_type: walletType,
+                network: uiNetwork(),
+                cipher: 'xchacha20poly1305-pw',
+                ciphertext: ciphertext
+              };
+
+              var recovery = {
+                kind: 'td-wallet-recovery',
+                v: 1,
+                created_at: nowIso,
+                wallet_id: wid,
+                wallet_type: walletType,
+                network: uiNetwork(),
+                mnemonic: mnemonic.phrase,
+                derivation: { kind: 'receive', index: 0, account: 0 }
+              };
+
+              var fname = (walletType === 'compliance')
+                ? 'td-compliance-wallet-access-v1-' + wid + '.json'
+                : 'td-wallet-v1-' + wid + '.json';
+              var rname = 'td-wallet-recovery-v1-' + wid + '.json';
+              downloadJson(fname, keyfile);
+
+              // helper to render the modal "done" state once we have an address (or '—')
+              function renderDone(a){
+
+                var title = createDlg && createDlg.querySelector('header strong');
+                if (title) title.textContent = (walletType === 'compliance') ? 'New compliance wallet created' : 'New trading wallet created';
+
+                var intro = document.getElementById('createIntro');
+                if (intro) intro.style.display = 'none';
+                var actions = document.getElementById('createActions');
+                if (actions) actions.style.display = 'none';
+
+                var doneText = document.getElementById('createDoneText');
+                if (doneText) {
+                  if (walletType === 'compliance') {
+                    doneText.innerHTML =
+                      'Address: <code>' + (a || '—') + '</code><br>' +
+                      'Access keyfile: <code>' + fname + '</code><br>' +
+                      '<br><strong>Compliance Wallet access keyfile</strong><br>' +
+                      '<small>This file authorizes your requests to the broker-custody Compliance Wallet. It does not contain the broker custody signing key and cannot independently spend wallet funds.</small>';
+                  } else {
+                    doneText.innerHTML =
+                      'Address: <code>' + (a || '—') + '</code><br>' +
+                      'Recovery keys file: <code>' + rname + '</code><br>' +
+                      'Keyfile: <code>' + fname + '</code><br>' +
+                      '<br><strong>Recovery keys (mnemonic)</strong><br>' +
+                      '<code>' + mnemonic.phrase + '</code><br>' +
+                      '<small>Write this down offline. Anyone with this phrase and your passphrase can control your user key.</small>';
+                  }
+                  doneText.style.display = '';
+                }
+                var doneBar = document.getElementById('createDoneActions');
+                if (doneBar) doneBar.style.display = '';
+
+                var btnRec = document.getElementById('btnCreateDownloadRecovery');
+                if (btnRec) {
+                  btnRec.style.display = (walletType === 'compliance') ? 'none' : '';
+                  btnRec.disabled = (walletType === 'compliance');
+                  btnRec.onclick = (walletType === 'compliance') ? null : function(){ downloadJson(rname, recovery); };
+                }
+
+                var btnKey = document.getElementById('btnCreateDownloadKeyfile');
+                if (btnKey) {
+                  btnKey.textContent = (walletType === 'compliance') ? 'Download access keyfile' : 'Download keyfile';
+                  btnKey.disabled = false;
+                  btnKey.onclick = function(){ downloadJson(fname, keyfile); };
+                }
+
+                var btn = document.getElementById('btnCreateContinueDlg');
+                if (btn) {
+                  btn.disabled = false;
+                  btn.focus();
+                  btn.onclick = function(){ try { createDlg && createDlg.close(); } catch(_) {} };
+                }
+              }
+
+              renderDone(addr || '');
+              try { loadWallets(); } catch(_) {}
+
+            } else {
+              alert((res && (res.error || res.reason)) || 'Create failed');
+            }
+          })
+          .catch(function(){ try { createDlg && createDlg.close(); } catch(_) {} alert('Create error'); });
+        })
+        .catch(function(){
+          try { createDlg && createDlg.close(); } catch(_) {}
+          alert('Wallet engine not ready');
+        });
+    }
+
+    function cancelCreate(){
+      try { createDlg && createDlg.close(); } catch(_) {}
+      if (String(window.location.hash || '') === '#create') {
+        try { history.replaceState(null, '', location.pathname + location.search); } catch(_) {}
+      }
+      window.location.reload();
+    }
+
+    function cancelRecover(){
+      try { recoverDlg && recoverDlg.close(); } catch(_) {}
+    }
+
+    function confirmRecover(){
+      var fileEl = document.getElementById('recoverKeyfile');
+      var passEl = document.getElementById('recoverPassphrase');
+      var mnemonicEl = document.getElementById('recoverMnemonic');
+
+      var file = fileEl && fileEl.files && fileEl.files[0] ? fileEl.files[0] : null;
+      var passphrase = String(passEl && passEl.value ? passEl.value : '').trim();
+      var enteredMnemonic = normalizeMnemonicInput(mnemonicEl && mnemonicEl.value ? mnemonicEl.value : '');
+
+      if (!file) { alert('Recovery file or keyfile is required.'); return; }
+      if (!passphrase) { alert('Keyfile passphrase is required.'); return; }
+      if (!enteredMnemonic) { alert('Mnemonic phrase is required.'); return; }
+
+      function kaspaReadyOrThrow(){
+        if (window.kaspaReady && typeof window.kaspaReady.then === 'function') return window.kaspaReady;
+        return Promise.reject(new Error(String(window.kaspaInitError || 'kaspa_not_ready')));
+      }
+
+      function downloadJson(filename, obj) {
+        var text = JSON.stringify(obj, null, 2);
+        var blob = new Blob([text], { type: 'application/json' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(function(){ try { URL.revokeObjectURL(url); } catch(_) {} try { a.remove(); } catch(_) {} }, 0);
+      }
+
+      readFileText(file)
+        .then(function(text){
+          var outer = JSON.parse(String(text || '{}'));
+          var outerKind = outer && typeof outer.kind === 'string' ? String(outer.kind).trim() : '';
+          if (outerKind !== 'td-wallet-keyfile' && outerKind !== 'td-wallet-recovery') {
+            throw new Error('Unsupported recovery file type');
+          }
+
+          return kaspaReadyOrThrow().then(function(k){
+            var inner = outer;
+
+            if (outerKind === 'td-wallet-keyfile') {
+              var ciphertext = typeof outer.ciphertext === 'string' ? outer.ciphertext : '';
+              if (!ciphertext) throw new Error('Keyfile missing ciphertext');
+
+              var plain = k.decryptXChaCha20Poly1305(ciphertext, passphrase);
+              inner = JSON.parse(String(plain || '{}'));
+            }
+
+            var keyfileMnemonic = normalizeMnemonicInput(inner && inner.mnemonic ? inner.mnemonic : '');
+            if (!keyfileMnemonic) {
+              throw new Error(outerKind === 'td-wallet-recovery' ? 'Recovery file missing mnemonic' : 'Keyfile missing mnemonic');
+            }
+            if (keyfileMnemonic !== enteredMnemonic) {
+              throw new Error('Mnemonic does not match recovery file');
+            }
+
+            var recoveredWalletType = String(inner && inner.wallet_type ? inner.wallet_type : (outer && outer.wallet_type ? outer.wallet_type : 'standard')).trim();
+            if (recoveredWalletType !== 'standard') {
+              throw new Error('Only Standard Wallet recovery is supported. Compliance Wallets are broker-custody wallets.');
+            }
+
+            var recoveredNetwork = String(inner && inner.network ? inner.network : (outer && outer.network ? outer.network : '')).trim();
+            if (recoveredNetwork !== 'mainnet' && recoveredNetwork !== 'testnet') {
+              throw new Error('Unsupported recovery network');
+            }
+            if (recoveredNetwork !== uiNetwork()) {
+              throw new Error('Switch Network to ' + netLabel(recoveredNetwork) + ' and try again');
+            }
+
+            var mnemonicPhrase = String(inner.mnemonic || '');
+            var mnemonic = new k.Mnemonic(mnemonicPhrase);
+            var xprv = new k.XPrv(mnemonic.toSeed(passphrase));
+            var keygen = new k.PrivateKeyGenerator(xprv, false, 0n);
+            var priv0 = keygen.receiveKey(0);
+            var userPubKey = priv0.toPublicKey().toString();
+
+            var payload = {
+              recovery_mode: 'standard_import',
+              wallet_type: recoveredWalletType,
+              network: recoveredNetwork,
+              user_pubkey: userPubKey
+            };
+
+            return fetch('/setup/wallet', {
+              method: 'POST',
+              headers: {'Content-Type':'application/json','Accept':'application/json'},
+              body: JSON.stringify(payload)
+            })
+            .then(function(r){ return r.json().catch(function(){ return {}; }); })
+            .then(function(res){
+              return {
+                res: res,
+                kaspa: k,
+                sourceKind: outerKind,
+                mnemonicPhrase: mnemonicPhrase,
+                recoveredNetwork: recoveredNetwork,
+                recoveredWalletType: recoveredWalletType
+              };
+            });
+          });
+        })
+        .then(function(out){
+          var res = out && out.res ? out.res : {};
+          if (res && res.ok) {
+            if (out.sourceKind === 'td-wallet-recovery') {
+              var wid = String(res.wallet_id || '').trim();
+              if (wid) {
+                var nowIso = new Date().toISOString();
+                var reissuedWalletType = String(out && out.recoveredWalletType ? out.recoveredWalletType : 'standard').trim() || 'standard';
+                var inner = {
+                  v: 1,
+                  created_at: nowIso,
+                  wallet_id: wid,
+                  wallet_type: reissuedWalletType,
+                  network: out.recoveredNetwork,
+                  mnemonic: out.mnemonicPhrase,
+                  seed_passphrase: passphrase,
+                  derivation: { kind: 'receive', index: 0, account: 0 }
+                };
+
+                var ciphertext = out.kaspa.encryptXChaCha20Poly1305(JSON.stringify(inner), passphrase);
+                var keyfile = {
+                  kind: 'td-wallet-keyfile',
+                  v: 1,
+                  created_at: nowIso,
+                  wallet_id: wid,
+                  wallet_type: reissuedWalletType,
+                  network: out.recoveredNetwork,
+                  cipher: 'xchacha20poly1305-pw',
+                  ciphertext: ciphertext
+                };
+
+                downloadJson('td-wallet-v1-' + wid + '.json', keyfile);
+              }
+            }
+
+            try { recoverDlg && recoverDlg.close(); } catch(_) {}
+            try { loadWallets(); } catch(_) {}
+            alert(
+              out.sourceKind === 'td-wallet-recovery'
+                ? (res.created === false
+                    ? 'Wallet already existed and was reactivated. A fresh keyfile was downloaded.'
+                    : 'Wallet recovered. A fresh keyfile was downloaded.')
+                : (res.created === false
+                    ? 'Wallet already existed and was reactivated.'
+                    : 'Wallet recovered.')
+            );
+          } else {
+            alert((res && (res.error || res.reason)) || 'Recovery failed');
+          }
+        })
+        .catch(function(err){
+          alert(String(err && err.message ? err.message : err));
+        });
+    }
+
+    function cancelImport(){
+      try { importDlg && importDlg.close(); } catch(_) {}
+    }
+
+    function confirmImport(){
+      var accountEl = document.getElementById('importAccount');
+      var addrEl = document.getElementById('importExpectedAddress');
+      var passEl = document.getElementById('importPassphrase');
+      var mnemonicEl = document.getElementById('importMnemonic');
+
+      var accountText = String(accountEl && accountEl.value ? accountEl.value : '0').trim();
+      var expectedAddress = String(addrEl && addrEl.value ? addrEl.value : '').trim();
+      var passphrase = String(passEl && passEl.value ? passEl.value : '').trim();
+      var mnemonicText = String(mnemonicEl && mnemonicEl.value ? mnemonicEl.value : '').trim();
+
+      if (!accountText) { alert('Account is required.'); return; }
+      if (accountText !== '0' && accountText !== '1') { alert('This diagnostic proof path only supports Account 0 or Account 1 for now.'); return; }
+      if (!expectedAddress) { alert('Displayed Address is required.'); return; }
+      if (!passphrase) { alert('Passphrase is required.'); return; }
+      if (!normalizeMnemonicInput(mnemonicText)) { alert('Mnemonic phrase is required.'); return; }
+
+      function kaspaReadyOrThrow(){
+        if (window.kaspaReady && typeof window.kaspaReady.then === 'function') return window.kaspaReady;
+        return Promise.reject(new Error(String(window.kaspaInitError || 'kaspa_not_ready')));
+      }
+
+      function downloadJson(filename, obj) {
+        var text = JSON.stringify(obj, null, 2);
+        var blob = new Blob([text], { type: 'application/json' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(function(){ try { URL.revokeObjectURL(url); } catch(_) {} try { a.remove(); } catch(_) {} }, 0);
+      }
+
+      kaspaReadyOrThrow()
+        .then(function(k){
+          var mnemonic = new k.Mnemonic(mnemonicText);
+          var normalizedExpected = expectedAddress.trim().toLowerCase();
+          var accountNum = Number(accountText);
+          var match = null;
+
+          var derivationModes = [
+            { label: 'entered derivation passphrase', seedPassphrase: passphrase },
+            { label: 'blank derivation passphrase', seedPassphrase: '' }
+          ];
+
+          for (var m = 0; m < derivationModes.length; m++) {
+            var mode = derivationModes[m];
+            var xprv = new k.XPrv(mnemonic.toSeed(mode.seedPassphrase));
+            var keygen = new k.PrivateKeyGenerator(xprv, false, BigInt(accountNum));
+
+            for (var i = 0; i < 50; i++) {
+              var priv = keygen.receiveKey(i);
+              var derivedAddress = String(priv.toAddress(uiNetwork()).toString()).trim();
+              if (derivedAddress.toLowerCase() === normalizedExpected) {
+                match = {
+                  account: accountNum,
+                  index: i,
+                  userPubKey: priv.toPublicKey().toString(),
+                  derivedAddress: derivedAddress,
+                  derivationMode: mode.label,
+                  matchedSeedPassphrase: mode.seedPassphrase
+                };
+                break;
+              }
+            }
+
+            if (match) break;
+          }
+
+          if (!match) {
+            throw new Error('No matching derived address was found for Account ' + accountText + ' across receive indexes 0 through 49 on ' + netLabel(uiNetwork()) + ', using either entered or blank derivation passphrase.');
+          }
+
+          if (!(match.account === 0 && match.index === 0)) {
+            throw new Error('Matched Account ' + match.account + ' / index ' + match.index + ' using ' + match.derivationMode + ' on ' + netLabel(uiNetwork()) + '. Current CW standard-wallet path is still fixed to Account 0 / index 0, so stop here before import.');
+          }
+
+          return fetch('/setup/wallet', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json','Accept':'application/json'},
+            body: JSON.stringify({
+              recovery_mode: 'standard_import',
+              wallet_type: 'standard',
+              network: uiNetwork(),
+              user_pubkey: match.userPubKey
+            })
+          })
+          .then(function(r){ return r.json().catch(function(){ return {}; }); })
+          .then(function(res){
+            return {
+              res: res,
+              kaspa: k,
+              mnemonicPhrase: mnemonic.phrase,
+              matchedIndex: match.index,
+              matchedAccount: match.account,
+              derivationMode: match.derivationMode,
+              matchedSeedPassphrase: match.matchedSeedPassphrase
+            };
+          });
+        })
+        .then(function(out){
+          var res = out && out.res ? out.res : {};
+          if (res && res.ok) {
+            var wid = String(res.wallet_id || '').trim();
+            if (wid) {
+              var nowIso = new Date().toISOString();
+              var inner = {
+                v: 1,
+                created_at: nowIso,
+                wallet_id: wid,
+                wallet_type: 'standard',
+                network: uiNetwork(),
+                mnemonic: out.mnemonicPhrase,
+                seed_passphrase: out.matchedSeedPassphrase,
+                derivation: { kind: 'receive', index: out.matchedIndex, account: out.matchedAccount }
+              };
+
+              var ciphertext = out.kaspa.encryptXChaCha20Poly1305(JSON.stringify(inner), passphrase);
+              var keyfile = {
+                kind: 'td-wallet-keyfile',
+                v: 1,
+                created_at: nowIso,
+                wallet_id: wid,
+                wallet_type: 'standard',
+                network: uiNetwork(),
+                cipher: 'xchacha20poly1305-pw',
+                ciphertext: ciphertext
+              };
+
+              downloadJson('td-wallet-v1-' + wid + '.json', keyfile);
+            }
+
+            try { importDlg && importDlg.close(); } catch(_) {}
+            try { loadWallets(); } catch(_) {}
+            alert('Wallet imported using ' + out.derivationMode + '. A fresh keyfile was downloaded.');
+          } else {
+            alert((res && (res.error || res.reason)) || 'Import failed');
+          }
+        })
+        .catch(function(err){
+          alert(String(err && err.message ? err.message : err));
+        });
+    }
+
+    // Robust binding: also works if the nav/link is inserted or replaced later.
+    document.addEventListener('click', function(ev){
+      var t = ev.target && ev.target.closest && ev.target.closest('#lnkCreateWallet');
+      if (t) openCreateDialog(ev);
+    });
+
+    // If user clicks the EVM create link while on the KRC page,
+    // hop to /evm#create so the EVM page opens its own dialog.
+    document.addEventListener('click', function(ev){
+      var t = ev.target && ev.target.closest && ev.target.closest('#lnkCreateEVMWallet');
+      if (t) { ev.preventDefault(); window.location.href = '/evm#create'; }
+    });
+
+    // Keep direct binding for initial/static markup too.
+    if (lnkCreate)   lnkCreate.addEventListener('click', openCreateDialog);
+    if (btnCreate)   btnCreate.addEventListener('click', confirmCreate);
+    if (btnCCancel)  btnCCancel.addEventListener('click', cancelCreate);
+    if (btnRecover)  btnRecover.addEventListener('click', confirmRecover);
+    if (btnRCancel)  btnRCancel.addEventListener('click', cancelRecover);
+    if (btnImport)   btnImport.addEventListener('click', confirmImport);
+    if (btnICancel)  btnICancel.addEventListener('click', cancelImport);
+  })();
+
+  (function () {
+    var networkSel = document.getElementById('networkSelect');
+    var walletSel = document.getElementById('walletSelect');
+    var activeNetworkEl = document.getElementById('whitelistActiveNetwork');
+    var addAddressEl = document.getElementById('whitelistAddress');
+    var addBtn = document.getElementById('btnWhitelistAdd');
+    var refreshBtn = document.getElementById('btnWhitelistRefresh');
+    var msgEl = document.getElementById('whitelistMsg');
+    var listBody = document.getElementById('whitelistBody');
+    var activeNetwork = '';
+
+    if (!activeNetworkEl || !addAddressEl || !addBtn || !refreshBtn || !msgEl || !listBody) return;
+
+    function setMsg(message) {
+      msgEl.innerHTML = '<small>' + String(message || '—') + '</small>';
+    }
+
+    function setActiveNetwork(network) {
+      activeNetwork = network === 'mainnet' || network === 'testnet' ? network : '';
+      activeNetworkEl.textContent = activeNetwork || '—';
+    }
+
+    function fmtTs(value) {
+      var v = String(value || '').trim();
+      if (!v) return '—';
+      var ms = Date.parse(v);
+      if (!isFinite(ms)) return v;
+      try {
+        return new Date(ms).toLocaleString();
+      } catch (_) {
+        return v;
+      }
+    }
+
+    function clearBody(message) {
+      listBody.innerHTML = '';
+      var tr = document.createElement('tr');
+      var td = document.createElement('td');
+      td.colSpan = 4;
+      td.className = 'muted';
+      td.textContent = message;
+      tr.appendChild(td);
+      listBody.appendChild(tr);
+    }
+
+    function renderBody(entries) {
+      listBody.innerHTML = '';
+
+      if (!Array.isArray(entries) || entries.length < 1) {
+        clearBody('No whitelist addresses');
+        return;
+      }
+
+      entries.forEach(function (row) {
+        var tr = document.createElement('tr');
+
+        var tdAddress = document.createElement('td');
+        tdAddress.style.wordBreak = 'break-all';
+
+        var fillBtn = document.createElement('button');
+        fillBtn.type = 'button';
+        fillBtn.dataset.fillAddress = String(row && row.address ? row.address : '');
+        fillBtn.title = 'Fill To field';
+        fillBtn.style.padding = '0';
+        fillBtn.style.border = '0';
+        fillBtn.style.background = 'transparent';
+        fillBtn.style.color = 'inherit';
+        fillBtn.style.cursor = 'pointer';
+        fillBtn.style.textAlign = 'left';
+        fillBtn.style.wordBreak = 'break-all';
+        fillBtn.style.textDecoration = 'underline';
+        fillBtn.style.textTransform = 'none';
+        fillBtn.style.letterSpacing = 'normal';
+        fillBtn.textContent = String(row && row.address ? row.address : '—');
+
+        tdAddress.appendChild(fillBtn);
+        tr.appendChild(tdAddress);
+
+        var tdAdded = document.createElement('td');
+        tdAdded.textContent = fmtTs(row && row.added_at);
+        tr.appendChild(tdAdded);
+
+        var tdRemoved = document.createElement('td');
+        tdRemoved.textContent = fmtTs(row && row.removed_at);
+        tr.appendChild(tdRemoved);
+
+        var tdAction = document.createElement('td');
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'secondary';
+        btn.dataset.address = String(row && row.address ? row.address : '');
+
+        if (row && row.removed_at) {
+          btn.textContent = 'Pending';
+          btn.disabled = true;
+        } else {
+          btn.textContent = 'Remove';
+          btn.disabled = false;
+        }
+
+        tdAction.appendChild(btn);
+        tr.appendChild(tdAction);
+
+        listBody.appendChild(tr);
+      });
+    }
+
+    function loadWhitelist() {
+      setMsg('Loading…');
+
+      return fetch('/api/wallet/whitelist', {
+        method: 'GET',
+        headers: { Accept: 'application/json' },
+        cache: 'no-store'
+      })
+        .then(function (r) { return r.json().catch(function () { return {}; }); })
+        .then(function (res) {
+          if (!res || !res.ok) {
+            setActiveNetwork('');
+            clearBody('Whitelist unavailable');
+            setMsg((res && (res.error || res.reason)) || 'Whitelist unavailable');
+            return;
+          }
+
+          setActiveNetwork(res.active_network);
+
+          var wl = res && res.whitelist && res.whitelist.by_network ? res.whitelist.by_network : {};
+          var entries = activeNetwork === 'mainnet'
+            ? wl.mainnet && Array.isArray(wl.mainnet.entries) ? wl.mainnet.entries : []
+            : wl.testnet && Array.isArray(wl.testnet.entries) ? wl.testnet.entries : [];
+
+          renderBody(entries);
+          setMsg('Loaded');
+        })
+        .catch(function () {
+          setActiveNetwork('');
+          clearBody('Whitelist unavailable');
+          setMsg('Whitelist error');
+        });
+    }
+
+    function addWhitelistAddress() {
+      var address = String(addAddressEl.value || '').trim();
+      if (!address) {
+        setMsg('Enter an address to add');
+        return;
+      }
+      if (!activeNetwork) {
+        setMsg('No active wallet network');
+        return;
+      }
+
+      addBtn.disabled = true;
+      refreshBtn.disabled = true;
+      setMsg('Adding…');
+
+      fetch('/api/wallet/whitelist/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ network: activeNetwork, address: address })
+      })
+        .then(function (r) { return r.json().catch(function () { return {}; }); })
+        .then(function (res) {
+          if (!res || !res.ok) {
+            setMsg((res && (res.error || res.reason)) || 'Add failed');
+            return;
+          }
+
+          addAddressEl.value = '';
+          setMsg('Address added. Activates after 24 hours.');
+          loadWhitelist();
+        })
+        .catch(function () {
+          setMsg('Add error');
+        })
+        .finally(function () {
+          addBtn.disabled = false;
+          refreshBtn.disabled = false;
+        });
+    }
+
+    function removeWhitelistAddress(address) {
+      if (!address || !activeNetwork) return;
+
+      addBtn.disabled = true;
+      refreshBtn.disabled = true;
+      setMsg('Removing…');
+
+      fetch('/api/wallet/whitelist/remove', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ network: activeNetwork, address: address })
+      })
+        .then(function (r) { return r.json().catch(function () { return {}; }); })
+        .then(function (res) {
+          if (!res || !res.ok) {
+            setMsg((res && (res.error || res.reason)) || 'Remove failed');
+            return;
+          }
+
+          setMsg('Address removal recorded.');
+          loadWhitelist();
+        })
+        .catch(function () {
+          setMsg('Remove error');
+        })
+        .finally(function () {
+          addBtn.disabled = false;
+          refreshBtn.disabled = false;
+        });
+    }
+
+    function handleWhitelistClick(ev) {
+      var fillBtn = ev.target && ev.target.closest ? ev.target.closest('button[data-fill-address]') : null;
+      if (fillBtn) {
+        var addr = String(fillBtn.dataset.fillAddress || '').trim();
+        var ok = window.setWalletSendToAddress && window.setWalletSendToAddress(addr);
+        setMsg(ok ? 'Filled To field' : 'Unable to fill To field');
+        return;
+      }
+
+      var btn = ev.target && ev.target.closest ? ev.target.closest('button[data-address]') : null;
+      if (!btn || btn.disabled) return;
+
+      removeWhitelistAddress(String(btn.dataset.address || ''));
+    }
+
+    addBtn.addEventListener('click', addWhitelistAddress);
+    refreshBtn.addEventListener('click', loadWhitelist);
+
+    if (networkSel) {
+      networkSel.addEventListener('change', function () {
+        setTimeout(loadWhitelist, 250);
+      }, { passive: true });
+    }
+    if (walletSel) {
+      walletSel.addEventListener('change', function () {
+        setTimeout(loadWhitelist, 250);
+      });
+    }
+
+    listBody.addEventListener('click', handleWhitelistClick);
+
+    loadWhitelist();
+  })();
+
+  function $q(sel) { return document.querySelector(sel); }
+  function resolveControls() {
+    const amountEl = $q('#wAmt, #sendAmount, #amount, input[name="amount"]');
+    const maxBtn   = $q('#btnMax, button[data-action="max"], button.max');
+    const tickerEl = $q('#tokenSelect, #sendTicker, #ticker, input[name="ticker"]');
+    const toEl     = $q('#wTo');
+    const sendBtn  = $q('#btnSend');
+    const swapsBtn = $q('#btnSwaps');
+    const kasWarn  = $q('#kasFeeWarn') || (() => {
+      const el = document.createElement('div');
+      el.id = 'kasFeeWarn';
+      el.className = 'note';
+      el.style.marginTop = '6px';
+      (amountEl && amountEl.parentElement ? amountEl.parentElement : document.body).appendChild(el);
+      return el;
+    })();
+    return { amountEl, maxBtn, tickerEl, toEl, sendBtn, swapsBtn, kasWarn };
+  }
+
+  // Wire send/swap gating + informational estimate only (CB-3)
+  (function () {
+    var c = resolveControls();
+    var amountEl = c.amountEl;
+    var toEl = c.toEl;
+    var sendBtn = c.sendBtn;
+    var swapsBtn = c.swapsBtn;
+    var kasWarn = c.kasWarn;
+    var maxBtn = c.maxBtn;
+    var tickerEl = c.tickerEl;
+    var estimateTimer = 0;
+    var estimateSeq = 0;
+
+    function parseAmount() {
+      if (!amountEl) return NaN;
+      var v = String(amountEl.value || '').trim();
+      var n = parseFloat(v);
+      return isFinite(n) ? n : NaN;
+    }
+
+    function selectedToken() {
+      var token = String(tickerEl && tickerEl.value ? tickerEl.value : '').trim();
+      return token || 'KAS';
+    }
+
+    function isValidRecipient(value) {
+      var to = String(value || '').trim().toLowerCase();
+      return to.startsWith('kaspa:') || to.startsWith('kaspatest:');
+    }
+
+    function setWarn(message) {
+      if (kasWarn) kasWarn.textContent = message;
+    }
+
+    async function fetchEstimateDisplay(seq, token, to, amount) {
+      try {
+        var qs = new URLSearchParams();
+        qs.set('token', token || 'KAS');
+        if (to) qs.set('to', to);
+        if (amount) qs.set('amount', amount);
+
+        var r = await fetch('/api/wallet/estimate?' + qs.toString(), { cache: 'no-store' });
+        var j = r.ok ? await r.json() : null;
+        if (seq !== estimateSeq) return;
+
+        if (j && j.ok && j.kind === 'estimated_kas_required' && typeof j.estimatedTotalKas === 'string') {
+          setWarn('Estimated KAS required: ' + j.estimatedTotalKas + ' KAS');
+          return;
+        }
+        if (j && j.ok && j.kind === 'minimum_kas_required' && typeof j.minimumKasRequiredKas === 'string') {
+          setWarn('Minimum KAS required: ' + j.minimumKasRequiredKas + ' KAS');
+          return;
+        }
+        if (j && j.ok && j.kind === 'needs_input' && typeof j.message === 'string') {
+          setWarn(j.message);
+          return;
+        }
+
+        if (token === 'KAS') {
+          setWarn('Estimated KAS required unavailable.');
+          return;
+        }
+        setWarn('Minimum KAS required unavailable.');
+      } catch (_) {
+        if (seq !== estimateSeq) return;
+        if (token === 'KAS') {
+          setWarn('Estimated KAS required unavailable.');
+          return;
+        }
+        setWarn('Minimum KAS required unavailable.');
+      }
+    }
+
+    function updateGate() {
+      var amt = parseAmount();
+      var swapOk = isFinite(amt) && amt > 0;
+      var to = String(toEl && toEl.value ? toEl.value : '').trim();
+      var sendOk = isValidRecipient(to) && swapOk;
+      var token = selectedToken();
+
+      if (sendBtn) sendBtn.disabled = !sendOk;
+      if (swapsBtn) swapsBtn.disabled = !swapOk;
+      if (!kasWarn) return;
+
+      if (estimateTimer) {
+        clearTimeout(estimateTimer);
+        estimateTimer = 0;
+      }
+      estimateSeq += 1;
+      var seq = estimateSeq;
+
+      if (token.toUpperCase() !== 'KAS') {
+        estimateTimer = setTimeout(function(){
+          fetchEstimateDisplay(seq, token, '', '');
+        }, 180);
+        return;
+      }
+
+      if (!swapOk && !to) {
+        setWarn('Enter amount to enable Swap; enter recipient and amount to enable Send.');
+        return;
+      }
+      if (!swapOk) {
+        setWarn('Enter amount to enable Swap and Send.');
+        return;
+      }
+      if (!isValidRecipient(to)) {
+        setWarn('Enter a valid kaspa: or kaspatest: recipient to enable Send.');
+        return;
+      }
+
+      setWarn('Calculating estimated KAS required…');
+      estimateTimer = setTimeout(function(){
+        fetchEstimateDisplay(seq, 'KAS', to, String(amountEl && amountEl.value ? amountEl.value : '').trim());
+      }, 180);
+    }
+
+    if (amountEl) {
+      amountEl.addEventListener('input', updateGate, { passive: true });
+      amountEl.addEventListener('change', updateGate, { passive: true });
+    }
+    if (toEl) {
+      toEl.addEventListener('input', updateGate, { passive: true });
+      toEl.addEventListener('change', updateGate, { passive: true });
+    }
+    if (tickerEl) tickerEl.addEventListener('change', updateGate, { passive: true });
+    if (maxBtn) maxBtn.addEventListener('click', function(){ setTimeout(updateGate, 0); });
+
+    updateGate();
+  })();
+
+  </script>
+      <footer style="
+      margin-top: 48px;
+      background: #000;
+      color: #fff;
+      padding: 22px 16px;
+      border-top: 1px solid rgba(255,255,255,0.12);
+    ">
+      <div style="
+        max-width: 1100px;
+        margin: 0 auto;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 18px 28px;
+        align-items: center;
+        justify-content: space-between;
+      ">
+        <div style="line-height: 1.35;">
+          <div style="font-weight: 700; letter-spacing: 0.06em;">
+            TOKEN DEPOT CORP.
+          </div>
+          <div style="opacity: 0.9;">
+            Statesville, NC 28625
+          </div>
+          <div style="opacity: 0.9;">
+            Contact Us: <a href="tel:+17046037347" style="color:#fff; text-decoration: underline;">(704) 603-7347</a>
+          </div>
+        </div>
+
+        <div style="text-align: right; line-height: 1.35;">
+          <div style="opacity: 0.9;">
+            © <span id="td-footer-year">2026</span> Token Depot Corp. All rights reserved.
+          </div>
+          <div style="opacity: 0.75; font-size: 0.92em;">
+            Secure digital asset operations • Compliance-first workflows
+          </div>
+        </div>
+      </div>
+
+      <script>
+        // Safe, tiny enhancement: keep the year current
+        (function () {
+          var el = document.getElementById("td-footer-year");
+          if (el) el.textContent = String(new Date().getFullYear());
+        })();
+      </script>
+    </footer>
+  </main>
+</body>
+</html>
+
