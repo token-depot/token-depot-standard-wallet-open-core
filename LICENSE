@@ -1,0 +1,256 @@
+# Token Depot Source-Available License — WTS v0.2
+
+Copyright (c) 2026 Token Depot Corp. All rights reserved.
+
+This Token Depot Source-Available License (the "License") applies to the
+Token Depot Standard Wallet Open-Core repository and the source files,
+documentation, examples, manifests, and other materials included in that
+repository (collectively, the "Licensed Work"), unless a specific file states
+otherwise in writing.
+
+This License is intended to make the Licensed Work inspectable for trust,
+security, audit, customer, investor, developer, educational, and AI-assisted
+review while preserving Token Depot Corp's commercial and proprietary rights.
+
+This License is not an open-source license.
+
+-----------------------------------------------------------------------------
+
+1. Licensor
+
+Licensor: Token Depot Corp
+
+Licensed Work: Token Depot Standard Wallet Open-Core
+
+-----------------------------------------------------------------------------
+
+2. Permitted Uses
+
+Subject to the restrictions below, Token Depot Corp grants you a limited,
+worldwide, non-exclusive, non-transferable, royalty-free license to:
+
+(a) view, download, and inspect the Licensed Work;
+
+(b) copy the Licensed Work for internal review, archival, security review,
+    audit review, customer review, investor due diligence, developer review,
+    educational review, and AI-assisted code analysis;
+
+(c) run the Licensed Work locally for non-production testing, local
+    demonstration, security lab review, compatibility review, and technical
+    evaluation;
+
+(d) create notes, reports, annotations, diffs, summaries, issue reports,
+    security findings, and review materials based on the Licensed Work;
+
+(e) quote limited excerpts of the Licensed Work for commentary, audit,
+    security review, due diligence, or educational discussion, provided that
+    attribution to Token Depot Corp is preserved.
+
+-----------------------------------------------------------------------------
+
+3. Prohibited Uses
+
+You may not, without a separate written commercial license or written
+permission from Token Depot Corp:
+
+(a) use the Licensed Work, modified Licensed Work, or derivative work in
+    production;
+
+(b) operate, host, provide, sell, rent, lease, sublicense, or commercially
+    distribute any wallet service, custody service, broker platform,
+    compliance platform, tokenization platform, bridge, exchange, swap
+    service, or other production service based on or using the Licensed Work;
+
+(c) use the Licensed Work to provide a managed service, software-as-a-service,
+    hosted service, white-label service, enterprise service, broker service,
+    custody service, or compliance service;
+
+(d) copy substantial portions of the Licensed Work into a competing product
+    or service;
+
+(e) remove, obscure, or alter copyright notices, license notices, attribution
+    notices, trademark notices, or source-identification notices;
+
+(f) represent that you are Token Depot Corp, Token Depot, an authorized Token
+    Depot operator, an authorized Token Depot reseller, or an official Token
+    Depot partner unless separately authorized in writing;
+
+(g) use the Token Depot name, Token Depot marks, Token Depot logos, confusingly
+    similar names, or derivative branding in a way that suggests endorsement,
+    sponsorship, affiliation, or authorization by Token Depot Corp;
+
+(h) use the Licensed Work to bypass, attack, probe without authorization,
+    exploit, or obtain unauthorized access to any Token Depot hosted service,
+    Token Depot AWS environment, Token Depot tenant infrastructure, customer
+    account, broker environment, Compliance Node, Oracle Node, wallet service,
+    bridge, API, or operational system;
+
+(i) publish, disclose, or exploit any security vulnerability in a way that
+    increases risk to Token Depot Corp, its users, customers, tenants,
+    brokers, partners, or infrastructure before responsible disclosure has
+    been completed.
+
+-----------------------------------------------------------------------------
+
+4. AI-Assisted Review
+
+You may use AI tools, code analysis tools, static analysis tools, and
+automated review systems to analyze the Licensed Work for the permitted
+non-production review purposes listed above.
+
+AI-assisted review does not grant permission to train, fine-tune, build,
+operate, or commercialize a competing wallet, custody, broker, compliance,
+tokenization, bridge, exchange, swap, or hosted service based on the Licensed
+Work.
+
+If an AI tool creates derived code, summaries, recommendations, or reports
+from the Licensed Work, your use of those outputs remains subject to this
+License to the extent they contain or are derived from protected portions of
+the Licensed Work.
+
+-----------------------------------------------------------------------------
+
+5. Attribution
+
+Any permitted copy, report, excerpt, derivative review material, or
+redistribution allowed under this License must preserve attribution to Token
+Depot Corp and must not imply that Token Depot Corp endorses your use,
+analysis, product, service, or conclusions.
+
+Suggested attribution:
+
+"Based on source-visible materials published by Token Depot Corp."
+
+-----------------------------------------------------------------------------
+
+6. No Trademark License
+
+This License does not grant any trademark, service mark, trade name, logo, or
+branding rights.
+
+You may refer to Token Depot Corp or Token Depot only as necessary for factual
+attribution, commentary, audit review, security review, or compatibility
+discussion.
+
+You may not use Token Depot branding to market, promote, name, or identify
+your own product, service, repository, package, wallet, custody service,
+broker platform, compliance platform, tokenization platform, bridge, exchange,
+or swap service without separate written permission from Token Depot Corp.
+
+-----------------------------------------------------------------------------
+
+7. Ownership
+
+Token Depot Corp retains all right, title, and interest in and to the
+Licensed Work, including all copyrights, trade secrets, proprietary
+architecture, product design, workflows, business logic, documentation, and
+related intellectual property not expressly licensed under this License.
+
+No rights are granted except as expressly stated in this License.
+
+-----------------------------------------------------------------------------
+
+8. Contributions
+
+Unless Token Depot Corp agrees otherwise in writing, any issue, suggestion,
+pull request, patch, review comment, code change, documentation change,
+security report, or other contribution submitted to a Token Depot repository
+may be used by Token Depot Corp for any purpose, including commercial use,
+without obligation to compensate you.
+
+You represent that you have the right to submit any contribution you provide.
+
+-----------------------------------------------------------------------------
+
+9. Third-Party Components
+
+The Licensed Work may reference third-party libraries, packages, APIs, SDKs,
+or other components. Those components are governed by their own licenses and
+terms. This License does not modify third-party license obligations.
+
+-----------------------------------------------------------------------------
+
+10. Security and Responsible Disclosure
+
+If you discover a vulnerability, weakness, misconfiguration, or operational
+risk related to Token Depot Corp or the Licensed Work, you should report it
+responsibly and avoid public disclosure or exploitation until Token Depot Corp
+has had a reasonable opportunity to investigate and remediate.
+
+This License does not authorize unauthorized access, security testing against
+production systems, credential harvesting, data extraction, denial of service,
+or any activity that would violate law or harm users, customers, tenants,
+brokers, partners, or infrastructure.
+
+-----------------------------------------------------------------------------
+
+11. Termination
+
+Any violation of this License automatically terminates your rights under this
+License.
+
+Upon termination, you must stop using the Licensed Work and destroy or delete
+copies in your possession, custody, or control, except to the extent retention
+is required by law or required for a previously prepared audit, legal, or
+security report.
+
+Token Depot Corp may enforce its rights for any violation that occurred before
+termination.
+
+-----------------------------------------------------------------------------
+
+12. No Warranty
+
+THE LICENSED WORK IS PROVIDED "AS IS" AND WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING WITHOUT LIMITATION WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE, NON-INFRINGEMENT,
+SECURITY, ACCURACY, AVAILABILITY, OR ERROR-FREE OPERATION.
+
+You are solely responsible for evaluating the Licensed Work and determining
+whether it is suitable for your review or testing purposes.
+
+-----------------------------------------------------------------------------
+
+13. Limitation of Liability
+
+TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, TOKEN DEPOT CORP WILL NOT
+BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, EXEMPLARY, OR
+PUNITIVE DAMAGES, OR FOR ANY LOSS OF PROFITS, REVENUE, DATA, GOODWILL,
+BUSINESS OPPORTUNITY, DIGITAL ASSETS, TOKENS, FUNDS, OR USE, ARISING OUT OF
+OR RELATED TO THE LICENSED WORK OR THIS LICENSE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGES.
+
+-----------------------------------------------------------------------------
+
+14. No Automatic Open-Source Conversion
+
+The Licensed Work remains proprietary source-available software unless and
+until Token Depot Corp expressly publishes a different license in writing for
+a specific version, file, repository, or release.
+
+This License does not include an automatic conversion date and does not
+pre-commit Token Depot Corp to any future open-source license.
+
+-----------------------------------------------------------------------------
+
+15. Commercial Licensing
+
+Production use, hosted use, commercial use, broker use, custody use,
+enterprise use, compliance-platform use, bridge use, exchange use,
+tokenization-platform use, swap-service use, or white-label use requires a
+separate written commercial license from Token Depot Corp.
+
+For commercial licensing, contact Token Depot Corp through its official
+business channels.
+
+-----------------------------------------------------------------------------
+
+16. Governing Terms
+
+If any provision of this License is unenforceable, the remaining provisions
+remain in effect.
+
+This License is the complete permission granted for the Licensed Work unless
+Token Depot Corp separately grants additional rights in a signed written
+agreement or in a clearly identified license file for a specific file,
+repository, release, or version.
