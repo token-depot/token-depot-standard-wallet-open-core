@@ -2,13 +2,11 @@
 
 ## Purpose
 
-The Wallet Trust Stack exists to help developers, customers, auditors, and investors inspect the Token Depot Standard Wallet self-custody boundary.
+The Wallet Trust Stack helps developers, customers, auditors, and investors inspect the Token Depot Standard Wallet self-custody boundary.
 
-## WTS v1 scope
+## WTS v2 scope
 
-WTS v1 is intentionally narrow. It proves the Standard Wallet key and signing boundary using seven reviewed reference files.
-
-WTS v1 proves:
+WTS v2 proves:
 
 ```text
 Standard Wallet browser-side key creation
@@ -17,25 +15,28 @@ local browser unlock
 server watch-only wallet descriptor storage
 browser-side Standard Wallet KAS signing
 browser-side Standard Wallet KRC-20 commit/reveal signing
-server broadcast of already-signed artifacts
+browser-side Standard Wallet Direct swap signing
+browser-side Standard Wallet Open swap signing
+server coordination/broadcast of already-signed artifacts
 ```
 
-WTS v1 does not prove:
+WTS v2 does not prove:
 
 ```text
 Broker-Custody Wallet self-custody
-Direct swap self-custody
-Open swap self-custody
 Compliance Node custody behavior
+full hosted platform source availability
+production deployment security
 ```
 
 ## Reading order
 
 1. `docs/SELF_CUSTODY.md`
-2. `docs/TECHNICAL_VERIFICATION.md`
-3. `docs/CODE_MAP.md`
-4. `docs/SECURITY.md`
-5. `docs/PUBLIC_PRIVATE_MATRIX.md`
+2. `docs/SWAP_SELF_CUSTODY.md`
+3. `docs/TECHNICAL_VERIFICATION.md`
+4. `docs/CODE_MAP.md`
+5. `docs/SECURITY.md`
+6. `docs/PUBLIC_PRIVATE_MATRIX.md`
 
 ## Review method
 

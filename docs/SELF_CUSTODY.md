@@ -44,8 +44,23 @@ reference/static/js/send_engine.js
 reference/server/src/routes/wallet_send.ts
 ```
 
+## How swaps are signed
+
+For Standard Wallet Direct/Open swap flows, the browser reads the local keyring session and creates required signatures locally. The server coordinates analysis, offer records, transaction preparation, and broadcast.
+
+The relevant source-visible files are:
+
+```text
+reference/static/js/swaps.js
+reference/static/js/offers.js
+reference/static/js/offers_open.js
+reference/server/src/routes/swap_mode_direct.ts
+reference/server/src/routes/swap_mode_open.ts
+reference/server/src/routes/swap_mode_open_v2.ts
+```
+
 ## What this does not claim
 
-This WTS v1 proof does not claim that Broker-Custody Wallets are self-custody. Broker-Custody Wallets are a separate broker-custody product path.
+This proof does not claim that Broker-Custody Wallets are self-custody. Broker-Custody Wallets are a separate broker-custody product path.
 
-This WTS v1 proof does not yet prove Direct swap or Open swap internals. Those will be covered only after a separate WTS v2 source review.
+This proof does not claim that the full hosted Token Depot platform is open-source or independently runnable from this repository.

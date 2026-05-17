@@ -1,5 +1,17 @@
-# Token Depot Source-Available Reference Terms
+# Token Depot Source-Available Reference License
 
-Copyright (c) 2026 Token Depot Corp.
+Copyright (c) 2026 Token Depot Corp. All rights reserved.
 
-Reference source files are published for review and verification. Separate written permission from Token Depot Corp is required for commercial platform operation or redistribution.
+Token Depot Corp grants permission to view, download, and internally review the reference source files in this repository for security, trust, investor, customer, developer, and audit evaluation.
+
+You may quote small excerpts for commentary, audit, or security review with attribution to Token Depot Corp.
+
+You may not, without a separate written license from Token Depot Corp:
+
+- deploy, host, or operate the Token Depot platform or derivative hosted services;
+- copy substantial portions into a competing product;
+- remove Token Depot notices;
+- sell, sublicense, rebrand, or commercially distribute the reference source files;
+- use the reference source files to represent that you are Token Depot or an authorized Token Depot operator.
+
+This reference package is provided "as is" without warranty of any kind. Publication of these files is for transparency and verification and does not create operational support obligations.
