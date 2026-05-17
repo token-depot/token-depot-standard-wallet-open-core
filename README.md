@@ -8,13 +8,12 @@ It is not the full hosted Token Depot platform. It is a curated snapshot of the 
 - The Standard Wallet encrypted keyfile is generated and unlocked locally.
 - The hosted server stores watch-only wallet descriptor data for Standard Wallets.
 - Standard Wallet KAS and KRC-20 transactions are signed in the browser before broadcast.
-- Broker-Custody Wallet code paths are not self-custody claims and are documented separately as out of scope for WTS v1.
+- Direct/Open swap Standard Wallet signatures are produced in the browser from the locally unlocked key.
+- Broker-Custody Wallet code paths are not self-custody claims and are documented separately as out of scope for WTS self-custody claims.
 
-## What WTS v1 covers
+## What WTS v2 covers
 
-WTS v1 covers Standard Wallet creation, local keyfile handling, browser unlock, server watch-only records, and Standard Wallet send signing.
-
-WTS v1 does not yet cover Direct swap or Open swap internals. Those are planned for a later WTS v2 review after separate source forensics.
+WTS v2 covers Standard Wallet creation, local keyfile handling, browser unlock, server watch-only records, Standard Wallet send signing, and Standard Wallet Direct/Open swap signing boundaries.
 
 ## Source snapshot
 
@@ -29,9 +28,10 @@ The copied reference file hashes are recorded in `REFERENCE_MANIFEST.sha256`.
 ## Start here
 
 1. Read `docs/SELF_CUSTODY.md` for the plain-English proof.
-2. Read `docs/TECHNICAL_VERIFICATION.md` for the file-level verification path.
-3. Read `docs/CODE_MAP.md` for what each reference file proves.
-4. Read `docs/SECURITY.md` for what this proof does and does not claim.
+2. Read `docs/SWAP_SELF_CUSTODY.md` for Direct/Open swap self-custody scope.
+3. Read `docs/TECHNICAL_VERIFICATION.md` for the file-level verification path.
+4. Read `docs/CODE_MAP.md` for what each reference file proves.
+5. Read `docs/SECURITY.md` for what this proof does and does not claim.
 
 ## License boundary
 
