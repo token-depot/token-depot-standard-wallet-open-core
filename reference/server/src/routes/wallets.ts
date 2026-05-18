@@ -433,6 +433,7 @@ setupRouter.post("/wallet", async (req, res) => {
     const network = parseNetworkType(body.network);
     const broker_id = body.broker_id;
     const user_pubkey = body.user_pubkey;
+    const wallet_id = body.wallet_id;
 
     if (!wallet_type) {
       return res.json({ ok: false, reason: "wallet_type_invalid" });
@@ -446,14 +447,14 @@ setupRouter.post("/wallet", async (req, res) => {
 
     const recovery_mode = typeof body.recovery_mode === "string" ? body.recovery_mode.trim() : "";
     const isStandardRecovery = wallet_type === "standard" && recovery_mode === "standard_import";
-
-    if (wallet_type === "compliance" && recovery_mode === "compliance_recovery") {
-      return res.json({ ok: false, reason: "legacy_compliance_recovery_removed" });
-    }
+    const isComplianceRecovery = wallet_type === "compliance" && recovery_mode === "compliance_recovery";
 
     if (wallet_type === "compliance") {
-      if (typeof broker_id !== "string" || broker_id.length < 1) {
+      if (!isComplianceRecovery && (typeof broker_id !== "string" || broker_id.length < 1)) {
         return res.json({ ok: false, reason: "broker_id_required_for_compliance" });
+      }
+      if (isComplianceRecovery && (typeof wallet_id !== "string" || wallet_id.trim().length < 1)) {
+        return res.json({ ok: false, reason: "wallet_id_required_for_compliance_recovery" });
       }
       if (network !== "testnet") {
         return res.json({ ok: false, reason: "bcw_local_dev_testnet_only" });
@@ -468,10 +469,67 @@ setupRouter.post("/wallet", async (req, res) => {
     let brokerCustodyKeyRef: string | null = null;
     let brokerCustodyPublicKey: string | null = null;
     let bcwWalletId: string | null = null;
+    let resolvedBrokerId: string | null = wallet_type === "compliance" && typeof broker_id === "string" ? broker_id.trim() : null;
     let address0: string;
 
     if (wallet_type === "standard") {
       address0 = new PublicKey(userPubKey).toAddress(sdkNetwork).toString();
+    } else if (isComplianceRecovery) {
+      const requestedWalletId = typeof wallet_id === "string" ? wallet_id.trim() : "";
+      let cnLookup;
+      try {
+        cnLookup = await cnPostJson("/api/cn/bcw/custody-wallet/lookup", {
+          wallet_id: requestedWalletId,
+          network
+        });
+      } catch (err) {
+        return res.json({ ok: false, reason: "cn_unreachable", error: String(err) });
+      }
+
+      if (!cnLookup.ok || !cnLookup.json || cnLookup.json.ok !== true) {
+        return res.json({
+          ok: false,
+          reason: cnLookup.json && typeof cnLookup.json.reason === "string"
+            ? cnLookup.json.reason
+            : "bcw_custody_lookup_failed",
+          status: cnLookup.status,
+          error: cnLookup.json && typeof cnLookup.json.error === "string" ? cnLookup.json.error : undefined
+        });
+      }
+
+      if (cnLookup.json.wallet_id !== requestedWalletId) {
+        return res.json({ ok: false, reason: "bcw_custody_wallet_id_mismatch" });
+      }
+      if (cnLookup.json.network !== network) {
+        return res.json({ ok: false, reason: "bcw_custody_network_mismatch" });
+      }
+      if (cnLookup.json.signer_state !== "ACTIVE" || cnLookup.json.state !== "ACTIVE") {
+        return res.json({ ok: false, reason: "bcw_custody_wallet_not_active" });
+      }
+
+      const recoveredAddress = typeof cnLookup.json.address0 === "string" ? String(cnLookup.json.address0).trim() : "";
+      const recoveredPublicKey = typeof cnLookup.json.public_key === "string" ? String(cnLookup.json.public_key).trim() : "";
+      const recoveredKeyRef = typeof cnLookup.json.key_ref === "string" ? String(cnLookup.json.key_ref).trim() : "";
+      const recoveredBrokerId = typeof cnLookup.json.broker_id === "string" ? String(cnLookup.json.broker_id).trim() : "";
+
+      if (!recoveredAddress || !recoveredAddress.startsWith("kaspatest:")) {
+        return res.json({ ok: false, reason: "bcw_custody_address_invalid" });
+      }
+      if (!/^(02|03)[0-9a-fA-F]{64}$/.test(recoveredPublicKey)) {
+        return res.json({ ok: false, reason: "bcw_custody_public_key_invalid" });
+      }
+      if (!/^BCWKEY_[a-f0-9]{32}$/.test(recoveredKeyRef)) {
+        return res.json({ ok: false, reason: "bcw_custody_key_ref_invalid" });
+      }
+      if (!recoveredBrokerId) {
+        return res.json({ ok: false, reason: "bcw_custody_broker_id_invalid" });
+      }
+
+      address0 = recoveredAddress;
+      brokerCustodyPublicKey = recoveredPublicKey;
+      brokerCustodyKeyRef = recoveredKeyRef;
+      bcwWalletId = requestedWalletId;
+      resolvedBrokerId = recoveredBrokerId;
     } else {
       const requestedWalletId = generateWalletId();
       let cnProvision;
@@ -532,16 +590,23 @@ setupRouter.post("/wallet", async (req, res) => {
     const userId = requireUserId(res);
     const store = readWalletStore(repoRoot, userId);
 
-    if (isStandardRecovery) {
+    if (isStandardRecovery || isComplianceRecovery) {
       const existing = store.items.find((w) =>
-        w.wallet_type === "standard" &&
+        w.wallet_type === wallet_type &&
         w.network === network &&
-        typeof w.address0 === "string" &&
-        w.address0 === address0
+        ((isStandardRecovery && typeof w.address0 === "string" && w.address0 === address0) ||
+          (isComplianceRecovery && typeof w.id === "string" && w.id === bcwWalletId))
       ) || null;
 
       if (existing) {
-        existing.user_pubkey = userPubKey;
+        if (isComplianceRecovery) {
+          existing.broker_id = resolvedBrokerId;
+          existing.user_auth_pubkey = userPubKey;
+          existing.broker_custody_key_ref = brokerCustodyKeyRef;
+          existing.custody_model = "broker_1of1";
+        } else {
+          existing.user_pubkey = userPubKey;
+        }
         existing.address0 = address0;
         existing.state = "READY";
         store.active_id = existing.id;
@@ -560,7 +625,7 @@ setupRouter.post("/wallet", async (req, res) => {
     const record = makeWalletRecord({
       wallet_type,
       network,
-      broker_id: wallet_type === "compliance" ? String(broker_id || "").trim() : null,
+      broker_id: wallet_type === "compliance" ? resolvedBrokerId : null,
       wallet_id: bcwWalletId,
       custody_model: wallet_type === "compliance" ? "broker_1of1" : undefined,
       broker_custody_key_ref: wallet_type === "compliance" ? brokerCustodyKeyRef : undefined,
@@ -578,14 +643,14 @@ setupRouter.post("/wallet", async (req, res) => {
     record.state = "READY";
 
     store.items.push(record);
-    if (isStandardRecovery) {
+    if (isStandardRecovery || isComplianceRecovery) {
       store.active_id = record.id;
     } else if (!store.active_id) {
       store.active_id = record.id;
     }
     writeWalletStore(repoRoot, userId, store);
 
-    if (isStandardRecovery) {
+    if (isStandardRecovery || isComplianceRecovery) {
       return res.json({
         ok: true,
         address0: record.address0,

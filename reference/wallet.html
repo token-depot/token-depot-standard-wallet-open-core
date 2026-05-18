@@ -61,6 +61,19 @@
     #assetsTable thead th:nth-child(1), #assetsTable tbody td:nth-child(1){ width:30% }
     #assetsTable thead th:nth-child(2), #assetsTable tbody td:nth-child(2){ width:70% }
 
+    /* Create Wallet dropdown: keep human-readable action labels on one line */
+    nav.topnav #dd-create{
+      min-width: 280px !important;
+    }
+    nav.topnav #dd-create a{
+      display: block !important;
+      white-space: nowrap !important;
+      padding: 8px 14px !important;
+    }
+    nav.topnav #dd-create br{
+      display: none !important;
+    }
+
     /* Wallet nav mobile fix: keep logo visible above wrapped links and Create Wallet control */
     @media (max-width: 760px){
       nav.topnav{
@@ -128,10 +141,11 @@
       <div class="menu">
         <button class="dd-toggle" data-dd="create" aria-haspopup="true" aria-expanded="false">Create a Wallet </button>
         <div class="dd-panel" id="dd-create" role="menu" aria-label="Create a Wallet">
-          <a role="menuitem" href="#" id="menuCreateStandard">KRC-20 Wallet</a><br>
-          <a role="menuitem" href="#" id="menuCreateCompliance">KRC-20 Compliance</a><br>
-          <a role="menuitem" href="#" id="menuRecoverStandard">Recover KRC-20 Wallet</a><br>
-          <a role="menuitem" href="#" id="menuImportStandard">Import KRC-20 Wallet</a>
+          <a role="menuitem" href="#" id="menuCreateStandard">Self Custody Wallet</a><br>
+          <a role="menuitem" href="#" id="menuCreateCompliance">Broker Custody Compliance Wallet</a><br>
+          <a role="menuitem" href="#" id="menuRecoverStandard">Recover Self Custody Wallet</a><br>
+          <a role="menuitem" href="#" id="menuRecoverCompliance">Recover Broker Custody Wallet</a><br>
+          <a role="menuitem" href="#" id="menuImportStandard">Import Kastle Wallet</a>
         </div>
       </div>
     </nav>
@@ -181,16 +195,16 @@
           var title = dlg.querySelector('header strong');
           if (title) {
             title.textContent = (window.__CW_CREATE_WALLET_TYPE === 'compliance')
-              ? 'Create KRC-20 compliance wallet'
-              : 'Create KRC-20 wallet';
+              ? 'Create Broker Custody Compliance Wallet'
+              : 'Create Self Custody Wallet';
           }
         }
 
         var intro = document.getElementById('createIntro');
         if (intro) {
           intro.innerHTML = (window.__CW_CREATE_WALLET_TYPE === 'compliance')
-            ? 'Create a <strong>Compliance Wallet</strong> having broker custody to comply with US legal requirements on KRC-20.'
-            : 'Create a <strong>Standard</strong> wallet (1-of-1). You must set a password for signing.';
+            ? 'Create a <strong>Broker Custody Compliance Wallet</strong>. CN holds the protected custody signer; the local keyfile authorizes requests.'
+            : 'Create a <strong>Self Custody Wallet</strong> (1-of-1). You must set a password for signing.';
           intro.style.display = '';
         }
 
@@ -207,8 +221,37 @@
         if (complianceBox) complianceBox.style.display = (window.__CW_CREATE_WALLET_TYPE === 'compliance') ? '' : 'none';
       }
 
+      function setRecoverMode(mode) {
+        window.__CW_RECOVER_WALLET_TYPE = (mode === 'compliance') ? 'compliance' : 'standard';
+
+        var dlg = document.getElementById('recoverDialog');
+        if (dlg) {
+          var title = dlg.querySelector('header strong');
+          if (title) {
+            title.textContent = (window.__CW_RECOVER_WALLET_TYPE === 'compliance')
+              ? 'Recover Broker Custody Wallet'
+              : 'Recover Self Custody Wallet';
+          }
+        }
+
+        var intro = document.getElementById('recoverIntro');
+        if (intro) {
+          intro.innerHTML = (window.__CW_RECOVER_WALLET_TYPE === 'compliance')
+            ? 'Recover an existing Broker Custody Compliance Wallet descriptor using the local BCW access keyfile. The passphrase and authorization secret stay in this browser.'
+            : 'Recover an existing Self Custody Wallet on this server. You must provide either the encrypted keyfile or the recovery file, plus the passphrase and the mnemonic phrase.';
+        }
+
+        var mnemonicWrap = document.getElementById('recoverMnemonicWrap');
+        if (mnemonicWrap) mnemonicWrap.style.display = (window.__CW_RECOVER_WALLET_TYPE === 'compliance') ? 'none' : '';
+
+        var mnemonic = document.getElementById('recoverMnemonic');
+        if (mnemonic && window.__CW_RECOVER_WALLET_TYPE === 'compliance') mnemonic.value = '';
+      }
+
       window.__CW_setCreateMode = setCreateMode;
+      window.__CW_setRecoverMode = setRecoverMode;
       setCreateMode('standard');
+      setRecoverMode('standard');
 
       const ms = document.getElementById('menuCreateStandard');
       if (ms) {
@@ -232,6 +275,16 @@
       if (mr) {
         mr.addEventListener('click', function (e) {
           e.preventDefault();
+          setRecoverMode('standard');
+          try { document.getElementById('recoverDialog')?.showModal?.(); } catch (_) {}
+        });
+      }
+
+      const mrc = document.getElementById('menuRecoverCompliance');
+      if (mrc) {
+        mrc.addEventListener('click', function (e) {
+          e.preventDefault();
+          setRecoverMode('compliance');
           try { document.getElementById('recoverDialog')?.showModal?.(); } catch (_) {}
         });
       }
@@ -588,11 +641,11 @@ kaspatest:replace_with_coupon_receive_address,Todd,todd@example.com,SUB-001,Todd
     <dialog id="recoverDialog">
       <article>
         <header>
-          <strong>Recover wallet</strong>
+          <strong>Recover Self Custody Wallet</strong>
         </header>
 
         <p id="recoverIntro" class="muted">
-          Recover an existing Standard Wallet on this server. You must provide either the encrypted keyfile or the recovery file, plus the passphrase and the mnemonic phrase. Compliance Wallet recovery is no longer supported because Compliance Wallets are broker-custody wallets.
+          Recover an existing Self Custody Wallet on this server. You must provide either the encrypted keyfile or the recovery file, plus the passphrase and the mnemonic phrase.
         </p>
 
         <div class="grid" style="margin-top:.75rem">
@@ -604,7 +657,7 @@ kaspatest:replace_with_coupon_receive_address,Todd,todd@example.com,SUB-001,Todd
           </label>
         </div>
 
-        <label for="recoverMnemonic" style="margin-top:.75rem">Mnemonic Phrase
+        <label id="recoverMnemonicWrap" for="recoverMnemonic" style="margin-top:.75rem">Mnemonic Phrase
           <textarea id="recoverMnemonic" rows="3" placeholder="required"></textarea>
         </label>
 
@@ -619,11 +672,11 @@ kaspatest:replace_with_coupon_receive_address,Todd,todd@example.com,SUB-001,Todd
     <dialog id="importDialog">
       <article>
         <header>
-          <strong>Import KRC-20 wallet</strong>
+          <strong>Import Kastle Wallet</strong>
         </header>
 
         <p id="importIntro" class="muted">
-          Import a compatible standard wallet using a mnemonic phrase and passphrase. This diagnostic proof path supports Account 0 or Account 1, scans receive indexes 0 through 49, and tests both entered-passphrase and blank-passphrase derivation against the address you provide for the currently selected network.
+          Import a compatible Kastle wallet using a mnemonic phrase and passphrase. This diagnostic proof path supports Account 0 or Account 1, scans receive indexes 0 through 49, and tests both entered-passphrase and blank-passphrase derivation against the address you provide for the currently selected network.
         </p>
 
         <div class="grid" style="margin-top:.75rem">
@@ -937,6 +990,7 @@ kaspatest:replace_with_coupon_receive_address,Todd,todd@example.com,SUB-001,Todd
 
     function openRecoverDialog(e){
       if (e) e.preventDefault();
+      if (window.__CW_setRecoverMode) window.__CW_setRecoverMode('standard');
       if (recoverDlg && recoverDlg.showModal) recoverDlg.showModal();
     }
 
@@ -1152,6 +1206,7 @@ kaspatest:replace_with_coupon_receive_address,Todd,todd@example.com,SUB-001,Todd
     }
 
     function confirmRecover(){
+      var recoverType = (window.__CW_RECOVER_WALLET_TYPE === 'compliance') ? 'compliance' : 'standard';
       var fileEl = document.getElementById('recoverKeyfile');
       var passEl = document.getElementById('recoverPassphrase');
       var mnemonicEl = document.getElementById('recoverMnemonic');
@@ -1162,7 +1217,7 @@ kaspatest:replace_with_coupon_receive_address,Todd,todd@example.com,SUB-001,Todd
 
       if (!file) { alert('Recovery file or keyfile is required.'); return; }
       if (!passphrase) { alert('Keyfile passphrase is required.'); return; }
-      if (!enteredMnemonic) { alert('Mnemonic phrase is required.'); return; }
+      if (recoverType === 'standard' && !enteredMnemonic) { alert('Mnemonic phrase is required.'); return; }
 
       function kaspaReadyOrThrow(){
         if (window.kaspaReady && typeof window.kaspaReady.then === 'function') return window.kaspaReady;
@@ -1188,6 +1243,9 @@ kaspatest:replace_with_coupon_receive_address,Todd,todd@example.com,SUB-001,Todd
           if (outerKind !== 'td-wallet-keyfile' && outerKind !== 'td-wallet-recovery') {
             throw new Error('Unsupported recovery file type');
           }
+          if (recoverType === 'compliance' && outerKind !== 'td-wallet-keyfile') {
+            throw new Error('Broker Custody Wallet recovery requires the local BCW access keyfile.');
+          }
 
           return kaspaReadyOrThrow().then(function(k){
             var inner = outer;
@@ -1200,6 +1258,65 @@ kaspatest:replace_with_coupon_receive_address,Todd,todd@example.com,SUB-001,Todd
               inner = JSON.parse(String(plain || '{}'));
             }
 
+            var recoveredWalletType = String(inner && inner.wallet_type ? inner.wallet_type : (outer && outer.wallet_type ? outer.wallet_type : 'standard')).trim();
+            var recoveredNetwork = String(inner && inner.network ? inner.network : (outer && outer.network ? outer.network : '')).trim();
+            if (recoveredNetwork !== 'mainnet' && recoveredNetwork !== 'testnet') {
+              throw new Error('Unsupported recovery network');
+            }
+            if (recoveredNetwork !== uiNetwork()) {
+              throw new Error('Switch Network to ' + netLabel(recoveredNetwork) + ' and try again');
+            }
+
+            if (recoverType === 'compliance') {
+              if (recoveredWalletType !== 'compliance') {
+                throw new Error('Selected file is not a Broker Custody Wallet access keyfile.');
+              }
+
+              var custodyModel = String((inner && inner.custody_model) || (outer && outer.custody_model) || '').trim().toLowerCase();
+              if (custodyModel !== 'broker_1of1') {
+                throw new Error('Broker Custody Wallet keyfile is not broker_1of1.');
+              }
+
+              var walletId = String((inner && inner.wallet_id) || (outer && outer.wallet_id) || '').trim();
+              if (!walletId) throw new Error('Broker Custody Wallet keyfile missing wallet id.');
+
+              var authSecret = String(inner && inner.auth_secret ? inner.auth_secret : '').trim();
+              var authPubkey = String(inner && inner.auth_pubkey ? inner.auth_pubkey : '').trim();
+              if (!authSecret) throw new Error('Broker Custody Wallet keyfile missing authorization secret.');
+              if (!/^(02|03)[0-9a-fA-F]{64}$/.test(authPubkey)) throw new Error('Broker Custody Wallet authorization pubkey invalid.');
+
+              var authPriv = new k.PrivateKey(authSecret);
+              var derivedAuthPubkey = String(authPriv.toPublicKey().toString()).trim();
+              if (derivedAuthPubkey.toLowerCase() !== authPubkey.toLowerCase()) {
+                throw new Error('Broker Custody Wallet authorization secret does not match authorization pubkey.');
+              }
+
+              var compliancePayload = {
+                recovery_mode: 'compliance_recovery',
+                wallet_type: 'compliance',
+                network: recoveredNetwork,
+                wallet_id: walletId,
+                user_pubkey: authPubkey
+              };
+
+              return fetch('/setup/wallet', {
+                method: 'POST',
+                headers: {'Content-Type':'application/json','Accept':'application/json'},
+                body: JSON.stringify(compliancePayload)
+              })
+              .then(function(r){ return r.json().catch(function(){ return {}; }); })
+              .then(function(res){
+                return {
+                  res: res,
+                  kaspa: k,
+                  sourceKind: outerKind,
+                  recoveredNetwork: recoveredNetwork,
+                  recoveredWalletType: recoveredWalletType,
+                  complianceRecovery: true
+                };
+              });
+            }
+
             var keyfileMnemonic = normalizeMnemonicInput(inner && inner.mnemonic ? inner.mnemonic : '');
             if (!keyfileMnemonic) {
               throw new Error(outerKind === 'td-wallet-recovery' ? 'Recovery file missing mnemonic' : 'Keyfile missing mnemonic');
@@ -1207,18 +1324,8 @@ kaspatest:replace_with_coupon_receive_address,Todd,todd@example.com,SUB-001,Todd
             if (keyfileMnemonic !== enteredMnemonic) {
               throw new Error('Mnemonic does not match recovery file');
             }
-
-            var recoveredWalletType = String(inner && inner.wallet_type ? inner.wallet_type : (outer && outer.wallet_type ? outer.wallet_type : 'standard')).trim();
             if (recoveredWalletType !== 'standard') {
-              throw new Error('Only Standard Wallet recovery is supported. Compliance Wallets are broker-custody wallets.');
-            }
-
-            var recoveredNetwork = String(inner && inner.network ? inner.network : (outer && outer.network ? outer.network : '')).trim();
-            if (recoveredNetwork !== 'mainnet' && recoveredNetwork !== 'testnet') {
-              throw new Error('Unsupported recovery network');
-            }
-            if (recoveredNetwork !== uiNetwork()) {
-              throw new Error('Switch Network to ' + netLabel(recoveredNetwork) + ' and try again');
+              throw new Error('Selected file is not a Self Custody Wallet recovery file.');
             }
 
             var mnemonicPhrase = String(inner.mnemonic || '');
@@ -1248,7 +1355,8 @@ kaspatest:replace_with_coupon_receive_address,Todd,todd@example.com,SUB-001,Todd
                 sourceKind: outerKind,
                 mnemonicPhrase: mnemonicPhrase,
                 recoveredNetwork: recoveredNetwork,
-                recoveredWalletType: recoveredWalletType
+                recoveredWalletType: recoveredWalletType,
+                complianceRecovery: false
               };
             });
           });
@@ -1256,7 +1364,7 @@ kaspatest:replace_with_coupon_receive_address,Todd,todd@example.com,SUB-001,Todd
         .then(function(out){
           var res = out && out.res ? out.res : {};
           if (res && res.ok) {
-            if (out.sourceKind === 'td-wallet-recovery') {
+            if (!out.complianceRecovery && out.sourceKind === 'td-wallet-recovery') {
               var wid = String(res.wallet_id || '').trim();
               if (wid) {
                 var nowIso = new Date().toISOString();
@@ -1290,15 +1398,21 @@ kaspatest:replace_with_coupon_receive_address,Todd,todd@example.com,SUB-001,Todd
 
             try { recoverDlg && recoverDlg.close(); } catch(_) {}
             try { loadWallets(); } catch(_) {}
-            alert(
-              out.sourceKind === 'td-wallet-recovery'
-                ? (res.created === false
-                    ? 'Wallet already existed and was reactivated. A fresh keyfile was downloaded.'
-                    : 'Wallet recovered. A fresh keyfile was downloaded.')
-                : (res.created === false
-                    ? 'Wallet already existed and was reactivated.'
-                    : 'Wallet recovered.')
-            );
+            if (out.complianceRecovery) {
+              alert(res.created === false
+                ? 'Broker Custody Wallet already existed and was reactivated.'
+                : 'Broker Custody Wallet recovered.');
+            } else {
+              alert(
+                out.sourceKind === 'td-wallet-recovery'
+                  ? (res.created === false
+                      ? 'Self Custody Wallet already existed and was reactivated. A fresh keyfile was downloaded.'
+                      : 'Self Custody Wallet recovered. A fresh keyfile was downloaded.')
+                  : (res.created === false
+                      ? 'Self Custody Wallet already existed and was reactivated.'
+                      : 'Self Custody Wallet recovered.')
+              );
+            }
           } else {
             alert((res && (res.error || res.reason)) || 'Recovery failed');
           }
