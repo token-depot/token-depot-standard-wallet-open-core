@@ -1,40 +1,69 @@
 # Token Depot Standard Wallet Open-Core
 
-This repository is a source-visible reference package for the Token Depot Standard Wallet self-custody proof.
+This repository publishes the Token Depot Standard Wallet / OMA L1 KCC20-compatible open-source transparency package.
 
-It is not the full hosted Token Depot platform. It is a curated snapshot of the Standard Wallet files that prove the wallet's key ownership boundary:
+It is intended to make the Standard Wallet self-custody boundary and the KCC20-compatible wallet implementation inspectable by users, developers, auditors, token issuers, exchanges, reviewers, and the Kaspa ecosystem.
 
-- Standard Wallet key material is created in the browser.
-- The Standard Wallet encrypted keyfile is generated and unlocked locally.
-- The hosted server stores watch-only wallet descriptor data for Standard Wallets.
-- Standard Wallet KAS and KRC-20 transactions are signed in the browser before broadcast.
-- Direct/Open swap Standard Wallet signatures are produced in the browser from the locally unlocked key.
-- Broker-Custody Wallet code paths are not self-custody claims and are documented separately as out of scope for WTS self-custody claims.
+## License model: open source, not freeware
 
-## What WTS v2 covers
+This repository is dual licensed:
 
-WTS v2 covers Standard Wallet creation, local keyfile handling, browser unlock, server watch-only records, Standard Wallet send signing, and Standard Wallet Direct/Open swap signing boundaries.
+- **Open-source path:** GNU Affero General Public License v3.0 or later (`AGPL-3.0-or-later`).
+- **Commercial path:** separate paid commercial license available from Token Depot Corp.
 
-## Source snapshot
+The open-source path gives users the rights granted by the AGPL, including use, study, modification, redistribution, and network operation subject to the AGPL terms. The commercial path is for operators, vendors, exchanges, brokers, hosted-service providers, white-label deployments, or enterprise users that want separate commercial terms or do not want to rely on the AGPL path.
 
-The reference files were copied from the verified Token Depot Compliance Wallet working bundle:
+"Open source" does not mean Token Depot services, trademarks, hosted infrastructure, support, compliance operations, broker/custody systems, or enterprise integrations are free of charge. Token Depot may charge for hosted services, support, managed deployments, enterprise integrations, commercial licensing, or trademark/branding permissions.
+
+See [`LICENSE`](LICENSE), [`NOTICE.md`](NOTICE.md), and [`docs/OPEN_SOURCE_COMMERCIAL_MODEL.md`](docs/OPEN_SOURCE_COMMERCIAL_MODEL.md).
+
+## Current release anchor
+
+This branch updates the repository from the older WTS v2.1 snapshot toward the CW283 / KCC20 v1 release line.
+
+Pinned working bundle used for this update:
 
 ```text
-6924f3e0b0b0d0abe046a119675680dc455872e92f95330bfcb616b2e160fcd0  Compliance_Wallet_200.zip
+c85f865fd16b1773a4de395861919cc11108f923de4c451ef3754a23badccef8  Compliance_Wallet_283_Mac.zip
+0abe45174d02d70a0e525f844066101622f10b7471472ac2046e0d294ec49b4e  KCC20-Lab_6.zip
+4277504a3d71679e82f7b2143827454005a70f24b7d5cc31b4d9d0e22fd8f7ba  What_the_SDK_Requires_v2-20.zip
+c6c13a43710c287a94ef475faef37ede007d67f8d5425c2306c4bb94279bb81e  Compliance_Node_100.zip
 ```
 
-The copied reference file hashes are recorded in `REFERENCE_MANIFEST.sha256`.
+## What this repository covers
+
+This repository is the open-core/public review package for:
+
+- Standard Wallet browser-local key creation, unlock, and signing boundaries.
+- Watch-only server wallet descriptors for Standard Wallets.
+- Standard Wallet KAS and KRC20 signing paths.
+- KCC20-compatible OMA L1 token deploy, issue, burn, and ownership-transfer behavior.
+- Direct Atomic KCC20 swaps.
+- Open Atomic KCC20 swaps.
+- Public documentation for the KCC20 Reader/Writer model and implementation-language-neutral compatibility profile.
+
+## KCC20 v1 status
+
+The CW283 release line proves:
+
+- Direct Atomic KCC20 v4 remained complete from the CW282 line.
+- Open Atomic KCC20 remained complete from the CW282 line.
+- KCC20 Change Ownership was installed, UI-wired, visually integrated, and live-proven on testnet-10 with OMAC.
+- Coupon Broadcaster and Energy tools currently warn that their token support is KRC20-only; KCC20 support is deferred to a later update.
+- AWS deployment, mainnet live action, and SDK promotion/finalization were not performed in the CW283 release line.
+
+See [`docs/KCC20_SPECIFICATION_V1_1_REVIEW.md`](docs/KCC20_SPECIFICATION_V1_1_REVIEW.md) for the review draft summary. The Word review document with Track Changes is maintained separately for legal/specification review.
+
+## What this repository does not include
+
+This repository does not include production secrets, private keys, passphrases, hosted infrastructure credentials, tenant infrastructure, Compliance Node private internals, Oracle Node private internals, broker-custody private systems, AWS deployment configuration, or Token Depot trademark/branding rights.
 
 ## Start here
 
-1. Read `docs/SELF_CUSTODY.md` for the plain-English proof.
-2. Read `docs/SWAP_SELF_CUSTODY.md` for Direct/Open swap self-custody scope.
-3. Read `docs/TECHNICAL_VERIFICATION.md` for the file-level verification path.
-4. Read `docs/CODE_MAP.md` for what each reference file proves.
-5. Read `docs/SECURITY.md` for what this proof does and does not claim.
-
-## License boundary
-
-This repository is source-visible/open-core. Some files contain hosted-product integration code and are not presented as standalone MIT-licensed application code.
-
-See `NOTICE.md` and `LICENSES/` for licensing terms and boundaries.
+1. Read `docs/OPEN_SOURCE_COMMERCIAL_MODEL.md` for the open-source/commercial boundary.
+2. Read `docs/KCC20_SPECIFICATION_V1_1_REVIEW.md` for the KCC20 v1.1 review summary.
+3. Read `docs/SELF_CUSTODY.md` for the Standard Wallet self-custody proof.
+4. Read `docs/SWAP_SELF_CUSTODY.md` for Direct/Open swap self-custody scope.
+5. Read `docs/TECHNICAL_VERIFICATION.md` for the file-level verification path.
+6. Read `docs/CODE_MAP.md` for what each reference file proves.
+7. Read `docs/SECURITY.md` for what this proof does and does not claim.
