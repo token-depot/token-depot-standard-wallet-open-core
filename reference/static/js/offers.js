@@ -16,6 +16,16 @@
     return sym;
   }
 
+  function fmtCompactAssetLabel(asset, fallback) {
+    var sym = asset && (asset.symbol || asset.ticker || asset.assetId) || '';
+    var name = asset && typeof asset.name === 'string' ? asset.name.trim() : '';
+    var normalizedCa = normalizeDirectCa(sym);
+    var symbolLooksCa = /^[0-9a-f]{64}$/i.test(normalizedCa);
+    if (name) return name;
+    if (sym && !symbolLooksCa && !/^CA:/i.test(String(sym))) return String(sym);
+    return fallback || 'CA token';
+  }
+
   function fmtAmount(amount, asset) {
     var a = (amount != null && amount !== '') ? String(amount) : '?';
     return a + ' ' + fmtAssetLabel(asset);
@@ -41,6 +51,165 @@
     var hours = Math.round(ttl / 3600);
     if (hours <= 0) return '';
     return hours + 'h TTL';
+  }
+
+  var directSponsoredCatalog = [];
+  var DIRECT_HIDE_MY_LIVE_OFFERS_KEY = 'td_hide_my_direct_swap_offers_v1';
+  var directMineOpenOfferIds = Object.create(null);
+  var directMineActiveWalletId = '';
+  var expiredOpenSwapBatchPromptShown = false;
+  var expiredOpenSwapBatchRunning = false;
+  var expiredKcc20AtomicBatchPromptShown = false;
+  var expiredKcc20AtomicBatchRunning = false;
+  var expiredKcc20AtomicOpenBatchPromptShown = false;
+  var expiredKcc20AtomicOpenBatchRunning = false;
+
+  function readDirectHideMyLiveOffers() {
+    try { return localStorage.getItem(DIRECT_HIDE_MY_LIVE_OFFERS_KEY) === '1'; } catch (_) { return false; }
+  }
+
+  function writeDirectHideMyLiveOffers(value) {
+    try { localStorage.setItem(DIRECT_HIDE_MY_LIVE_OFFERS_KEY, value ? '1' : '0'); } catch (_) {}
+  }
+
+  function buildOfferIdMap(items) {
+    var map = Object.create(null);
+    (Array.isArray(items) ? items : []).forEach(function (item) {
+      var offerId = normalizeDirectText(item && item.offerId);
+      if (offerId) map[offerId] = true;
+    });
+    return map;
+  }
+
+  function isDirectMineOffer(offer) {
+    if (!offer || typeof offer !== 'object') return false;
+    var offerId = normalizeDirectText(offer.offerId);
+    if (offerId && directMineOpenOfferIds[offerId]) return true;
+    var makerWalletId = normalizeDirectText(offer.makerWalletId);
+    return !!(directMineActiveWalletId && makerWalletId && makerWalletId === directMineActiveWalletId);
+  }
+
+  function ensureDirectLiveOfferFilterControl() {
+    var listEl = $('offersList');
+    if (!listEl || !listEl.parentNode) return;
+
+    var existing = $('hideMyDirectSwapOffers');
+    if (existing) return;
+
+    var wrap = document.createElement('div');
+    wrap.className = 'offer-sub';
+    wrap.style.margin = '.35rem 0 .65rem';
+
+    var label = document.createElement('label');
+    label.className = 'td-switch-row';
+    label.setAttribute('for', 'hideMyDirectSwapOffers');
+
+    var input = document.createElement('input');
+    input.id = 'hideMyDirectSwapOffers';
+    input.type = 'checkbox';
+    input.checked = readDirectHideMyLiveOffers();
+    input.addEventListener('change', function () {
+      writeDirectHideMyLiveOffers(!!input.checked);
+      window.location.reload();
+    });
+
+    var track = document.createElement('span');
+    track.className = 'td-switch-track';
+    track.setAttribute('aria-hidden', 'true');
+
+    var text = document.createElement('span');
+    text.textContent = 'Hide My Direct Swap Offers (others can still see them)';
+
+    label.appendChild(input);
+    label.appendChild(track);
+    label.appendChild(text);
+    wrap.appendChild(label);
+    listEl.parentNode.insertBefore(wrap, listEl);
+  }
+
+  function normalizeDirectText(raw) {
+    return String(raw == null ? '' : raw).trim();
+  }
+
+  function normalizeDirectLower(raw) {
+    return normalizeDirectText(raw).toLowerCase();
+  }
+
+  function normalizeDirectCa(raw) {
+    var value = normalizeDirectLower(raw);
+    if (value.indexOf('ca:') === 0) return value.slice(3);
+    return value;
+  }
+
+  function normalizeDirectSponsoredCatalogItem(raw) {
+    if (!raw || typeof raw !== 'object') return null;
+
+    var packageType = normalizeDirectText(raw.package_type).toUpperCase();
+    if (packageType !== 'PLUS' && packageType !== 'PRO' && packageType !== 'TENANT') return null;
+
+    var ca = normalizeDirectCa(raw.trigger_ca);
+    var seller = normalizeDirectLower(raw.seller_address);
+    var networkId = normalizeDirectLower(raw.network || 'mainnet');
+    if (!/^[0-9a-f]{64}$/.test(ca)) return null;
+    if (networkId !== 'mainnet') return null;
+    if (seller.indexOf('kaspa:') !== 0) return null;
+
+    return {
+      id: normalizeDirectText(raw.id) || (packageType.toLowerCase() + ':' + ca + ':' + seller),
+      label: normalizeDirectText(raw.trigger_label) || packageType,
+      networkId: networkId,
+      ca: ca,
+      seller: seller,
+      packageType: packageType
+    };
+  }
+
+  function setDirectSponsoredCatalog(items) {
+    directSponsoredCatalog = (Array.isArray(items) ? items : [])
+      .map(normalizeDirectSponsoredCatalogItem)
+      .filter(function (item) { return !!item; });
+  }
+
+  function findDirectSponsoredCatalog(offer) {
+    var networkId = normalizeDirectLower(offer && offer.networkId);
+    var kind = normalizeDirectLower(offer && offer.swapKind);
+    var ca = normalizeDirectCa(offer && offer.ca);
+    var seller = normalizeDirectLower(offer && offer.makerReceiveAddress);
+    var state = normalizeDirectLower(offer && offer.state);
+
+    for (var i = 0; i < directSponsoredCatalog.length; i++) {
+      var item = directSponsoredCatalog[i];
+      if (networkId !== item.networkId) continue;
+      if (kind !== 'ca_to_kas') continue;
+      if (ca !== item.ca) continue;
+      if (seller !== item.seller) continue;
+      if (state && state !== 'open') continue;
+      return item;
+    }
+
+    return null;
+  }
+
+  function appendDirectBadge(parent, label, tone) {
+    var badge = document.createElement('span');
+    badge.textContent = label;
+    badge.style.display = 'inline-flex';
+    badge.style.alignItems = 'center';
+    badge.style.justifyContent = 'center';
+    badge.style.padding = '.12rem .42rem';
+    badge.style.borderRadius = '999px';
+    badge.style.border = tone === 'sponsored'
+      ? '1px solid rgba(255,214,102,.48)'
+      : '1px solid rgba(var(--td-skin-border-rgb), .32)';
+    badge.style.background = tone === 'sponsored'
+      ? 'rgba(255,214,102,.16)'
+      : 'rgba(var(--td-skin-white-rgb), .08)';
+    badge.style.color = 'rgba(var(--td-home-text-rgb), .92)';
+    badge.style.fontSize = '.66rem';
+    badge.style.fontWeight = '800';
+    badge.style.letterSpacing = '.05em';
+    badge.style.textTransform = 'uppercase';
+    parent.appendChild(badge);
   }
 
   function kasToSompiStrict(human) {
@@ -134,6 +303,629 @@
     });
   }
 
+  function signOpenSwapCancelInput(txSafeJson, priv0Hex) {
+    return kaspaReadyOrThrow().then(function (kaspa) {
+      var txRaw = String(txSafeJson || '').trim();
+      var privHex = String(priv0Hex || '').trim();
+      if (!txRaw) throw new Error('open_swap_cancel_tx_missing');
+      if (!privHex) throw new Error('wallet_locked');
+
+      var priv0 = new kaspa.PrivateKey(privHex);
+      var tx = kaspa.Transaction.deserializeFromSafeJSON(txRaw);
+      return kaspa.createInputSignature(tx, 0, priv0, kaspa.SighashType.SingleAnyOneCanPay);
+    });
+  }
+
+  function signBcwOpenSwapCancelIntent(intentMessage, priv0Hex) {
+    return kaspaReadyOrThrow().then(function (kaspa) {
+      var message = String(intentMessage || '').trim();
+      var privHex = String(priv0Hex || '').trim();
+      if (!message) throw new Error('bcw_open_swap_cancel_intent_message_missing');
+      if (!privHex) throw new Error('wallet_locked');
+      if (typeof kaspa.signMessage !== 'function') throw new Error('signMessage_unavailable');
+
+      var priv0 = new kaspa.PrivateKey(privHex);
+      return kaspa.signMessage({
+        message: message,
+        privateKey: priv0
+      });
+    });
+  }
+
+  function sleepMs(ms) {
+    return new Promise(function (resolve) {
+      window.setTimeout(resolve, Math.max(0, Number(ms || 0)));
+    });
+  }
+
+  function hexToBytesForAtomicClaim(hex) {
+    var raw = String(hex || '').trim().toLowerCase();
+    if (!/^[0-9a-f]+$/.test(raw) || raw.length % 2 !== 0) {
+      throw new Error('kcc20_atomic_swap_taker_claim_hex_invalid');
+    }
+    var out = new Uint8Array(raw.length / 2);
+    for (var i = 0; i < raw.length; i += 2) {
+      out[i / 2] = parseInt(raw.slice(i, i + 2), 16);
+    }
+    return out;
+  }
+
+  function fillAtomicClaimInputSignature(tx, inputIndex, signatureScript, reason) {
+    var inputs = tx && Array.isArray(tx.inputs) ? tx.inputs : [];
+    if (!Number.isInteger(inputIndex) || inputIndex < 0 || !inputs[inputIndex]) {
+      throw new Error(reason || 'kcc20_atomic_swap_taker_claim_input_missing');
+    }
+    inputs[inputIndex].signatureScript = signatureScript;
+    tx.inputs = inputs;
+  }
+
+  function buildKcc20AtomicClaimSelectorSignatureScript(kaspa, selectorHex, redeemScriptHex) {
+    var selectorBytes = hexToBytesForAtomicClaim(selectorHex);
+    var redeemScriptBytes = hexToBytesForAtomicClaim(redeemScriptHex);
+    return new kaspa.ScriptBuilder()
+      .addData(selectorBytes)
+      .addData(redeemScriptBytes)
+      .drain();
+  }
+
+  function isKcc20AtomicDirectOffer(offer) {
+    if (!offer || typeof offer !== 'object') return false;
+    var kind = normalizeDirectText(offer.atomic_swap_kind);
+    var source = normalizeDirectText(offer.source);
+    var route = normalizeDirectText(offer.buy && offer.buy.route);
+    return kind === 'kcc20_atomic_direct_maker_lock_v1' || source === 'kcc20_atomic_swap' || route === 'kcc20_atomic_swap_claim';
+  }
+
+  function kcc20AtomicOfferSourceOutpoint(offer) {
+    return normalizeDirectText(
+      offer && (offer.atomic_swap_source_outpoint_key || offer.source_outpoint_key || offer.sourceOutpointKey)
+    );
+  }
+
+  function kcc20AtomicOpenOfferDraft(offer) {
+    if (!offer || typeof offer !== 'object') return null;
+    var draft = offer.offerDraft && typeof offer.offerDraft === 'object' ? offer.offerDraft : null;
+    if (!draft && typeof offer.offerBlob === 'string' && offer.offerBlob.trim()) {
+      try { draft = JSON.parse(offer.offerBlob); } catch (_) { draft = null; }
+    }
+    if (!draft || typeof draft !== 'object') return null;
+    var atomic = draft.atomicSwap && typeof draft.atomicSwap === 'object' ? draft.atomicSwap : null;
+    var protocol = draft.protocol && typeof draft.protocol === 'object' ? draft.protocol : null;
+    var sell = draft.sell && typeof draft.sell === 'object' ? draft.sell : null;
+    if (!(
+      atomic && atomic.kind === 'kcc20_atomic_open_maker_lock_v1' &&
+      protocol && protocol.makerOp === 'kcc20_atomic_open_maker_lock' &&
+      protocol.takerOp === 'kcc20_atomic_open_claim' &&
+      sell && sell.type === 'OMA_L1_COVENANT_TOKEN'
+    )) return null;
+    return draft;
+  }
+
+  function isKcc20AtomicOpenOffer(offer) {
+    return !!kcc20AtomicOpenOfferDraft(offer);
+  }
+
+  function kcc20AtomicOpenOfferSourceOutpoint(offer) {
+    var draft = kcc20AtomicOpenOfferDraft(offer);
+    var atomic = draft && draft.atomicSwap && typeof draft.atomicSwap === 'object' ? draft.atomicSwap : null;
+    return normalizeDirectText(
+      (atomic && atomic.source_outpoint_key) ||
+      (offer && (offer.atomic_swap_source_outpoint_key || offer.source_outpoint_key || offer.sourceOutpointKey))
+    );
+  }
+
+  function kcc20AtomicOpenOfferCovenantId(offer) {
+    var draft = kcc20AtomicOpenOfferDraft(offer);
+    var sell = draft && draft.sell && typeof draft.sell === 'object' ? draft.sell : null;
+    var atomic = draft && draft.atomicSwap && typeof draft.atomicSwap === 'object' ? draft.atomicSwap : null;
+    var candidates = [
+      offer && offer.asset_covenant_id,
+      offer && offer.assetCovenantId,
+      offer && offer.ca,
+      sell && sell.asset_covenant_id,
+      sell && sell.assetCovenantId,
+      sell && sell.ca,
+      atomic && atomic.asset_covenant_id,
+      atomic && atomic.assetCovenantId
+    ];
+    for (var i = 0; i < candidates.length; i++) {
+      var id = normalizeDirectCa(candidates[i]);
+      if (/^[0-9a-f]{64}$/i.test(id)) return id.toLowerCase();
+    }
+    return '';
+  }
+
+  function kcc20AtomicOpenOfferTokenLabel(offer, fallback) {
+    var draft = kcc20AtomicOpenOfferDraft(offer);
+    var sell = draft && draft.sell && typeof draft.sell === 'object' ? draft.sell : null;
+    var symbol = normalizeDirectText((sell && (sell.symbol || sell.ticker)) || (offer && offer.sellSymbol));
+    var name = normalizeDirectText((sell && sell.name) || (offer && offer.sellName));
+    var symbolCa = normalizeDirectCa(symbol);
+    if (symbol && !/^[0-9a-f]{64}$/i.test(symbolCa) && !/^CA:/i.test(symbol)) return symbol;
+    if (name) return name;
+    return fallback || 'KCC20 token';
+  }
+
+  function kcc20AtomicOpenOfferTokenName(offer) {
+    var draft = kcc20AtomicOpenOfferDraft(offer);
+    var sell = draft && draft.sell && typeof draft.sell === 'object' ? draft.sell : null;
+    return normalizeDirectText((sell && sell.name) || (offer && offer.sellName));
+  }
+
+  function directOfferCreatedMs(offer) {
+    var raw = normalizeDirectText(offer && (offer.createdAt || offer.created_at || offer.created));
+    var t = raw ? Date.parse(raw) : 0;
+    return Number.isFinite(t) && t > 0 ? t : 0;
+  }
+
+  function directOfferCreatedLabel(offer) {
+    var raw = normalizeDirectText(offer && (offer.createdAt || offer.created_at || offer.created));
+    if (!raw) return '';
+    var t = Date.parse(raw);
+    if (!Number.isFinite(t) || t <= 0) return raw;
+    return new Date(t).toLocaleString();
+  }
+
+  function directOfferTtlSeconds(offer) {
+    var raw = Number(offer && (offer.ttl != null ? offer.ttl : offer.offer_ttl_seconds));
+    return Number.isFinite(raw) && raw > 0 ? Math.floor(raw) : 0;
+  }
+
+  function directOfferExpiresMs(offer) {
+    var expiresRaw = normalizeDirectText(offer && (offer.expiresAt || offer.expires_at || offer.offer_expires_at));
+    if (expiresRaw) {
+      var expiresMs = Date.parse(expiresRaw);
+      if (Number.isFinite(expiresMs) && expiresMs > 0) return expiresMs;
+    }
+
+    var ttl = directOfferTtlSeconds(offer);
+    if (ttl > 0) {
+      var createdMs = directOfferCreatedMs(offer);
+      if (createdMs > 0) return createdMs + ttl * 1000;
+    }
+
+    return 0;
+  }
+
+  function directOfferIsExpired(offer) {
+    var expiresMs = directOfferExpiresMs(offer);
+    return expiresMs > 0 && expiresMs <= Date.now();
+  }
+
+  function directOfferExpiresText(offer) {
+    var expiresRaw = normalizeDirectText(offer && (offer.expiresAt || offer.expires_at || offer.offer_expires_at));
+    if (expiresRaw) return expiresRaw;
+    var expiresMs = directOfferExpiresMs(offer);
+    return expiresMs > 0 ? new Date(expiresMs).toISOString() : '';
+  }
+
+  function directOfferShortOutpoint(offer) {
+    var outpoint = kcc20AtomicOfferSourceOutpoint(offer);
+    if (!outpoint) return '';
+    return outpoint.length > 24 ? (outpoint.slice(0, 12) + '…' + outpoint.slice(-8)) : outpoint;
+  }
+
+  function directShortCovenantId(value) {
+    var id = normalizeDirectCa(value);
+    if (!/^[0-9a-f]{64}$/i.test(id)) return '';
+    return id.slice(0, 12) + '…' + id.slice(-8);
+  }
+
+  function directKcc20AtomicCovenantId(offer, asset) {
+    var candidates = [
+      offer && offer.asset_covenant_id,
+      offer && offer.assetCovenantId,
+      offer && offer.ca,
+      offer && offer.covenant_id,
+      offer && offer.covenantId,
+      asset && asset.asset_covenant_id,
+      asset && asset.assetCovenantId,
+      asset && asset.covenant_id,
+      asset && asset.covenantId
+    ];
+    for (var i = 0; i < candidates.length; i++) {
+      var id = normalizeDirectCa(candidates[i]);
+      if (/^[0-9a-f]{64}$/i.test(id)) return id.toLowerCase();
+    }
+    return '';
+  }
+
+  function directKcc20AtomicTokenDisplayLabel(offer, asset, fallback) {
+    var symbol = normalizeDirectText((offer && (offer.tokenSymbol || offer.token_symbol)) || (asset && (asset.symbol || asset.ticker || asset.assetId)));
+    var name = normalizeDirectText((offer && (offer.tokenName || offer.token_name)) || (asset && asset.name));
+    var normalizedSymbolAsCa = normalizeDirectCa(symbol);
+    var symbolLooksId = /^[0-9a-f]{64}$/i.test(normalizedSymbolAsCa) || /^CA:/i.test(symbol);
+    var cleanSymbol = symbol && !symbolLooksId ? symbol : '';
+    if (cleanSymbol) return cleanSymbol;
+    if (name) return name;
+    return fallback || 'KCC20 token';
+  }
+
+  function directKcc20AtomicTokenName(offer, asset) {
+    return normalizeDirectText((offer && (offer.tokenName || offer.token_name)) || (asset && asset.name));
+  }
+
+  function sortDirectOffersNewestFirst(items) {
+    return (Array.isArray(items) ? items.slice() : []).sort(function (a, b) {
+      var diff = directOfferCreatedMs(b) - directOfferCreatedMs(a);
+      if (diff) return diff;
+      return normalizeDirectText(b && b.offerId).localeCompare(normalizeDirectText(a && a.offerId));
+    });
+  }
+
+  function postJsonForAtomicClaim(url, body) {
+    return fetch(url, {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body || {})
+    })
+      .then(function (res) {
+        return res.json()
+          .catch(function () { return {}; })
+          .then(function (json) {
+            if (!res.ok || !json || json.ok === false) {
+              var reason = (json && (json.reason || json.error)) || ('HTTP ' + res.status);
+              var err = new Error(reason);
+              err.http_status = res.status;
+              err.response = json || {};
+              throw err;
+            }
+            json.http_status = res.status;
+            return json;
+          });
+      });
+  }
+
+  function atomicClaimPublicSummary(build, signed, submitOut) {
+    return {
+      claim_kind: 'kcc20_atomic_direct_taker_claim_wallet_ui_v1',
+      source_outpoint_key: String((build && build.source_outpoint_key) || (submitOut && submitOut.source_outpoint_key) || ''),
+      token_symbol: String((build && build.token_symbol) || (submitOut && submitOut.token_symbol) || ''),
+      lock_amount_raw: String((build && build.lock_amount_raw) || (submitOut && submitOut.lock_amount_raw) || ''),
+      kas_price_kas: String((build && build.kas_price_kas) || ''),
+      policy_body_kind: String((build && build.policy_body_kind) || (submitOut && submitOut.policy_body_kind) || ''),
+      native_change_output_allowed_by_policy: build ? build.native_change_output_allowed_by_policy === true : null,
+      signed_tx_deserialize_check_ok: signed ? signed.signed_tx_deserialize_check_ok === true : null,
+      submit_kind: String((submitOut && submitOut.submit_kind) || ''),
+      application_status: String((submitOut && submitOut.application_status) || ''),
+      submitted_txid: String((submitOut && submitOut.submitted_txid) || ''),
+      tracking_record_status: String((submitOut && submitOut.tracking && submitOut.tracking.record_status) || ''),
+      released_output_outpoint: String((submitOut && submitOut.tracking && submitOut.tracking.released_output_outpoint) || '')
+    };
+  }
+
+  function atomicMakerRefundPublicSummary(build, signed, submitOut) {
+    return {
+      refund_kind: 'kcc20_atomic_direct_maker_refund_wallet_ui_v1',
+      source_outpoint_key: String((build && build.source_outpoint_key) || (submitOut && submitOut.source_outpoint_key) || ''),
+      token_symbol: String((build && build.token_symbol) || (submitOut && submitOut.token_symbol) || ''),
+      lock_amount_raw: String((build && build.lock_amount_raw) || (submitOut && submitOut.lock_amount_raw) || ''),
+      refund_lock_daa: String((build && build.refund_lock_daa) || (submitOut && submitOut.refund_lock_daa) || ''),
+      signed_tx_deserialize_check_ok: signed ? signed.signed_tx_deserialize_check_ok === true : null,
+      submit_kind: String((submitOut && submitOut.submit_kind) || ''),
+      application_status: String((submitOut && submitOut.application_status) || ''),
+      submitted_txid: String((submitOut && submitOut.submitted_txid) || ''),
+      tracking_record_status: String((submitOut && submitOut.tracking && submitOut.tracking.record_status) || ''),
+      released_output_outpoint: String((submitOut && submitOut.tracking && submitOut.tracking.released_output_outpoint) || '')
+    };
+  }
+
+  function normalizeAtomicOpCheckSigSignature65(signatureHex, reason) {
+    var bytes = hexToBytesForAtomicClaim(signatureHex);
+    if (bytes.length === 66 && bytes[0] === 0x41) bytes = bytes.slice(1);
+    if (bytes.length !== 65) throw new Error(reason || 'kcc20_atomic_swap_signature_must_be_65_bytes_for_op_checksig');
+    return bytes;
+  }
+
+  function buildKcc20AtomicRefundSignatureScript(kaspa, signatureHex, selectorHex, redeemScriptHex) {
+    var signatureBytes = normalizeAtomicOpCheckSigSignature65(
+      signatureHex,
+      'kcc20_atomic_swap_maker_refund_signature_must_be_65_bytes_for_op_checksig'
+    );
+    var selectorBytes = new Uint8Array();
+    var redeemScriptBytes = hexToBytesForAtomicClaim(redeemScriptHex);
+    return new kaspa.ScriptBuilder()
+      .addData(signatureBytes)
+      .addData(selectorBytes)
+      .addData(redeemScriptBytes)
+      .drain();
+  }
+
+  function buildKcc20AtomicDirectMakerRefund(rowData) {
+    var sourceOutpointKey = normalizeDirectText(rowData && rowData.sourceOutpointKey);
+    if (!/^[0-9a-f]{64}:\d+$/i.test(sourceOutpointKey)) {
+      throw new Error('kcc20_atomic_swap_maker_refund_source_outpoint_key_required');
+    }
+    return postJsonForAtomicClaim('/api/covenants/issuer-token/atomic-swap/direct/maker-refund/build', {
+      source_outpoint_key: sourceOutpointKey
+    });
+  }
+
+  function signKcc20AtomicDirectMakerRefund(build, priv0Hex) {
+    return kaspaReadyOrThrow().then(function (kaspa) {
+      var txRaw = String(build && build.txToSignSafeJson || '').trim();
+      var privHex = String(priv0Hex || '').trim();
+      if (!txRaw) throw new Error('kcc20_atomic_swap_maker_refund_build_missing_tx');
+      if (!privHex) throw new Error('wallet_locked');
+
+      var ctx = build.signing_context_public && typeof build.signing_context_public === 'object' ? build.signing_context_public : {};
+      var holderInputIndex = Number(ctx.holder_input_index);
+      if (!Number.isInteger(holderInputIndex) || holderInputIndex < 0) {
+        throw new Error('kcc20_atomic_swap_maker_refund_holder_input_not_signable');
+      }
+
+      var redeemScriptHex = String(ctx.source_swap_locked_holder_redeem_script_hex || '').trim().toLowerCase();
+      var selectorHex = String(ctx.refund_selector_hex || build.refund_selector_hex || '00').trim().toLowerCase();
+      if (!/^[0-9a-f]+$/i.test(redeemScriptHex) || redeemScriptHex.length % 2 !== 0) {
+        throw new Error('kcc20_atomic_swap_maker_refund_redeem_script_missing');
+      }
+      if (!/^[0-9a-f]+$/i.test(selectorHex) || selectorHex.length % 2 !== 0) {
+        throw new Error('kcc20_atomic_swap_maker_refund_selector_invalid');
+      }
+
+      var priv0 = new kaspa.PrivateKey(privHex);
+      var tx = kaspa.Transaction.deserializeFromSafeJSON(txRaw);
+      var signatureHex = kaspa.createInputSignature(tx, holderInputIndex, priv0, null);
+      var refundSignatureScript = buildKcc20AtomicRefundSignatureScript(kaspa, signatureHex, selectorHex, redeemScriptHex);
+      fillAtomicClaimInputSignature(
+        tx,
+        holderInputIndex,
+        refundSignatureScript,
+        'kcc20_atomic_swap_maker_refund_holder_signature_script_missing'
+      );
+
+      tx.finalize();
+      var signedSafeJson = tx.serializeToSafeJSON();
+      kaspa.Transaction.deserializeFromSafeJSON(signedSafeJson);
+      return {
+        stage: 'kcc20_atomic_swap_maker_refund_wallet_ui_signed_v1',
+        signedSafeJson: signedSafeJson,
+        signed_tx_deserialize_check_ok: true
+      };
+    });
+  }
+
+  function submitKcc20AtomicDirectMakerRefund(build, signed) {
+    if (!build || !signed || !signed.signedSafeJson) {
+      throw new Error('kcc20_atomic_swap_maker_refund_submit_missing_signed_tx');
+    }
+    return postJsonForAtomicClaim('/api/covenants/issuer-token/atomic-swap/direct/maker-refund/submit', {
+      source_outpoint_key: build.source_outpoint_key,
+      submit_token: build.submit_token,
+      submit_intent: build.submit_intent_required || 'submit_oma_l1_kcc20_atomic_direct_swap_maker_refund_v1',
+      signed_safe_json: signed.signedSafeJson
+    });
+  }
+
+  function buildKcc20AtomicOpenMakerRefund(rowData) {
+    var sourceOutpointKey = normalizeDirectText(rowData && rowData.sourceOutpointKey);
+    var offerId = normalizeDirectText(rowData && rowData.offerId);
+    if (!/^[0-9a-f]{64}:\d+$/i.test(sourceOutpointKey)) {
+      throw new Error('kcc20_atomic_open_swap_maker_refund_source_outpoint_key_required');
+    }
+    if (!offerId) {
+      throw new Error('kcc20_atomic_open_swap_maker_refund_offer_id_required');
+    }
+    return postJsonForAtomicClaim('/api/covenants/issuer-token/atomic-swap/open/maker-refund/build', {
+      offer_id: offerId,
+      open_swap_offer_id: offerId,
+      source_outpoint_key: sourceOutpointKey
+    });
+  }
+
+  function signKcc20AtomicOpenMakerRefund(build, priv0Hex) {
+    return signKcc20AtomicDirectMakerRefund(build, priv0Hex);
+  }
+
+  function submitKcc20AtomicOpenMakerRefund(build, signed) {
+    if (!build || !signed || !signed.signedSafeJson) {
+      throw new Error('kcc20_atomic_open_swap_maker_refund_submit_missing_signed_tx');
+    }
+    return postJsonForAtomicClaim('/api/covenants/issuer-token/atomic-swap/open/maker-refund/submit', {
+      offer_id: build.open_swap_offer_id || build.offer_id || '',
+      open_swap_offer_id: build.open_swap_offer_id || build.offer_id || '',
+      source_outpoint_key: build.source_outpoint_key,
+      submit_token: build.submit_token,
+      submit_intent: build.submit_intent_required || 'submit_oma_l1_kcc20_atomic_open_swap_maker_refund_v1',
+      signed_safe_json: signed.signedSafeJson
+    });
+  }
+
+  function buildKcc20AtomicDirectTakerClaim(offer) {
+    var sourceOutpointKey = kcc20AtomicOfferSourceOutpoint(offer);
+    if (!/^[0-9a-f]{64}:\d+$/i.test(sourceOutpointKey)) {
+      throw new Error('kcc20_atomic_swap_taker_claim_source_outpoint_key_required');
+    }
+    return postJsonForAtomicClaim('/api/covenants/issuer-token/atomic-swap/direct/taker-claim/build', {
+      source_outpoint_key: sourceOutpointKey,
+      max_implicit_fee_sompi: '10000000'
+    });
+  }
+
+  function signKcc20AtomicDirectTakerClaim(build, priv0Hex) {
+    return kaspaReadyOrThrow().then(function (kaspa) {
+      var txRaw = String(build && build.txToSignSafeJson || '').trim();
+      var privHex = String(priv0Hex || '').trim();
+      if (!txRaw) throw new Error('kcc20_atomic_swap_taker_claim_build_missing_tx');
+      if (!privHex) throw new Error('wallet_locked');
+
+      var signInputIndexes = Array.isArray(build.signInputIndexes) ? build.signInputIndexes.map(function (n) { return Number(n); }) : [];
+      var signSet = Object.create(null);
+      signInputIndexes.forEach(function (n) { if (Number.isInteger(n) && n >= 0) signSet[n] = true; });
+
+      var ctx = build.signing_context_public && typeof build.signing_context_public === 'object' ? build.signing_context_public : {};
+      var holderInputIndex = Number(ctx.holder_input_index);
+      var fundingInputIndex = Number(ctx.native_kas_funding_input_index);
+      if (!Number.isInteger(holderInputIndex) || holderInputIndex < 0 || !signSet[holderInputIndex]) {
+        throw new Error('kcc20_atomic_swap_taker_claim_holder_input_not_signable');
+      }
+      if (!Number.isInteger(fundingInputIndex) || fundingInputIndex < 0 || !signSet[fundingInputIndex]) {
+        throw new Error('kcc20_atomic_swap_taker_claim_native_funding_input_not_signable');
+      }
+
+      var redeemScriptHex = String(ctx.source_swap_locked_holder_redeem_script_hex || '').trim().toLowerCase();
+      var selectorHex = String(ctx.claim_selector_hex || build.claim_selector_hex || '01').trim().toLowerCase();
+      if (!/^[0-9a-f]+$/i.test(redeemScriptHex) || redeemScriptHex.length % 2 !== 0) {
+        throw new Error('kcc20_atomic_swap_taker_claim_redeem_script_missing');
+      }
+      if (!/^[0-9a-f]+$/i.test(selectorHex) || selectorHex.length % 2 !== 0) {
+        throw new Error('kcc20_atomic_swap_taker_claim_selector_invalid');
+      }
+
+      var priv0 = new kaspa.PrivateKey(privHex);
+      var tx = kaspa.Transaction.deserializeFromSafeJSON(txRaw);
+      var selectorSignatureScript = buildKcc20AtomicClaimSelectorSignatureScript(kaspa, selectorHex, redeemScriptHex);
+      fillAtomicClaimInputSignature(
+        tx,
+        holderInputIndex,
+        selectorSignatureScript,
+        'kcc20_atomic_swap_taker_claim_holder_signature_script_missing'
+      );
+      fillAtomicClaimInputSignature(
+        tx,
+        fundingInputIndex,
+        kaspa.createInputSignature(tx, fundingInputIndex, priv0, null),
+        'kcc20_atomic_swap_taker_claim_native_funding_signature_missing'
+      );
+
+      tx.finalize();
+      var signedSafeJson = tx.serializeToSafeJSON();
+      kaspa.Transaction.deserializeFromSafeJSON(signedSafeJson);
+      return {
+        stage: 'kcc20_atomic_swap_taker_claim_wallet_ui_signed_v1',
+        signedSafeJson: signedSafeJson,
+        signed_tx_deserialize_check_ok: true
+      };
+    });
+  }
+
+  function submitKcc20AtomicDirectTakerClaim(build, signed) {
+    if (!build || !signed || !signed.signedSafeJson) {
+      throw new Error('kcc20_atomic_swap_taker_claim_submit_missing_signed_tx');
+    }
+    return postJsonForAtomicClaim('/api/covenants/issuer-token/atomic-swap/direct/taker-claim/submit', {
+      submit_token: build.submit_token,
+      submit_intent: build.submit_intent_required,
+      signedSafeJson: signed.signedSafeJson
+    });
+  }
+
+  function handleKcc20AtomicDirectClaimClick(offer, clickedButton) {
+    if (isSigningFill) return;
+    isSigningFill = true;
+    lastPsktRequest = null;
+    lastSendContext = null;
+
+    var originalButtonText = clickedButton ? clickedButton.textContent : '';
+    if (clickedButton) {
+      clickedButton.disabled = true;
+      clickedButton.textContent = 'Claiming…';
+    }
+
+    updateFillPanel({
+      summary: 'Preparing KCC20 atomic direct claim…',
+      status: 'Building taker-claim transaction from the selected live maker-lock.',
+      psktText: '',
+      sendText: '',
+      canConfirm: false,
+      buttonLabel: 'Claiming…'
+    });
+
+    var priv0Hex = getKeyringPriv0Hex();
+    if (!priv0Hex) {
+      isSigningFill = false;
+      if (clickedButton) {
+        clickedButton.disabled = false;
+        clickedButton.textContent = originalButtonText || 'Buy';
+      }
+      updateFillPanel({
+        summary: 'Keyfile unlock required to claim this atomic swap.',
+        status: 'Unlock your keyfile in the Wallet tab first, then click Buy again.',
+        psktText: '',
+        sendText: '',
+        canConfirm: false,
+        buttonLabel: 'Claim Atomic Swap'
+      });
+      return;
+    }
+
+    var built = null;
+    var signed = null;
+    buildKcc20AtomicDirectTakerClaim(offer)
+      .then(function (build) {
+        built = build;
+        updateFillPanel({
+          summary: 'Signing KCC20 atomic direct claim…',
+          status: 'Build succeeded. Signing claim selector and native KAS funding input.',
+          psktText: JSON.stringify(atomicClaimPublicSummary(build, null, null), null, 2),
+          sendText: '',
+          canConfirm: false,
+          buttonLabel: 'Signing…'
+        });
+        return signKcc20AtomicDirectTakerClaim(build, priv0Hex);
+      })
+      .then(function (signedOut) {
+        signed = signedOut;
+        updateFillPanel({
+          summary: 'Submitting KCC20 atomic direct claim…',
+          status: 'Signed locally. Submitting claim to testnet-10.',
+          psktText: JSON.stringify(atomicClaimPublicSummary(built, signedOut, null), null, 2),
+          sendText: '',
+          canConfirm: false,
+          buttonLabel: 'Submitting…'
+        });
+        return submitKcc20AtomicDirectTakerClaim(built, signedOut);
+      })
+      .then(function (submitOut) {
+        isSigningFill = false;
+        var section = $('fillSection');
+        if (section) section.__reloadAfterClose = true;
+        var summaryObj = atomicClaimPublicSummary(built, signed, submitOut);
+        updateFillPanel({
+          summary: 'Success — KCC20 Atomic Direct Swap claimed.',
+          status: 'Claim submitted. Txid: ' + (summaryObj.submitted_txid || 'unknown'),
+          statusClass: 'fill-success',
+          psktText: JSON.stringify(summaryObj, null, 2),
+          sendText: '',
+          canConfirm: false,
+          buttonLabel: 'Claim Submitted',
+          closeLabel: 'Close & Refresh Offers'
+        });
+        if (clickedButton) {
+          clickedButton.disabled = true;
+          clickedButton.textContent = 'Claimed';
+        }
+      })
+      .catch(function (err) {
+        console.error('offers.atomicClaim error', err);
+        isSigningFill = false;
+        var reason = err && (err.reason || err.message) ? String(err.reason || err.message) : String(err);
+        var response = err && err.response ? err.response : null;
+        var detail = response && response.error ? String(response.error) : '';
+        var statusText = reason;
+        if (reason === 'kcc20_atomic_swap_taker_claim_policy_requires_final_true_v3') {
+          statusText = 'This is an older v1/v2 atomic swap offer. Use the newest Direct Swap offer, or refresh after hiding old/claimed rows.';
+        } else if (detail && detail !== reason) {
+          statusText = reason + '\n' + detail;
+        }
+        updateFillPanel({
+          summary: 'KCC20 atomic direct claim failed.',
+          status: statusText,
+          psktText: response ? JSON.stringify(response, null, 2) : '',
+          sendText: '',
+          canConfirm: false,
+          buttonLabel: 'Retry Claim'
+        });
+        if (clickedButton) {
+          clickedButton.disabled = false;
+          clickedButton.textContent = originalButtonText || 'Buy';
+        }
+      });
+  }
+
   function loadTakerWallet() {
     // Best-effort: we only need the active Kaspa address for fills.
     fetch('/api/wallet/holdings?strict=1', {
@@ -220,6 +1012,7 @@
     var sendEl    = $('fillSendCtx');
     var statusEl  = $('fillStatus');
     var btn       = $('fillConfirmBtn');
+    var closeBtn  = $('fillCloseBtn');
     if (!section || !summaryEl || !psktEl || !sendEl || !statusEl) return;
 
     var shared = getSwapAnalyzerSharedOrNull();
@@ -232,10 +1025,12 @@
       psktEl.textContent = '';
       sendEl.textContent = '';
       statusEl.textContent = '';
+      statusEl.classList.remove('fill-success');
       if (btn) {
         btn.disabled = true;
         btn.textContent = 'Confirm & Sign Swap';
       }
+      if (closeBtn) closeBtn.textContent = 'Close';
       if (analyzerRefs.panel) analyzerRefs.panel.style.display = 'none';
       if (shared) shared.clearAnalyzer(analyzerRefs);
       return;
@@ -244,8 +1039,11 @@
     section.style.display = 'block';
     summaryEl.textContent = state.summary || '';
     statusEl.textContent  = state.status || '';
+    statusEl.classList.toggle('fill-success', state.statusClass === 'fill-success');
     psktEl.textContent    = state.psktText || '';
     sendEl.textContent    = state.sendText || '';
+
+    if (closeBtn) closeBtn.textContent = state.closeLabel || 'Close';
 
     if (btn) {
       var canConfirm = !!state.canConfirm;
@@ -284,6 +1082,10 @@
   }
 
   function closeFillModal(reason) {
+    var section = $('fillSection');
+    var shouldReloadOffers = !!(section && section.__reloadAfterClose);
+    if (section) section.__reloadAfterClose = false;
+
     isSigningFill = false;
     lastPsktRequest = null;
     lastSendContext = null;
@@ -292,6 +1094,10 @@
     if (pwEl) pwEl.value = '';
 
     updateFillPanel(null);
+    if (shouldReloadOffers) {
+      window.location.reload();
+      return;
+    }
   }
 
 function handleConfirmFill() {
@@ -381,21 +1187,26 @@ function handleConfirmFill() {
     function finishOk(txid) {
       isSigningFill = false;
       var status = txid
-        ? ('Swap submitted. Txid: ' + txid)
-        : 'Swap submitted. (No txid returned.)';
+        ? ('Success — swap submitted. Txid: ' + txid)
+        : 'Success — swap submitted.';
+
+      var section = $('fillSection');
+      if (section) section.__reloadAfterClose = true;
 
       updateFillPanel({
-        summary: 'PSKT fill submitted to wallet.',
+        summary: 'Success — swap submitted.',
         status: status,
+        statusClass: 'fill-success',
         psktText: JSON.stringify(lastPsktRequest || {}, null, 2),
         sendText: JSON.stringify(lastSendContext || {}, null, 2),
         canConfirm: false,
-        buttonLabel: 'Confirm & Sign Swap'
+        buttonLabel: 'Swap Submitted',
+        closeLabel: 'Close & Refresh Offers'
       });
 
       if (btn) {
         btn.disabled = true;
-        btn.textContent = 'Confirm & Sign Swap';
+        btn.textContent = 'Swap Submitted';
       }
     }
 
@@ -536,7 +1347,7 @@ function handleConfirmFill() {
       });
   }
 
-  function handleFillClick(offer) {
+  function handleFillClick(offer, clickedButton) {
     var offerId = offer && (offer.offerId || offer.offer_id || '');
     var fillSize = offer && (offer.sellAmount || offer.sell_amount || '');
     if (!offerId || !fillSize) {
@@ -552,6 +1363,11 @@ function handleConfirmFill() {
     lastPsktRequest = null;
     lastSendContext = null;
     isSigningFill = false;
+
+    if (isKcc20AtomicDirectOffer(offer)) {
+      handleKcc20AtomicDirectClaimClick(offer, clickedButton || null);
+      return;
+    }
 
     if (!takerWallet || !takerWallet.address) {
       updateFillPanel({
@@ -885,10 +1701,20 @@ function handleConfirmFill() {
     var fillSectionEl = $('fillSection');
     if (!listEl || !statusEl) return;
 
+    ensureDirectLiveOfferFilterControl();
+
+    var rawItems = sortDirectOffersNewestFirst(items);
+    var hideMine = readDirectHideMyLiveOffers();
+    var visibleItems = hideMine
+      ? rawItems.filter(function (offer) { return !isDirectMineOffer(offer); })
+      : rawItems;
+
     listEl.innerHTML = '';
 
-    if (!items || !items.length) {
-      statusEl.textContent = 'No direct swap offers.';
+    if (!visibleItems.length) {
+      statusEl.textContent = hideMine && rawItems.length
+        ? 'No direct swap offers shown. Your live Direct Swap offers are hidden by the switch.'
+        : 'No direct swap offers.';
       listEl.style.display = 'none';
       if (fillSectionEl) fillSectionEl.style.display = 'none';
       if (sectionEl) sectionEl.setAttribute('data-empty', '1');
@@ -897,105 +1723,1174 @@ function handleConfirmFill() {
 
     listEl.style.display = '';
     if (sectionEl) sectionEl.removeAttribute('data-empty');
-    statusEl.textContent = items.length + ' direct swap offer' + (items.length === 1 ? '' : 's') + '.';
+    statusEl.textContent = visibleItems.length + ' direct swap row' + (visibleItems.length === 1 ? '' : 's') +
+      ' / ' + visibleItems.length + ' live offer' + (visibleItems.length === 1 ? '' : 's') +
+      (hideMine ? ' shown, newest first.' : ', newest first.');
 
-    items.forEach(function (offer) {
-      var sell = offer.sell || {};
-      var buy  = offer.buy  || {};
-      var sellLabel = fmtAmount(offer.sellAmount, sell);
-      var buyLabel  = fmtAmount(offer.buyAmount, buy);
+    var table = document.createElement('div');
+    table.className = 'grouped-offers-table';
 
+    var header = document.createElement('div');
+    header.className = 'grouped-offers-header';
+    ['Token', 'Description / Terms', 'Price', 'Available', 'Action'].forEach(function (label) {
+      var cell = document.createElement('div');
+      cell.textContent = label;
+      header.appendChild(cell);
+    });
+    table.appendChild(header);
+
+    visibleItems.forEach(function (offer) {
+      var settlementAsset = offer.sell || {};
+      var tokenAsset = offer.buy || {};
+      var tokenAmount = String(offer && offer.buyAmount != null ? offer.buyAmount : '?');
+      var settlementAmount = String(offer && offer.sellAmount != null ? offer.sellAmount : '?');
+      var catalog = findDirectSponsoredCatalog(offer);
+      var isKcc20Atomic = isKcc20AtomicDirectOffer(offer);
+      var atomicCovenantId = isKcc20Atomic ? directKcc20AtomicCovenantId(offer, tokenAsset) : '';
+      var displayLabel = catalog ? catalog.label : (isKcc20Atomic
+        ? directKcc20AtomicTokenDisplayLabel(offer, tokenAsset, 'KCC20 token')
+        : fmtCompactAssetLabel(tokenAsset, 'CA token'));
+      var settlementLabel = fmtCompactAssetLabel(settlementAsset, 'KAS');
       var isComplianceOnly = !!offer.complianceOnly;
+      var isDirected = !!(offer && offer.takerTokenReceiveAddress);
+      var expiresAt = directOfferExpiresText(offer);
+      var ca = normalizeDirectCa(offer && offer.ca);
 
-      var card = document.createElement('article');
-      card.className = 'offer-card card';
-      if (isComplianceOnly) {
-        card.style.borderColor = 'rgba(255,214,102,.45)';
-        card.style.boxShadow = '0 0 0 1px rgba(255,214,102,.14), 0 0 18px rgba(255,214,102,.12)';
-        card.style.background = 'linear-gradient(180deg, rgba(255,214,102,.08), rgba(255,214,102,.03))';
+      var row = document.createElement('div');
+      row.className = 'grouped-offer-row';
+
+      var tokenCell = document.createElement('div');
+      var tokenTitle = document.createElement('div');
+      tokenTitle.className = 'offer-title';
+      tokenTitle.textContent = displayLabel + ' · ' + tokenAmount + ' each';
+      tokenCell.appendChild(tokenTitle);
+
+      var badgeWrap = document.createElement('div');
+      badgeWrap.style.display = 'flex';
+      badgeWrap.style.flexWrap = 'wrap';
+      badgeWrap.style.gap = '.25rem';
+      badgeWrap.style.marginTop = '.2rem';
+      if (catalog) appendDirectBadge(badgeWrap, 'SPONSORED', 'sponsored');
+      if (isKcc20Atomic) appendDirectBadge(badgeWrap, 'ATOMIC KCC20', 'atomic');
+      if (isComplianceOnly) appendDirectBadge(badgeWrap, 'COMPLIANCE', 'compliance');
+      if (badgeWrap.childNodes.length) tokenCell.appendChild(badgeWrap);
+      row.appendChild(tokenCell);
+
+      var descCell = document.createElement('div');
+      var details = document.createElement('details');
+      details.className = 'grouped-offer-inline-details';
+
+      var summary = document.createElement('summary');
+      summary.textContent = 'Receive ' + tokenAmount + ' ' + displayLabel + ' per purchase.';
+      details.appendChild(summary);
+
+      var terms = document.createElement('p');
+      terms.className = 'offer-sub';
+      terms.textContent = 'Direct swap. One live offer. Seller receives ' + settlementAmount + ' ' + settlementLabel + '. ' +
+        (isDirected ? 'Directed recipient only.' : 'Available to eligible buyers.');
+      details.appendChild(terms);
+
+      if (isKcc20Atomic) {
+        var atomicTokenName = directKcc20AtomicTokenName(offer, tokenAsset);
+        if (atomicTokenName && atomicTokenName !== displayLabel) {
+          var atomicNameLine = document.createElement('p');
+          atomicNameLine.className = 'offer-sub';
+          atomicNameLine.textContent = 'Token name: ' + atomicTokenName;
+          details.appendChild(atomicNameLine);
+        }
+        if (atomicCovenantId) {
+          var atomicCovenantLine = document.createElement('p');
+          atomicCovenantLine.className = 'offer-sub';
+          atomicCovenantLine.textContent = 'Covenant ID: ' + atomicCovenantId;
+          details.appendChild(atomicCovenantLine);
+        }
+      } else if (ca && /^[0-9a-f]{64}$/.test(ca)) {
+        var caLine = document.createElement('p');
+        caLine.className = 'offer-sub';
+        caLine.textContent = 'CA: ' + ca;
+        details.appendChild(caLine);
       }
 
-      var main = document.createElement('div');
-      main.className = 'offer-main';
+      var settlementLine = document.createElement('p');
+      settlementLine.className = 'offer-sub';
+      settlementLine.textContent = 'Settlement asset: ' + settlementLabel +
+        (expiresAt ? ('. Expires: ' + expiresAt + '.') : '.');
+      details.appendChild(settlementLine);
 
-      var left = document.createElement('div');
-      var title = document.createElement('div');
-      title.className = 'offer-title';
-      title.textContent = sellLabel + ' → ' + buyLabel;
-
-      left.appendChild(title);
-
-      var right = document.createElement('div');
-      right.className = 'offer-sub';
-      right.style.display = 'flex';
-      right.style.flexDirection = 'column';
-      right.style.alignItems = 'flex-end';
-      right.style.gap = '.35rem';
-
-      var stateText = document.createElement('div');
-      stateText.textContent = fmtState(offer.state || 'open');
-      right.appendChild(stateText);
-
-      if (isComplianceOnly) {
-        var badge = document.createElement('div');
-        badge.textContent = 'Compliance Only';
-        badge.style.padding = '.18rem .5rem';
-        badge.style.borderRadius = '999px';
-        badge.style.border = '1px solid rgba(255,214,102,.45)';
-        badge.style.background = 'rgba(255,214,102,.14)';
-        badge.style.color = 'rgba(255,244,214,1)';
-        badge.style.fontSize = '.78rem';
-        badge.style.fontWeight = '700';
-        badge.style.letterSpacing = '.02em';
-        right.appendChild(badge);
+      var createdLabel = directOfferCreatedLabel(offer);
+      if (createdLabel) {
+        var createdLine = document.createElement('p');
+        createdLine.className = 'offer-sub';
+        createdLine.textContent = 'Created: ' + createdLabel + ' (newest offers are shown first).';
+        details.appendChild(createdLine);
       }
 
-      main.appendChild(left);
-      main.appendChild(right);
-
-      var meta = document.createElement('div');
-      meta.className = 'offer-meta';
-      var expiresAt = String(offer && offer.expiresAt ? offer.expiresAt : '');
-      var expiresSpan = document.createElement('span');
-      expiresSpan.textContent = expiresAt ? ('Expires: ' + expiresAt) : 'Expires: (n/a)';
-      meta.appendChild(expiresSpan);
-
-      var modeSpan = document.createElement('span');
-      if (offer && offer.takerTokenReceiveAddress) {
-        modeSpan.textContent = 'Directed';
-      } else {
-        modeSpan.textContent = 'Open';
+      var shortOutpoint = directOfferShortOutpoint(offer);
+      if (shortOutpoint) {
+        var outpointLine = document.createElement('p');
+        outpointLine.className = 'offer-sub';
+        outpointLine.textContent = 'Swap outpoint: ' + shortOutpoint;
+        details.appendChild(outpointLine);
       }
-      meta.appendChild(modeSpan);
 
-      var actions = document.createElement('div');
-      actions.className = 'offer-actions';
+      descCell.appendChild(details);
+      row.appendChild(descCell);
 
+      var priceCell = document.createElement('div');
+      priceCell.textContent = settlementAmount + ' KAS';
+      row.appendChild(priceCell);
+
+      var availableCell = document.createElement('div');
+      availableCell.textContent = '1 live';
+      row.appendChild(availableCell);
+
+      var actionCell = document.createElement('div');
       var btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'secondary';
-      btn.textContent = 'Buy';
+      btn.textContent = isKcc20AtomicDirectOffer(offer) ? 'Claim' : 'Buy';
       btn.dataset.offerId = offer.offerId || '';
       btn.addEventListener('click', function () {
-        handleFillClick(offer);
+        handleFillClick(offer, btn);
       });
+      actionCell.appendChild(btn);
+      row.appendChild(actionCell);
 
+      table.appendChild(row);
+    });
+
+    listEl.appendChild(table);
+  }
+
+  function mySwapText(value) {
+    return String(value == null ? '' : value).trim();
+  }
+
+  function mySwapDetailLine(label, value) {
+    var text = mySwapText(value);
+    return text ? (label + ': ' + text) : '';
+  }
+
+  function mySwapKasAmountNumber(value) {
+    var text = mySwapText(value).replace(/\s*KAS\s*$/i, '').trim();
+    if (!text) return NaN;
+    var n = Number(text);
+    return Number.isFinite(n) ? n : NaN;
+  }
+
+  function isKcc20AtomicOpenLegacyUnrecoverableReason(reason) {
+    var text = mySwapText(reason).toLowerCase();
+    return text.indexOf('kcc20_atomic_open_swap_maker_refund_policy_body_hash_mismatch') >= 0 ||
+      text.indexOf('policy_body_hash_mismatch') >= 0;
+  }
+
+  function isKcc20AtomicOpenUnderMinimumKasPrice(value) {
+    var n = mySwapKasAmountNumber(value);
+    return Number.isFinite(n) && n < 1;
+  }
+
+  function mySwapListingHistoryDetails(item, offerId) {
+    var details = [];
+    var idText = mySwapText(offerId || (item && item.offerId));
+    if (idText) details.push('Offer ID: ' + idText);
+    var createdAt = mySwapDetailLine('Created', item && item.createdAt);
+    var updatedAt = mySwapDetailLine('Updated', item && item.updatedAt);
+    var expiresAt = mySwapDetailLine('Expires', item && item.expiresAt);
+    var cancelledAt = mySwapDetailLine('Cancelled', item && item.cancelledAt);
+    var cancelFailedAt = mySwapDetailLine('Cancel failed', item && item.cancelFailedAt);
+    [createdAt, updatedAt, expiresAt, cancelledAt, cancelFailedAt].forEach(function (line) {
+      if (line) details.push(line);
+    });
+    return details;
+  }
+
+  function mySwapAssetLabelFromDirect(asset, fallback) {
+    return fmtCompactAssetLabel(asset || {}, fallback || 'Asset');
+  }
+
+  function mySwapAssetLabelFromOpen(item) {
+    var name = mySwapText(item && item.sellName);
+    if (name) return name;
+    var symbol = mySwapText(item && item.sellSymbol);
+    if (!symbol) return 'Asset';
+    var ca = normalizeDirectCa(symbol);
+    if (/^[0-9a-f]{64}$/i.test(ca)) return 'CA token';
+    if (/^CA:/i.test(symbol)) return 'CA token';
+    return symbol;
+  }
+
+  function normalizeMySwapRows(kind, items) {
+    return (Array.isArray(items) ? items : []).map(function (item) {
+      if (!item || typeof item !== 'object') return null;
+
+      if (kind === 'open') {
+        var isAtomicOpen = isKcc20AtomicOpenOffer(item);
+        var openLabel = isAtomicOpen ? kcc20AtomicOpenOfferTokenLabel(item, 'KCC20 token') : mySwapAssetLabelFromOpen(item);
+        var openTokenName = isAtomicOpen ? kcc20AtomicOpenOfferTokenName(item) : '';
+        var openSellAmount = mySwapText(item.sellAmount || '?');
+        var openBuyAmount = mySwapText(item.buyAmountKas || '?');
+        var openCancelFailureReason = mySwapText(item.cancelFailureReason);
+        var openLegacyUnrecoverable = !!(isAtomicOpen && (
+          isKcc20AtomicOpenLegacyUnrecoverableReason(openCancelFailureReason) ||
+          isKcc20AtomicOpenUnderMinimumKasPrice(openBuyAmount)
+        ));
+        var openSourceOutpointKey = isAtomicOpen ? kcc20AtomicOpenOfferSourceOutpoint(item) : '';
+        var openCovenantId = isAtomicOpen ? kcc20AtomicOpenOfferCovenantId(item) : '';
+        var openDetails = [
+          openTokenName && openTokenName !== openLabel ? ('Token name: ' + openTokenName) : '',
+          item.sellSymbol ? ('Offered asset: ' + item.sellSymbol) : '',
+          openSourceOutpointKey ? ('Swap outpoint: ' + openSourceOutpointKey) : '',
+          openCovenantId ? ('Covenant ID: ' + openCovenantId) : '',
+          isAtomicOpen ? 'KCC20 Atomic Open maker-lock: cancel/refund uses the on-chain maker-refund route.' : '',
+          openLegacyUnrecoverable ? 'Legacy test artifact: not included in automatic recovery by the current KCC20 Open policy route.' : '',
+          openCancelFailureReason ? ('Cancel failure reason: ' + openCancelFailureReason) : ''
+        ].filter(Boolean);
+        return {
+          source: 'open',
+          offerId: mySwapText(item.offerId),
+          state: mySwapText(item.state) || 'open',
+          expiresAt: mySwapText(item.expiresAt),
+          title: openLabel + ' · ' + openSellAmount + ' each',
+          summary: (isAtomicOpen ? 'Open KCC20 atomic swap. Sell ' : 'Open swap. Sell ') + openSellAmount + ' ' + openLabel + ' for ' + openBuyAmount + ' KAS.',
+          price: openBuyAmount + ' KAS',
+          details: openDetails,
+          historyDetails: mySwapListingHistoryDetails(item, item.offerId),
+          cancelTxid: mySwapText(item.cancelTxid),
+          cancelledAt: mySwapText(item.cancelledAt),
+          cancelFailedAt: mySwapText(item.cancelFailedAt),
+          cancelFailureReason: openCancelFailureReason,
+          cancelFailureCount: Number(item.cancelFailureCount || 0),
+          isAtomicOpen: isAtomicOpen,
+          atomicOpenLegacyUnrecoverable: openLegacyUnrecoverable,
+          sourceOutpointKey: openSourceOutpointKey
+        };
+      }
+
+      var tokenAsset = item.buy || {};
+      var settlementAsset = item.sell || {};
+      var isAtomicDirect = isKcc20AtomicDirectOffer(item);
+      var tokenLabel = isAtomicDirect
+        ? directKcc20AtomicTokenDisplayLabel(item, tokenAsset, 'KCC20 token')
+        : mySwapAssetLabelFromDirect(tokenAsset, 'CA token');
+      var atomicTokenName = isAtomicDirect ? directKcc20AtomicTokenName(item, tokenAsset) : '';
+      var settlementLabel = mySwapAssetLabelFromDirect(settlementAsset, 'KAS');
+      var directBuyAmount = mySwapText(item.buyAmount || '?');
+      var directSellAmount = mySwapText(item.sellAmount || '?');
+      var atomicCovenantId = isAtomicDirect ? directKcc20AtomicCovenantId(item, tokenAsset) : '';
+      var sourceOutpointKey = kcc20AtomicOfferSourceOutpoint(item);
+      var atomicOfferExpiresAt = isAtomicDirect ? directOfferExpiresText(item) : mySwapText(item && item.expiresAt);
+      var atomicOfferExpired = !!(isAtomicDirect && directOfferIsExpired(item));
+      var atomicDetails = isAtomicDirect ? [
+        atomicTokenName && atomicTokenName !== tokenLabel ? ('Token name: ' + atomicTokenName) : '',
+        sourceOutpointKey ? ('Swap outpoint: ' + sourceOutpointKey) : '',
+        atomicCovenantId ? ('Covenant ID: ' + atomicCovenantId) : '',
+        atomicOfferExpiresAt ? ('Expires: ' + atomicOfferExpiresAt) : '',
+        atomicOfferExpired ? 'Expired: recovery available to maker wallet' : '',
+        item.refund_lock_daa ? ('Maker refund lock DAA: ' + item.refund_lock_daa) : '',
+        item.takerTokenReceiveAddress ? ('Fixed taker token receive address: ' + item.takerTokenReceiveAddress) : ''
+      ].filter(Boolean) : [];
+      return {
+        source: 'direct',
+        offerId: mySwapText(item.offerId),
+        state: mySwapText(item.state) || 'open',
+        expiresAt: atomicOfferExpiresAt,
+        ttl: directOfferTtlSeconds(item),
+        offerExpired: atomicOfferExpired,
+        title: tokenLabel + ' · ' + directBuyAmount + ' each',
+        summary: (isAtomicDirect ? 'Atomic KCC20 direct swap. Sell ' : 'Direct swap. Sell ') + directBuyAmount + ' ' + tokenLabel + ' for ' + directSellAmount + ' ' + settlementLabel + '.',
+        price: directSellAmount + ' KAS',
+        details: [
+          item.ca ? ('CA: ' + normalizeDirectCa(item.ca)) : ''
+        ].filter(Boolean).concat(atomicDetails),
+        historyDetails: mySwapListingHistoryDetails(item, item.offerId),
+        isAtomicDirect: isAtomicDirect,
+        sourceOutpointKey: sourceOutpointKey
+      };
+    }).filter(function (row) { return !!(row && row.offerId); });
+  }
+
+  function groupMySwapRows(rows) {
+    var groups = [];
+    var byKey = Object.create(null);
+
+    (Array.isArray(rows) ? rows : []).forEach(function (row) {
+      if (!row || !row.offerId) return;
+      var key = [row.source, row.state, row.title, row.summary, row.price].join('|');
+      var group = byKey[key];
+
+      if (!group) {
+        group = {
+          source: row.source,
+          offerId: row.offerId,
+          offerIds: [],
+          state: row.state,
+          title: row.title,
+          summary: row.summary,
+          price: row.price,
+          details: row.details ? row.details.slice() : [],
+          historyDetails: [],
+          count: 0,
+          isAtomicDirect: !!row.isAtomicDirect,
+          isAtomicOpen: !!row.isAtomicOpen,
+          atomicOpenLegacyUnrecoverable: !!row.atomicOpenLegacyUnrecoverable,
+          offerExpired: !!row.offerExpired,
+          sourceOutpointKey: row.sourceOutpointKey || '',
+          sourceOutpointKeys: []
+        };
+        byKey[key] = group;
+        groups.push(group);
+      }
+
+      group.count += 1;
+      if (row.isAtomicOpen) group.isAtomicOpen = true;
+      if (row.atomicOpenLegacyUnrecoverable) group.atomicOpenLegacyUnrecoverable = true;
+      if (row.state === 'open') group.offerIds.push(row.offerId);
+      if (row.sourceOutpointKey) group.sourceOutpointKeys.push(row.sourceOutpointKey);
+      if (!group.sourceOutpointKey && row.sourceOutpointKey) group.sourceOutpointKey = row.sourceOutpointKey;
+      if (row.offerExpired) group.offerExpired = true;
+      if (Array.isArray(row.historyDetails) && row.historyDetails.length) {
+        if (group.count > 1) group.historyDetails.push('—');
+        group.historyDetails = group.historyDetails.concat(row.historyDetails);
+      }
+    });
+
+    groups.forEach(function (group) {
+      var count = Number(group.count || 0);
+      if (group.historyDetails && group.historyDetails.length) {
+        group.details = group.details.concat(group.historyDetails);
+      }
+      if (count > 1) {
+        group.details = group.details.concat([count + ' matching listing' + (count === 1 ? '' : 's') + ' in this row. Cancel/Expire removes one listing at a time.']);
+      }
+      group.statusText = count > 1 ? (count + ' ' + group.state) : group.state;
+      if (group.isAtomicDirect && group.offerExpired && group.state === 'atomic_locked') group.statusText = 'expired — recovery needed';
+      if (group.isAtomicOpen && group.state === 'expired') group.statusText = 'expired — refund available';
+      if (group.isAtomicOpen && group.atomicOpenLegacyUnrecoverable) group.statusText = 'legacy — recovery unavailable';
+      if (group.state === 'open' && group.offerIds.length) group.offerId = group.offerIds[0];
+      if ((group.state === 'atomic_locked' || group.isAtomicOpen) && group.sourceOutpointKeys.length) group.sourceOutpointKey = group.sourceOutpointKeys[0];
+    });
+
+    return groups;
+  }
+
+  function setMySwapsStatus(text) {
+    var statusEl = $('mySwapsStatus');
+    if (statusEl) statusEl.textContent = text;
+  }
+
+  function ensureExpiredOpenSwapBatchModal() {
+    var existing = $('expiredOpenSwapBatchModal');
+    if (existing) return existing;
+
+    var overlay = document.createElement('div');
+    overlay.id = 'expiredOpenSwapBatchModal';
+    overlay.style.position = 'fixed';
+    overlay.style.inset = '0';
+    overlay.style.zIndex = '10000';
+    overlay.style.display = 'none';
+    overlay.style.alignItems = 'center';
+    overlay.style.justifyContent = 'center';
+    overlay.style.background = 'rgba(0,0,0,.68)';
+    overlay.style.padding = '1rem';
+
+    var card = document.createElement('div');
+    card.style.width = 'min(520px, 94vw)';
+    card.style.borderRadius = '18px';
+    card.style.border = '1px solid rgba(151, 101, 12, .75)';
+    card.style.background = '#fff7df';
+    card.style.color = '#1a160d';
+    card.style.boxShadow = '0 24px 80px rgba(0,0,0,.42)';
+    card.style.padding = '1.15rem';
+
+    var title = document.createElement('div');
+    title.id = 'expiredOpenSwapBatchModalTitle';
+    title.style.fontWeight = '800';
+    title.style.fontSize = '1.05rem';
+    title.style.marginBottom = '.65rem';
+    card.appendChild(title);
+
+    var body = document.createElement('div');
+    body.id = 'expiredOpenSwapBatchModalBody';
+    body.style.lineHeight = '1.45';
+    body.style.color = '#2a2418';
+    card.appendChild(body);
+
+    var detail = document.createElement('div');
+    detail.id = 'expiredOpenSwapBatchModalDetail';
+    detail.style.marginTop = '.8rem';
+    detail.style.fontWeight = '700';
+    detail.style.color = '#111';
+    card.appendChild(detail);
+
+    var actions = document.createElement('div');
+    actions.id = 'expiredOpenSwapBatchModalActions';
+    actions.style.display = 'flex';
+    actions.style.justifyContent = 'flex-end';
+    actions.style.gap = '.6rem';
+    actions.style.marginTop = '1rem';
+    card.appendChild(actions);
+
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
+    return overlay;
+  }
+
+  function setExpiredOpenSwapBatchModalText(titleText, bodyText, detailText) {
+    var overlay = ensureExpiredOpenSwapBatchModal();
+    var title = $('expiredOpenSwapBatchModalTitle');
+    var body = $('expiredOpenSwapBatchModalBody');
+    var detail = $('expiredOpenSwapBatchModalDetail');
+    if (title) title.textContent = titleText || '';
+    if (body) body.textContent = bodyText || '';
+    if (detail) detail.textContent = detailText || '';
+    overlay.style.display = 'flex';
+  }
+
+  function setExpiredOpenSwapBatchModalActions(buttons) {
+    var actions = $('expiredOpenSwapBatchModalActions');
+    if (!actions) return;
+    actions.innerHTML = '';
+    (Array.isArray(buttons) ? buttons : []).forEach(function (cfg) {
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = cfg && cfg.primary ? 'primary' : 'secondary';
+      btn.textContent = cfg && cfg.label ? cfg.label : 'OK';
+      btn.disabled = !!(cfg && cfg.disabled);
+      btn.addEventListener('click', function () {
+        if (cfg && typeof cfg.onClick === 'function') cfg.onClick();
+      });
       actions.appendChild(btn);
-
-      card.appendChild(main);
-      card.appendChild(meta);
-      card.appendChild(actions);
-
-      listEl.appendChild(card);
     });
   }
 
-  function loadOffers() {
-    var statusEl = $('offersStatus');
-    if (statusEl) statusEl.textContent = 'Loading direct swap offers…';
+  function hideExpiredOpenSwapBatchModal() {
+    var overlay = $('expiredOpenSwapBatchModal');
+    if (overlay) overlay.style.display = 'none';
+  }
 
-    fetch('/api/offers/list?state=open', {
+  function chooseExpiredOpenSwapBatch(count) {
+    return new Promise(function (resolve) {
+      setExpiredOpenSwapBatchModalText(
+        'Expired Open Swap Recovery',
+        'You have ' + count + ' expired Open Swap offer' + (count === 1 ? '' : 's') + ' that still need on-chain cancellation. Cancel them now to return listed tokens to your wallet?',
+        ''
+      );
+      setExpiredOpenSwapBatchModalActions([
+        {
+          label: 'Later',
+          primary: false,
+          onClick: function () { hideExpiredOpenSwapBatchModal(); resolve(false); }
+        },
+        {
+          label: 'Cancel Expired Offers',
+          primary: true,
+          onClick: function () { resolve(true); }
+        }
+      ]);
+    });
+  }
+
+  function showExpiredOpenSwapBatchDone(okCount, failCount) {
+    setExpiredOpenSwapBatchModalText(
+      'Expired Open Swap Recovery Complete',
+      okCount + ' recovered, ' + failCount + ' failed.',
+      'Click Close to refresh offers and balances.'
+    );
+    setExpiredOpenSwapBatchModalActions([
+      {
+        label: 'Close',
+        primary: true,
+        onClick: function () { window.location.reload(); }
+      }
+    ]);
+  }
+
+  function updateExpiredOpenSwapBatchProgress(message) {
+    var overlay = $('expiredOpenSwapBatchModal');
+    if (!overlay || overlay.style.display === 'none') return;
+    setExpiredOpenSwapBatchModalText('Expired Open Swap Recovery', 'Please keep this page open while expired offers are cancelled on chain.', message || 'Working…');
+    setExpiredOpenSwapBatchModalActions([]);
+  }
+
+  function renderMySwaps(rows, includeHistory) {
+    var listEl = $('mySwapsList');
+    if (!listEl) return;
+
+    listEl.innerHTML = '';
+
+    if (!rows.length) {
+      var empty = document.createElement('div');
+      empty.className = 'grouped-offer-empty';
+      empty.textContent = includeHistory
+        ? 'No Direct or Open Swap offers were found for your active wallet.'
+        : 'No live Direct or Open Swap offers were found for your active wallet.';
+      listEl.appendChild(empty);
+      return;
+    }
+
+    var table = document.createElement('div');
+    table.className = 'grouped-offers-table';
+
+    var header = document.createElement('div');
+    header.className = 'grouped-offers-header';
+    ['Token', 'Description / Terms', 'Price', 'Status', 'Action'].forEach(function (label) {
+      var cell = document.createElement('div');
+      cell.textContent = label;
+      header.appendChild(cell);
+    });
+    table.appendChild(header);
+
+    rows.forEach(function (rowData) {
+      var row = document.createElement('div');
+      row.className = 'grouped-offer-row';
+
+      var tokenCell = document.createElement('div');
+      var tokenTitle = document.createElement('div');
+      tokenTitle.className = 'offer-title';
+      tokenTitle.textContent = rowData.title;
+      tokenCell.appendChild(tokenTitle);
+      var mode = document.createElement('div');
+      mode.className = 'offer-sub';
+      mode.textContent = rowData.source === 'open' ? 'Open Swap' : 'Direct Swap';
+      tokenCell.appendChild(mode);
+      row.appendChild(tokenCell);
+
+      var descCell = document.createElement('div');
+      var details = document.createElement('details');
+      details.className = 'grouped-offer-inline-details';
+      var summary = document.createElement('summary');
+      summary.textContent = rowData.summary;
+      details.appendChild(summary);
+      rowData.details.forEach(function (line) {
+        var p = document.createElement('p');
+        p.className = 'offer-sub';
+        p.textContent = line;
+        details.appendChild(p);
+      });
+      descCell.appendChild(details);
+      row.appendChild(descCell);
+
+      var priceCell = document.createElement('div');
+      priceCell.textContent = rowData.price;
+      row.appendChild(priceCell);
+
+      var stateCell = document.createElement('div');
+      stateCell.textContent = rowData.statusText || rowData.state;
+      row.appendChild(stateCell);
+
+      var actionCell = document.createElement('div');
+      if ((rowData.state === 'open' && rowData.offerId && !rowData.isAtomicOpen) || (rowData.isAtomicOpen && !rowData.atomicOpenLegacyUnrecoverable && !rowData.cancelFailedAt && !rowData.cancelFailureReason && (rowData.state === 'open' || rowData.state === 'expired') && rowData.sourceOutpointKey) || (rowData.isAtomicDirect && rowData.state === 'atomic_locked' && rowData.sourceOutpointKey)) {
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'secondary';
+        btn.textContent = rowData.isAtomicDirect && rowData.state === 'atomic_locked'
+          ? (rowData.offerExpired ? 'Recover' : 'Cancel/Refund')
+          : (rowData.isAtomicOpen ? 'Cancel/Refund' : 'Cancel/Expire');
+        btn.addEventListener('click', function () {
+          handleMySwapExpire(rowData);
+        });
+        actionCell.appendChild(btn);
+      } else {
+        var muted = document.createElement('span');
+        muted.className = 'muted';
+        muted.textContent = '—';
+        actionCell.appendChild(muted);
+      }
+      row.appendChild(actionCell);
+
+      table.appendChild(row);
+    });
+
+    listEl.appendChild(table);
+  }
+
+  function fetchMySwapGroup(url) {
+    return fetch(url, {
       method: 'GET',
+      credentials: 'same-origin',
+      headers: { 'Accept': 'application/json' }
+    })
+      .then(function (res) {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.json();
+      });
+  }
+
+  function loadMySwaps() {
+    var listEl = $('mySwapsList');
+    if (!listEl) return;
+
+    var showHistoryEl = $('mySwapsShowHistory');
+    var includeHistory = !!(showHistoryEl && showHistoryEl.checked);
+    var historyFlag = includeHistory ? '1' : '0';
+
+    setMySwapsStatus('Loading your swaps…');
+
+    Promise.all([
+      fetchMySwapGroup('/api/offers/mine?history=' + historyFlag),
+      fetchMySwapGroup('/api/open-swaps/mine?history=' + historyFlag)
+    ])
+      .then(function (results) {
+        var direct = results[0] || {};
+        var open = results[1] || {};
+
+        if (direct.ok === false) throw new Error(direct.reason || 'direct_mine_failed');
+        if (open.ok === false) throw new Error(open.reason || 'open_mine_failed');
+
+        var rows = []
+          .concat(normalizeMySwapRows('direct', direct.items || []))
+          .concat(normalizeMySwapRows('open', open.items || []));
+        var groupedRows = groupMySwapRows(rows);
+
+        setMySwapsStatus(groupedRows.length + ' swap row' + (groupedRows.length === 1 ? '' : 's') +
+          ' / ' + rows.length + ' listing' + (rows.length === 1 ? '' : 's') +
+          (includeHistory ? ' found in history.' : ' live for your active wallet.'));
+        renderMySwaps(groupedRows, includeHistory);
+        if (!includeHistory) {
+          window.setTimeout(promptAndBatchCancelExpiredOpenSwaps, 500);
+          window.setTimeout(promptAndBatchRecoverExpiredKcc20AtomicSwaps, 900);
+          window.setTimeout(promptAndBatchRecoverExpiredKcc20AtomicOpenSwaps, 1300);
+        }
+      })
+      .catch(function (err) {
+        setMySwapsStatus('Error loading your swaps.');
+        listEl.innerHTML = '';
+        var empty = document.createElement('div');
+        empty.className = 'grouped-offer-empty';
+        empty.textContent = String(err && err.message ? err.message : err);
+        listEl.appendChild(empty);
+        console.error('my swaps load error', err);
+      });
+  }
+
+  function refundKcc20AtomicDirectMaker(rowData, priv0Hex, statusPrefix) {
+    var prefix = statusPrefix ? String(statusPrefix) + ': ' : '';
+    setMySwapsStatus(prefix + 'Preparing KCC20 Atomic Direct Swap refund…');
+    updateExpiredOpenSwapBatchProgress(prefix + 'Preparing KCC20 Atomic Direct Swap refund…');
+    return buildKcc20AtomicDirectMakerRefund(rowData)
+      .then(function (build) {
+        setMySwapsStatus(prefix + 'Signing KCC20 Atomic Direct Swap refund…');
+        updateExpiredOpenSwapBatchProgress(prefix + 'Signing KCC20 Atomic Direct Swap refund…');
+        return signKcc20AtomicDirectMakerRefund(build, priv0Hex)
+          .then(function (signed) { return { build: build, signed: signed }; });
+      })
+      .then(function (ctx) {
+        setMySwapsStatus(prefix + 'Submitting KCC20 Atomic Direct Swap refund…');
+        updateExpiredOpenSwapBatchProgress(prefix + 'Submitting KCC20 Atomic Direct Swap refund…');
+        return submitKcc20AtomicDirectMakerRefund(ctx.build, ctx.signed)
+          .then(function (submitOut) { return { build: ctx.build, signed: ctx.signed, submitOut: submitOut }; });
+      });
+  }
+
+  function refundKcc20AtomicOpenMaker(rowData, priv0Hex, statusPrefix) {
+    var prefix = statusPrefix ? String(statusPrefix) + ': ' : '';
+    setMySwapsStatus(prefix + 'Preparing KCC20 Atomic Open Swap cancel/refund…');
+    updateExpiredOpenSwapBatchProgress(prefix + 'Preparing KCC20 Atomic Open Swap cancel/refund…');
+    return buildKcc20AtomicOpenMakerRefund(rowData)
+      .then(function (build) {
+        setMySwapsStatus(prefix + 'Signing KCC20 Atomic Open Swap cancel/refund…');
+        updateExpiredOpenSwapBatchProgress(prefix + 'Signing KCC20 Atomic Open Swap cancel/refund…');
+        return signKcc20AtomicOpenMakerRefund(build, priv0Hex)
+          .then(function (signed) { return { build: build, signed: signed }; });
+      })
+      .then(function (ctx) {
+        setMySwapsStatus(prefix + 'Submitting KCC20 Atomic Open Swap cancel/refund…');
+        updateExpiredOpenSwapBatchProgress(prefix + 'Submitting KCC20 Atomic Open Swap cancel/refund…');
+        return submitKcc20AtomicOpenMakerRefund(ctx.build, ctx.signed)
+          .then(function (submitOut) { return { build: ctx.build, signed: ctx.signed, submitOut: submitOut }; });
+      });
+  }
+
+  function handleKcc20AtomicDirectMakerRefund(rowData) {
+    var sourceOutpointKey = normalizeDirectText(rowData && rowData.sourceOutpointKey);
+    if (!/^[0-9a-f]{64}:\d+$/i.test(sourceOutpointKey)) {
+      setMySwapsStatus('Unable to refund atomic swap: missing swap outpoint.');
+      return;
+    }
+
+    var ok = window.confirm('Cancel/refund this KCC20 Atomic Direct Swap? This signs and submits an on-chain refund.');
+    if (!ok) return;
+
+    var priv0Hex = getKeyringPriv0Hex();
+    if (!priv0Hex) {
+      setMySwapsStatus('Wallet is locked. Unlock the maker wallet before refunding this atomic swap.');
+      return;
+    }
+
+    refundKcc20AtomicDirectMaker(rowData, priv0Hex, '')
+      .then(function (result) {
+        var summary = atomicMakerRefundPublicSummary(result.build, result.signed, result.submitOut);
+        setMySwapsStatus('KCC20 Atomic Direct Swap refunded. Txid: ' + (summary.submitted_txid || 'unknown') + '. Refreshing offers…');
+        window.setTimeout(function () { window.location.reload(); }, 800);
+      })
+      .catch(function (err) {
+        var msg = String(err && err.message ? err.message : err);
+        var response = err && err.response ? err.response : null;
+        if (response && response.error) msg += ' ' + String(response.error);
+        setMySwapsStatus('Unable to refund KCC20 Atomic Direct Swap: ' + msg);
+        console.error('my swaps atomic maker refund error', err);
+      });
+  }
+
+  function handleKcc20AtomicOpenMakerRefund(rowData) {
+    var sourceOutpointKey = normalizeDirectText(rowData && rowData.sourceOutpointKey);
+    if (!/^[0-9a-f]{64}:\d+$/i.test(sourceOutpointKey)) {
+      setMySwapsStatus('Unable to cancel/refund Open KCC20 swap: missing swap outpoint.');
+      return;
+    }
+
+    var ok = window.confirm('Cancel/refund this KCC20 Atomic Open Swap? This signs and submits the proven on-chain maker-refund path.');
+    if (!ok) return;
+
+    var priv0Hex = getKeyringPriv0Hex();
+    if (!priv0Hex) {
+      setMySwapsStatus('Wallet is locked. Unlock the maker wallet before refunding this Open KCC20 swap.');
+      return;
+    }
+
+    refundKcc20AtomicOpenMaker(rowData, priv0Hex, '')
+      .then(function (result) {
+        var summary = atomicMakerRefundPublicSummary(result.build, result.signed, result.submitOut);
+        setMySwapsStatus('KCC20 Atomic Open Swap cancelled/refunded. Txid: ' + (summary.submitted_txid || 'unknown') + '. Refreshing offers…');
+        window.setTimeout(function () { window.location.reload(); }, 800);
+      })
+      .catch(function (err) {
+        var msg = String(err && err.message ? err.message : err);
+        var response = err && err.response ? err.response : null;
+        if (response && response.error) msg += ' ' + String(response.error);
+        setMySwapsStatus('Unable to cancel/refund KCC20 Atomic Open Swap: ' + msg);
+        console.error('my swaps atomic open maker refund error', err);
+      });
+  }
+
+  function cancelOpenSwapOnChain(rowData, priv0Hex, statusPrefix) {
+    var offerId = rowData && rowData.offerId ? String(rowData.offerId).trim() : '';
+    var prefix = statusPrefix ? String(statusPrefix) + ': ' : '';
+    if (!offerId) return Promise.reject(new Error('missing_offer_id'));
+
+    setMySwapsStatus(prefix + 'Preparing Open Swap cancellation…');
+    updateExpiredOpenSwapBatchProgress(prefix + 'Preparing Open Swap cancellation…');
+    return fetch('/api/open-swaps/offer/expire', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({ stage: 'prepare', offerId: offerId })
+    })
+      .then(function (res) {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.json();
+      })
+      .then(function (prepared) {
+        if (!prepared || prepared.ok === false) throw new Error((prepared && prepared.reason) || 'open_cancel_prepare_failed');
+        if (!prepared.cancelRid) throw new Error('open_cancel_prepare_invalid');
+
+        var prepareStage = typeof prepared.stage === 'string' ? String(prepared.stage).trim() : '';
+        var signaturePromise = null;
+        setMySwapsStatus(prefix + 'Signing Open Swap cancellation…');
+        updateExpiredOpenSwapBatchProgress(prefix + 'Signing Open Swap cancellation…');
+
+        if (prepareStage === 'bcw_open_swap_cancel_intent') {
+          if (!prepared.intent_message) throw new Error('bcw_open_swap_cancel_intent_message_missing');
+          signaturePromise = signBcwOpenSwapCancelIntent(prepared.intent_message, priv0Hex);
+        } else {
+          if (!prepared.txToSignSafeJson) throw new Error('open_cancel_prepare_invalid');
+          signaturePromise = signOpenSwapCancelInput(prepared.txToSignSafeJson, priv0Hex);
+        }
+
+        return signaturePromise
+          .then(function (signature0) {
+            setMySwapsStatus(prefix + 'Submitting Open Swap cancellation…');
+            updateExpiredOpenSwapBatchProgress(prefix + 'Submitting Open Swap cancellation…');
+            return fetch('/api/open-swaps/offer/expire', {
+              method: 'POST',
+              credentials: 'same-origin',
+              headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+              body: JSON.stringify({
+                stage: 'submit',
+                offerId: offerId,
+                cancelRid: String(prepared.cancelRid || ''),
+                signature0: signature0
+              })
+            });
+          });
+      })
+      .then(function (res) {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.json();
+      })
+      .then(function (data) {
+        if (!data || data.ok === false) throw new Error((data && data.reason) || 'open_cancel_submit_failed');
+        return data;
+      });
+  }
+
+  function handleMySwapExpire(rowData) {
+    if (!rowData || !rowData.offerId) return;
+
+    var isOpenSwap = rowData.source === 'open';
+    var isKcc20Atomic = !!(rowData.isAtomicDirect && rowData.source === 'direct' && rowData.state === 'atomic_locked');
+    var isKcc20AtomicOpen = !!(rowData.isAtomicOpen && !rowData.atomicOpenLegacyUnrecoverable && !rowData.cancelFailedAt && !rowData.cancelFailureReason && rowData.source === 'open' && (rowData.state === 'open' || rowData.state === 'expired') && rowData.sourceOutpointKey);
+    var isDirectOpen = rowData.source === 'direct' && rowData.state === 'open';
+    var isOpenCancelable = isOpenSwap && !rowData.isAtomicOpen && (rowData.state === 'open' || rowData.state === 'expired');
+    if (isKcc20Atomic) {
+      handleKcc20AtomicDirectMakerRefund(rowData);
+      return;
+    }
+    if (isKcc20AtomicOpen) {
+      handleKcc20AtomicOpenMakerRefund(rowData);
+      return;
+    }
+    if (!isDirectOpen && !isOpenCancelable) return;
+
+    var confirmText = isOpenSwap
+      ? 'Cancel this Open Swap listing on-chain? This will sign and submit a Kasplex cancellation transaction for the listed order.'
+      : 'Cancel/Expire this Direct Swap listing? This only expires the listing. It does not refund or unwind any on-chain commitment.';
+    var ok = window.confirm(confirmText);
+    if (!ok) return;
+
+    if (isOpenSwap) {
+      var priv0Hex = getKeyringPriv0Hex();
+      if (!priv0Hex) {
+        setMySwapsStatus('Wallet is locked. Unlock the maker wallet before cancelling an Open Swap.');
+        return;
+      }
+
+      cancelOpenSwapOnChain(rowData, priv0Hex, '')
+        .then(function () {
+          setMySwapsStatus('Open Swap cancelled on-chain. Refreshing offers…');
+          window.location.reload();
+        })
+        .catch(function (err) {
+          setMySwapsStatus('Unable to cancel Open Swap: ' + String(err && err.message ? err.message : err));
+          console.error('my swaps open cancel error', err);
+        });
+      return;
+    }
+
+    setMySwapsStatus('Expiring listing…');
+
+    fetch('/api/swaps/offer/expire', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({ offerId: rowData.offerId })
+    })
+      .then(function (res) {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.json();
+      })
+      .then(function (data) {
+        if (!data || data.ok === false) throw new Error((data && data.reason) || 'expire_failed');
+        setMySwapsStatus('Listing expired. Refreshing offers…');
+        window.location.reload();
+      })
+      .catch(function (err) {
+        setMySwapsStatus('Unable to expire listing: ' + String(err && err.message ? err.message : err));
+        console.error('my swaps expire error', err);
+      });
+  }
+
+  function findExpiredOpenSwapsForBatch() {
+    return fetchMySwapGroup('/api/open-swaps/mine?history=1')
+      .then(function (data) {
+        if (!data || data.ok === false) throw new Error((data && data.reason) || 'open_mine_failed');
+        return normalizeMySwapRows('open', data.items || []).filter(function (row) {
+          return row && row.source === 'open' && !row.isAtomicOpen && row.state === 'expired' && row.offerId && !row.cancelTxid && !row.cancelFailedAt;
+        });
+      });
+  }
+
+  function runExpiredOpenSwapCancelBatch(rows, priv0Hex) {
+    var list = Array.isArray(rows) ? rows.slice() : [];
+    var results = [];
+
+    function next(index) {
+      if (index >= list.length) return Promise.resolve(results);
+
+      var row = list[index];
+      var label = 'Cancelling expired Open Swap ' + (index + 1) + ' of ' + list.length;
+      updateExpiredOpenSwapBatchProgress(label + '…');
+      return cancelOpenSwapOnChain(row, priv0Hex, label)
+        .then(function (data) {
+          results.push({ ok: true, offerId: row.offerId, cancelTxid: data && data.cancelTxid ? data.cancelTxid : '' });
+          setMySwapsStatus(label + ': cancelled on-chain. Waiting before next offer…');
+          updateExpiredOpenSwapBatchProgress(label + ': cancelled on-chain. Waiting 2 seconds before next offer…');
+          return sleepMs(2000).then(function () { return next(index + 1); });
+        })
+        .catch(function (err) {
+          results.push({ ok: false, offerId: row.offerId, error: String(err && err.message ? err.message : err) });
+          setMySwapsStatus(label + ': failed. Waiting before next offer…');
+          updateExpiredOpenSwapBatchProgress(label + ': failed. Waiting 3 seconds before next offer…');
+          console.error('expired Open Swap batch cancel error', row && row.offerId, err);
+          return sleepMs(3000).then(function () { return next(index + 1); });
+        });
+    }
+
+    return next(0);
+  }
+
+  function chooseExpiredKcc20AtomicBatch(count) {
+    return new Promise(function (resolve) {
+      setExpiredOpenSwapBatchModalText(
+        'Expired KCC20 Atomic Direct Recovery',
+        'You have ' + count + ' expired KCC20 Atomic Direct offer' + (count === 1 ? '' : 's') + ' with tokens still locked on chain. Recover them now to return the tokens to your maker wallet?',
+        'This requires the maker wallet to be unlocked and will sign one on-chain refund transaction per expired offer.'
+      );
+      setExpiredOpenSwapBatchModalActions([
+        { label: 'Later', primary: false, onClick: function () { hideExpiredOpenSwapBatchModal(); resolve(false); } },
+        { label: 'Recover tokens', primary: true, onClick: function () { resolve(true); } }
+      ]);
+      ensureExpiredOpenSwapBatchModal().style.display = 'flex';
+    });
+  }
+
+  function findExpiredKcc20AtomicSwapsForBatch() {
+    return fetchMySwapGroup('/api/offers/mine?history=1')
+      .then(function (data) {
+        if (!data || data.ok === false) throw new Error((data && data.reason) || 'direct_mine_failed');
+        var seen = Object.create(null);
+        return normalizeMySwapRows('direct', data.items || []).filter(function (row) {
+          if (!row || !row.isAtomicDirect || row.state !== 'atomic_locked' || !row.sourceOutpointKey || !row.offerExpired) return false;
+          if (seen[row.sourceOutpointKey]) return false;
+          seen[row.sourceOutpointKey] = true;
+          return true;
+        });
+      });
+  }
+
+  function runExpiredKcc20AtomicRefundBatch(rows, priv0Hex) {
+    var list = Array.isArray(rows) ? rows.slice() : [];
+    var results = [];
+
+    function next(index) {
+      if (index >= list.length) return Promise.resolve(results);
+
+      var row = list[index];
+      var label = 'Recovering expired KCC20 Atomic Direct offer ' + (index + 1) + ' of ' + list.length;
+      updateExpiredOpenSwapBatchProgress(label + '…');
+      return refundKcc20AtomicDirectMaker(row, priv0Hex, label)
+        .then(function (result) {
+          var summary = atomicMakerRefundPublicSummary(result.build, result.signed, result.submitOut);
+          results.push({ ok: true, sourceOutpointKey: row.sourceOutpointKey, refundTxid: summary.submitted_txid || '' });
+          setMySwapsStatus(label + ': recovered on chain. Waiting before next offer…');
+          updateExpiredOpenSwapBatchProgress(label + ': recovered on chain. Waiting 2 seconds before next offer…');
+          return sleepMs(2000).then(function () { return next(index + 1); });
+        })
+        .catch(function (err) {
+          results.push({ ok: false, sourceOutpointKey: row && row.sourceOutpointKey, error: String(err && err.message ? err.message : err) });
+          setMySwapsStatus(label + ': failed. Waiting before next offer…');
+          updateExpiredOpenSwapBatchProgress(label + ': failed. Waiting 3 seconds before next offer…');
+          console.error('expired KCC20 Atomic Direct recovery error', row && row.sourceOutpointKey, err);
+          return sleepMs(3000).then(function () { return next(index + 1); });
+        });
+    }
+
+    return next(0);
+  }
+
+  function promptAndBatchRecoverExpiredKcc20AtomicSwaps() {
+    if (expiredKcc20AtomicBatchPromptShown || expiredKcc20AtomicBatchRunning) return;
+    expiredKcc20AtomicBatchPromptShown = true;
+
+    findExpiredKcc20AtomicSwapsForBatch()
+      .then(function (rows) {
+        if (!rows.length) return;
+
+        var count = rows.length;
+        return chooseExpiredKcc20AtomicBatch(count).then(function (ok) {
+          if (!ok) {
+            setMySwapsStatus('Expired KCC20 Atomic Direct recovery left for later.');
+            return;
+          }
+
+          var priv0Hex = getKeyringPriv0Hex();
+          if (!priv0Hex) {
+            setMySwapsStatus('Wallet is locked. Unlock the maker wallet before recovering expired KCC20 Atomic Direct offers.');
+            setExpiredOpenSwapBatchModalText('Wallet Locked', 'Unlock the maker wallet before recovering expired KCC20 Atomic Direct offers.', 'No offers were changed.');
+            setExpiredOpenSwapBatchModalActions([
+              { label: 'Close', primary: true, onClick: function () { hideExpiredOpenSwapBatchModal(); } }
+            ]);
+            return;
+          }
+
+          expiredKcc20AtomicBatchRunning = true;
+          setMySwapsStatus('Starting expired KCC20 Atomic Direct recovery batch…');
+          updateExpiredOpenSwapBatchProgress('Starting expired KCC20 Atomic Direct recovery batch…');
+          return runExpiredKcc20AtomicRefundBatch(rows, priv0Hex)
+            .then(function (results) {
+              var okCount = results.filter(function (r) { return r && r.ok === true; }).length;
+              var failCount = results.length - okCount;
+              setMySwapsStatus('Expired KCC20 Atomic Direct recovery batch complete: ' + okCount + ' recovered, ' + failCount + ' failed.');
+              showExpiredOpenSwapBatchDone(okCount, failCount);
+            })
+            .finally(function () {
+              expiredKcc20AtomicBatchRunning = false;
+            });
+        });
+      })
+      .catch(function (err) {
+        setMySwapsStatus('Unable to check expired KCC20 Atomic Direct offers: ' + String(err && err.message ? err.message : err));
+        console.error('expired KCC20 Atomic Direct recovery check error', err);
+      });
+  }
+
+  function chooseExpiredKcc20AtomicOpenBatch(count) {
+    return new Promise(function (resolve) {
+      setExpiredOpenSwapBatchModalText(
+        'Expired KCC20 Open Swap Recovery',
+        'You have ' + count + ' expired KCC20 Open Swap offer' + (count === 1 ? '' : 's') + ' with tokens still locked on chain. Recover them now to return the tokens to your maker wallet?',
+        'This uses the proven KCC20 Open maker-refund route and requires the maker wallet to be unlocked. It signs one on-chain refund transaction per expired offer.'
+      );
+      setExpiredOpenSwapBatchModalActions([
+        { label: 'Later', primary: false, onClick: function () { hideExpiredOpenSwapBatchModal(); resolve(false); } },
+        { label: 'Recover tokens', primary: true, onClick: function () { resolve(true); } }
+      ]);
+      ensureExpiredOpenSwapBatchModal().style.display = 'flex';
+    });
+  }
+
+  function findExpiredKcc20AtomicOpenSwapsForBatch() {
+    return fetchMySwapGroup('/api/open-swaps/mine?history=1')
+      .then(function (data) {
+        if (!data || data.ok === false) throw new Error((data && data.reason) || 'open_mine_failed');
+        var seen = Object.create(null);
+        return normalizeMySwapRows('open', data.items || []).filter(function (row) {
+          if (!row || !row.isAtomicOpen || row.state !== 'expired' || !row.sourceOutpointKey || !row.offerId) return false;
+          if (row.atomicOpenLegacyUnrecoverable || row.cancelFailedAt || row.cancelFailureReason || Number(row.cancelFailureCount || 0) > 0) return false;
+          if (row.cancelTxid || row.refundTxid || row.refund_txid) return false;
+          if (seen[row.sourceOutpointKey]) return false;
+          seen[row.sourceOutpointKey] = true;
+          return true;
+        });
+      });
+  }
+
+  function runExpiredKcc20AtomicOpenRefundBatch(rows, priv0Hex) {
+    var list = Array.isArray(rows) ? rows.slice() : [];
+    var results = [];
+
+    function next(index) {
+      if (index >= list.length) return Promise.resolve(results);
+
+      var row = list[index];
+      var label = 'Recovering expired KCC20 Open Swap offer ' + (index + 1) + ' of ' + list.length;
+      updateExpiredOpenSwapBatchProgress(label + '…');
+      return refundKcc20AtomicOpenMaker(row, priv0Hex, label)
+        .then(function (result) {
+          var summary = atomicMakerRefundPublicSummary(result.build, result.signed, result.submitOut);
+          results.push({ ok: true, sourceOutpointKey: row.sourceOutpointKey, refundTxid: summary.submitted_txid || '' });
+          setMySwapsStatus(label + ': recovered on chain. Waiting before next offer…');
+          updateExpiredOpenSwapBatchProgress(label + ': recovered on chain. Waiting 2 seconds before next offer…');
+          return sleepMs(2000).then(function () { return next(index + 1); });
+        })
+        .catch(function (err) {
+          results.push({ ok: false, sourceOutpointKey: row && row.sourceOutpointKey, error: String(err && err.message ? err.message : err) });
+          setMySwapsStatus(label + ': failed. Waiting before next offer…');
+          updateExpiredOpenSwapBatchProgress(label + ': failed. Waiting 3 seconds before next offer…');
+          console.error('expired KCC20 Open Swap recovery error', row && row.sourceOutpointKey, err);
+          return sleepMs(3000).then(function () { return next(index + 1); });
+        });
+    }
+
+    return next(0);
+  }
+
+  function promptAndBatchRecoverExpiredKcc20AtomicOpenSwaps() {
+    if (expiredKcc20AtomicOpenBatchPromptShown || expiredKcc20AtomicOpenBatchRunning) return;
+    expiredKcc20AtomicOpenBatchPromptShown = true;
+
+    findExpiredKcc20AtomicOpenSwapsForBatch()
+      .then(function (rows) {
+        if (!rows.length) return;
+
+        var count = rows.length;
+        return chooseExpiredKcc20AtomicOpenBatch(count).then(function (ok) {
+          if (!ok) {
+            setMySwapsStatus('Expired KCC20 Open Swap recovery left for later.');
+            return;
+          }
+
+          var priv0Hex = getKeyringPriv0Hex();
+          if (!priv0Hex) {
+            setMySwapsStatus('Wallet is locked. Unlock the maker wallet before recovering expired KCC20 Open Swap offers.');
+            setExpiredOpenSwapBatchModalText('Wallet Locked', 'Unlock the maker wallet before recovering expired KCC20 Open Swap offers.', 'No offers were changed.');
+            setExpiredOpenSwapBatchModalActions([
+              { label: 'Close', primary: true, onClick: function () { hideExpiredOpenSwapBatchModal(); } }
+            ]);
+            return;
+          }
+
+          expiredKcc20AtomicOpenBatchRunning = true;
+          setMySwapsStatus('Starting expired KCC20 Open Swap recovery batch…');
+          updateExpiredOpenSwapBatchProgress('Starting expired KCC20 Open Swap recovery batch…');
+          return runExpiredKcc20AtomicOpenRefundBatch(rows, priv0Hex)
+            .then(function (results) {
+              var okCount = results.filter(function (r) { return r && r.ok === true; }).length;
+              var failCount = results.length - okCount;
+              setMySwapsStatus('Expired KCC20 Open Swap recovery batch complete: ' + okCount + ' recovered, ' + failCount + ' failed.');
+              showExpiredOpenSwapBatchDone(okCount, failCount);
+            })
+            .finally(function () {
+              expiredKcc20AtomicOpenBatchRunning = false;
+            });
+        });
+      })
+      .catch(function (err) {
+        setMySwapsStatus('Unable to check expired KCC20 Open Swap offers: ' + String(err && err.message ? err.message : err));
+        console.error('expired KCC20 Open Swap recovery check error', err);
+      });
+  }
+
+  function promptAndBatchCancelExpiredOpenSwaps() {
+    if (expiredOpenSwapBatchPromptShown || expiredOpenSwapBatchRunning) return;
+    expiredOpenSwapBatchPromptShown = true;
+
+    findExpiredOpenSwapsForBatch()
+      .then(function (rows) {
+        if (!rows.length) return;
+
+        var count = rows.length;
+        return chooseExpiredOpenSwapBatch(count).then(function (ok) {
+          if (!ok) {
+            setMySwapsStatus('Expired Open Swap cancellation left for later.');
+            return;
+          }
+
+          var priv0Hex = getKeyringPriv0Hex();
+          if (!priv0Hex) {
+            setMySwapsStatus('Wallet is locked. Unlock the maker wallet before batch-cancelling expired Open Swaps.');
+            setExpiredOpenSwapBatchModalText('Wallet Locked', 'Unlock the maker wallet before batch-cancelling expired Open Swaps.', 'No offers were changed.');
+            setExpiredOpenSwapBatchModalActions([
+              { label: 'Close', primary: true, onClick: function () { hideExpiredOpenSwapBatchModal(); } }
+            ]);
+            return;
+          }
+
+          expiredOpenSwapBatchRunning = true;
+          setMySwapsStatus('Starting expired Open Swap cancellation batch…');
+          updateExpiredOpenSwapBatchProgress('Starting expired Open Swap cancellation batch…');
+          return runExpiredOpenSwapCancelBatch(rows, priv0Hex)
+            .then(function (results) {
+              var okCount = results.filter(function (r) { return r && r.ok === true; }).length;
+              var failCount = results.length - okCount;
+              setMySwapsStatus('Expired Open Swap cancellation batch complete: ' + okCount + ' cancelled, ' + failCount + ' failed.');
+              showExpiredOpenSwapBatchDone(okCount, failCount);
+            })
+            .finally(function () {
+              expiredOpenSwapBatchRunning = false;
+            });
+        });
+      })
+      .catch(function (err) {
+        setMySwapsStatus('Unable to check expired Open Swaps: ' + String(err && err.message ? err.message : err));
+        console.error('expired Open Swap batch check error', err);
+      });
+  }
+
+  function loadDirectSponsoredCatalog() {
+    return fetch('/api/v1/entitlement-token-settings/upgrade-catalog', {
+      method: 'GET',
+      credentials: 'same-origin',
       headers: { 'Accept': 'application/json' }
     })
       .then(function (res) {
@@ -1003,6 +2898,42 @@ function handleConfirmFill() {
         return res.json();
       })
       .then(function (data) {
+        if (!data || data.ok === false || !Array.isArray(data.catalog)) return [];
+        return data.catalog;
+      })
+      .catch(function (err) {
+        console.error('direct upgrade-catalog fetch error', err);
+        return [];
+      });
+  }
+
+  function loadOffers() {
+    var statusEl = $('offersStatus');
+    if (statusEl) statusEl.textContent = 'Loading direct swap offers…';
+
+    var offersRequest = fetch('/api/offers/list?state=open', {
+      method: 'GET',
+      headers: { 'Accept': 'application/json' }
+    })
+      .then(function (res) {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.json();
+      });
+
+    var myOffersRequest = fetchMySwapGroup('/api/offers/mine?history=0')
+      .catch(function (err) {
+        console.warn('direct my-swaps filter fetch error', err);
+        return { ok: true, items: [] };
+      });
+
+    Promise.all([offersRequest, loadDirectSponsoredCatalog(), myOffersRequest])
+      .then(function (results) {
+        var data = results[0];
+        var catalog = results[1];
+        var mine = results[2] || {};
+        setDirectSponsoredCatalog(catalog);
+        directMineOpenOfferIds = buildOfferIdMap(mine.items || []);
+        directMineActiveWalletId = normalizeDirectText(mine.active_wallet_id);
         if (!data || data.ok === false) {
           if (statusEl) statusEl.textContent = 'Failed to load offers.';
           console.warn('offers.list error', data);
@@ -1054,6 +2985,132 @@ function handleConfirmFill() {
         window.location.reload();
       });
     }
+
+    (function initTn10FaucetCard() {
+      function fetchJson(url, opts) {
+        return fetch(url, opts || {})
+          .then(function (res) {
+            return res.json()
+              .catch(function () { return {}; })
+              .then(function (body) {
+                return { httpOk: res.ok, status: res.status, body: body || {} };
+              });
+          });
+      }
+
+      function getNetworkMeta(raw) {
+        try {
+          var shared = window.CwNetworkShared;
+          if (!shared || typeof shared.getNetworkMeta !== 'function') return null;
+          var meta = shared.getNetworkMeta(raw);
+          return meta && typeof meta === 'object' ? meta : null;
+        } catch (_) {
+          return null;
+        }
+      }
+
+      function isTn10WalletStatus(w) {
+        if (!w || w.ok !== true) return false;
+        var address = String(w.address0 || '').trim();
+        if (!address || address.indexOf('kaspatest:') !== 0) return false;
+        var meta = getNetworkMeta(String(w.network || '').trim());
+        if (!meta) return false;
+        return String(meta.appKey || '') === 'tn10' || String(meta.kasplexNetworkId || '') === 'testnet-10';
+      }
+
+      function sompiToTkas(raw) {
+        var s = String(raw == null ? '' : raw).trim();
+        if (!/^\d+$/.test(s)) return '';
+        try {
+          var n = BigInt(s);
+          var whole = n / 100000000n;
+          var frac = String(n % 100000000n).padStart(8, '0').replace(/0+$/, '');
+          return frac ? String(whole) + '.' + frac : String(whole);
+        } catch (_) {
+          return '';
+        }
+      }
+
+      function insertFaucetSection(walletStatus) {
+        if (document.getElementById('tn10FaucetSection')) return;
+
+        var section = document.createElement('section');
+        section.id = 'tn10FaucetSection';
+        section.setAttribute('aria-label', 'TN10 Faucet');
+        section.innerHTML = '' +
+          '<header class="offers-header" style="margin-top:1rem;">' +
+            '<div>' +
+              '<h2 style="margin-bottom:.1rem;">TN10 Faucet</h2>' +
+              '<p class="muted" id="tn10FaucetStatus">Active TN10 wallet detected.</p>' +
+            '</div>' +
+          '</header>' +
+          '<article class="offer-card">' +
+            '<div class="offer-title">Need TN10 test KAS for offers or KRC-20 testing?</div>' +
+            '<div class="offer-sub">Receive 2,000 TKAS to your active TN10 wallet. Daily account limit: 10,000 TKAS per logged-in account, reset by UTC day.</div>' +
+            '<div class="offer-sub" id="tn10FaucetAddress"></div>' +
+            '<div style="display:flex; gap:.75rem; align-items:center; flex-wrap:wrap; margin-top:.25rem;">' +
+              '<button id="tn10FaucetClaimBtn" type="button">Receive 2,000 TKAS</button>' +
+            '</div>' +
+            '<div class="muted" id="tn10FaucetResult" aria-live="polite"></div>' +
+          '</article>';
+
+        var advisory = document.querySelector('.offers-advisory');
+        if (advisory && advisory.parentNode) {
+          advisory.parentNode.insertBefore(section, advisory.nextSibling);
+        } else {
+          var main = document.querySelector('main.container') || document.querySelector('main') || document.body;
+          main.insertBefore(section, main.firstChild);
+        }
+
+        var addressEl = document.getElementById('tn10FaucetAddress');
+        if (addressEl) addressEl.textContent = 'Destination: ' + String(walletStatus.address0 || '').trim();
+
+        var btn = document.getElementById('tn10FaucetClaimBtn');
+        var result = document.getElementById('tn10FaucetResult');
+        if (!btn || !result) return;
+
+        btn.addEventListener('click', function (ev) {
+          ev.preventDefault();
+          btn.disabled = true;
+          result.textContent = 'Requesting 2,000 TKAS faucet claim…';
+
+          fetchJson('/api/tn10-faucet/claim', {
+            method: 'POST',
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json'
+            },
+            body: '{}'
+          })
+            .then(function (out) {
+              var body = out && out.body ? out.body : {};
+              if (!out || !out.httpOk || body.ok !== true) {
+                var reason = String(body.error || body.reason || ('HTTP ' + (out && out.status ? out.status : 'error')));
+                result.textContent = 'TN10 faucet claim failed: ' + reason;
+                return;
+              }
+
+              var txid = String(body.txid || '').trim();
+              var remaining = sompiToTkas(body.remainingSompi);
+              result.textContent = 'Sent 2,000 TKAS. Txid: ' + (txid || 'submitted') + (remaining ? '. Remaining UTC quota: ' + remaining + ' TKAS.' : '.');
+            })
+            .catch(function (err) {
+              result.textContent = 'TN10 faucet claim failed: ' + String(err && err.message ? err.message : err);
+            })
+            .finally(function () {
+              btn.disabled = false;
+            });
+        });
+      }
+
+      fetchJson('/api/wallet/status', { method: 'GET', headers: { 'Accept': 'application/json' } })
+        .then(function (out) {
+          var w = out && out.body ? out.body : {};
+          if (!isTn10WalletStatus(w)) return;
+          insertFaucetSection(w);
+        })
+        .catch(function () {});
+    })();
 
     (function initBrokerWrappedOffersCard() {
       var st = $('brokerWrappedStatus');
@@ -2141,8 +4198,16 @@ function handleConfirmFill() {
         });
     })();
 
+    var mySwapsHistory = $('mySwapsShowHistory');
+    if (mySwapsHistory) {
+      mySwapsHistory.addEventListener('change', function () {
+        loadMySwaps();
+      });
+    }
+
     loadTakerWallet();
     loadOffers();
+    loadMySwaps();
   });
 })();
 

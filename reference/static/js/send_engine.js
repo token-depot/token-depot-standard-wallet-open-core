@@ -327,13 +327,40 @@
 
       const signature = await tx.createInputSignature(0, keyring.priv0);
       tx.fillInput(0, script.encodePayToScriptHashSignatureScript(signature));
+
+      const massOk = k.updateTransactionMass(networkId, tx.transaction);
+      if (!massOk) throw new Error('reveal_tx_mass_exceeds_standard');
+    };
+
+    const KRC20_TOCCATA_FEE_RATE_FLOOR = 100n;
+
+    const parseMassOrThrow = (value) => {
+      if (typeof value === 'bigint') return value;
+      if (typeof value === 'number' && Number.isFinite(value) && value >= 0) return BigInt(Math.ceil(value));
+      if (typeof value === 'string' && /^\d+$/.test(value)) return BigInt(value);
+      throw new Error('reveal_tx_mass_exceeds_standard');
+    };
+
+    const signatureScriptBytes = (input) => {
+      const scriptHex = input && typeof input.signatureScript === 'string' ? input.signatureScript : '';
+      if (!scriptHex) return 0n;
+      if (scriptHex.length % 2 !== 0 || !/^[0-9a-fA-F]+$/.test(scriptHex)) {
+        throw new Error('reveal_tx_signature_script_invalid');
+      }
+      return BigInt(scriptHex.length / 2);
+    };
+
+    const toccataRequiredRevealFee = (tx) => {
+      const baseMass = parseMassOrThrow(tx.transaction && tx.transaction.mass);
+      const inputs = tx.transaction && Array.isArray(tx.transaction.inputs) ? tx.transaction.inputs : [];
+      const signedScriptBytes = inputs.reduce((sum, input) => sum + signatureScriptBytes(input), 0n);
+      return (baseMass + signedScriptBytes) * KRC20_TOCCATA_FEE_RATE_FLOOR;
     };
 
     const tx0 = await buildReveal(feeRate);
     await fillRevealInput0OrThrow(tx0);
 
-    const requiredFee0 = k.calculateTransactionFee(networkId, tx0.transaction);
-    if (requiredFee0 === undefined) throw new Error('reveal_tx_mass_exceeds_standard');
+    const requiredFee0 = toccataRequiredRevealFee(tx0);
 
     let revealTx = tx0;
 
@@ -347,8 +374,7 @@
       const tx1 = await buildReveal(effectiveFeeRate);
       await fillRevealInput0OrThrow(tx1);
 
-      const requiredFee1 = k.calculateTransactionFee(networkId, tx1.transaction);
-      if (requiredFee1 === undefined) throw new Error('reveal_tx_mass_exceeds_standard');
+      const requiredFee1 = toccataRequiredRevealFee(tx1);
       if (tx1.feeAmount < requiredFee1) throw new Error('reveal_fee_under_minimum');
 
       revealTx = tx1;
@@ -419,6 +445,7 @@
         bcw_intent: intent,
         bcw_auth_signature: String(authSignature || '')
       }, args);
+      if (useMax === true) submitPayload.use_max = true;
 
       return await jpost('/api/wallet/send', submitPayload);
     }

@@ -7,6 +7,7 @@
   <link rel="icon" href="/static/icon/favicon.ico">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
   <link rel="stylesheet" href="/static/css/style.css">
+  <script defer src="/static/js/skin_shared.js"></script>
   <style>
     .half { padding:.25rem .5rem; line-height:1.0 }
     .toolbar { display:flex; gap:.5rem; flex-wrap:wrap; align-items:center }
@@ -15,16 +16,16 @@
 
     /* Restore "contrast" button styling (Delete Wallet) */
     button.contrast{
-      background:#2563eb !important;
-      color:#fff !important;
-      border:1px solid rgba(56, 189, 248, 0.9) !important;
+      background:var(--td-skin-primary) !important;
+      color:var(--td-skin-white) !important;
+      border:1px solid rgba(var(--td-skin-primary-glow-rgb), 0.9) !important;
     }
     button.contrast:hover{
-      background:#1d4ed8 !important;
+      background:var(--td-skin-primary-hover) !important;
     }
 
     /* MAX pressed state */
-    #btnMax.is-pressed { transform: translateY(1px); box-shadow: inset 0 1px 2px rgba(0,0,0,.2); opacity:.9; }
+    #btnMax.is-pressed { transform: translateY(1px); box-shadow: inset 0 1px 2px rgba(var(--td-skin-black-rgb), .2); opacity:.9; }
     #btnMax[aria-busy="true"]::after { content: '…'; margin-left: .35em; }
 
     /* Ensure dialog and banner text wrap */
@@ -41,18 +42,210 @@
     .addr-icon-btn{
       width:28px; height:28px; padding:0; border-radius:999px;
       display:inline-flex; align-items:center; justify-content:center;
-      border:1px solid rgba(255,255,255,.45); background:transparent; color:#fff; cursor:pointer;
+      border:1px solid rgba(var(--td-skin-white-rgb), .45); background:transparent; color:var(--td-skin-white); cursor:pointer;
       box-shadow:none;
     }
-    .addr-icon-btn:hover{ background:rgba(255,255,255,.08); border-color:rgba(255,255,255,.8) }
-    .addr-icon-btn:focus-visible{ outline:2px solid rgba(255,255,255,.75); outline-offset:2px }
+    .addr-icon-btn:hover{ background:rgba(var(--td-skin-white-rgb), .08); border-color:rgba(var(--td-skin-white-rgb), .8) }
+    .addr-icon-btn:focus-visible{ outline:2px solid rgba(var(--td-skin-white-rgb), .75); outline-offset:2px }
     .addr-icon-btn svg{ width:16px; height:16px; display:block }
-    .wallet-qr-dialog::backdrop{ background:rgba(15,23,42,.55) }
+    .wallet-qr-dialog::backdrop{ background:rgba(var(--td-skin-panel-rgb), .55) }
     .wallet-qr-dialog article{ min-width:min(92vw, 240px) }
+
+    #tdproLicenseRequiredDialog{
+      border:none;
+      padding:0;
+      background:transparent;
+      color:var(--td-skin-text);
+      max-width:min(92vw, 760px);
+    }
+    #tdproLicenseRequiredDialog::backdrop{
+      background:rgba(var(--td-skin-panel-rgb), .32);
+      backdrop-filter:blur(4px);
+    }
+    #tdproLicenseRequiredDialog article{
+      margin:0;
+      min-width:min(92vw, 720px);
+      background:rgba(var(--td-skin-table-bg-rgb), .985);
+      color:var(--td-skin-text);
+      border:1px solid rgba(var(--td-skin-border-rgb), .72);
+      border-radius:22px;
+      box-shadow:0 18px 46px rgba(var(--td-skin-black-rgb), .18), 0 0 24px rgba(var(--td-skin-primary-glow-rgb), .12);
+    }
+    #tdproLicenseRequiredDialog header,
+    #tdproLicenseRequiredDialog footer{
+      background:transparent !important;
+      color:var(--td-skin-text-strong);
+      border:none;
+      box-shadow:none;
+    }
+    #tdproLicenseRequiredDialog p{
+      color:var(--td-skin-text);
+    }
+    #tdproLicenseRequiredDialog strong{
+      color:var(--td-skin-text-strong);
+    }
+    #tdproLicenseRequiredDialog footer{
+      display:flex;
+      justify-content:flex-end;
+      padding-top:0;
+    }
+    #tdproLicenseRequiredDialog footer button{
+      background:var(--td-skin-primary);
+      color:var(--td-skin-button-text);
+      border:1px solid rgba(var(--td-skin-primary-hover-rgb), .86);
+      box-shadow:0 0 16px rgba(var(--td-skin-primary-glow-rgb), .16);
+    }
+    #tdproLicenseRequiredDialog footer button:hover{
+      background:var(--td-skin-primary-hover);
+    }
+    /* Skin-safe wallet dialogs: create/import/recover/delete/passphrase surfaces must stay readable across every skin. */
+    #createDialog,
+    #changePassphraseDialog,
+    #recoverDialog,
+    #importDialog,
+    #deleteDialog{
+      border:none;
+      padding:0;
+      background:transparent;
+      color:var(--td-skin-text);
+      max-width:min(94vw, 760px);
+    }
+    #createDialog::backdrop,
+    #changePassphraseDialog::backdrop,
+    #recoverDialog::backdrop,
+    #importDialog::backdrop,
+    #deleteDialog::backdrop{
+      background:rgba(var(--td-skin-black-rgb), .56);
+      backdrop-filter:blur(4px);
+    }
+    #createDialog article,
+    #changePassphraseDialog article,
+    #recoverDialog article,
+    #importDialog article,
+    #deleteDialog article{
+      margin:0;
+      min-width:min(94vw, 720px);
+      background:rgba(var(--td-skin-table-bg-rgb), .985) !important;
+      color:var(--td-skin-text) !important;
+      border:1px solid rgba(var(--td-skin-border-rgb), .74);
+      border-radius:22px;
+      box-shadow:0 18px 46px rgba(var(--td-skin-black-rgb), .22), 0 0 24px rgba(var(--td-skin-primary-glow-rgb), .14);
+    }
+    #createDialog header, #createDialog footer,
+    #changePassphraseDialog header, #changePassphraseDialog footer,
+    #recoverDialog header, #recoverDialog footer,
+    #importDialog header, #importDialog footer,
+    #deleteDialog header, #deleteDialog footer{
+      background:transparent !important;
+      color:var(--td-skin-text-strong) !important;
+      border:none;
+      box-shadow:none;
+    }
+    #createDialog p, #createDialog small, #createDialog label, #createDialog strong,
+    #changePassphraseDialog p, #changePassphraseDialog small, #changePassphraseDialog label, #changePassphraseDialog strong,
+    #recoverDialog p, #recoverDialog small, #recoverDialog label, #recoverDialog strong,
+    #importDialog p, #importDialog small, #importDialog label, #importDialog strong,
+    #deleteDialog p, #deleteDialog small, #deleteDialog label, #deleteDialog strong{
+      color:var(--td-skin-text-strong) !important;
+      opacity:1 !important;
+    }
+    #createDialog .muted,
+    #changePassphraseDialog .muted,
+    #recoverDialog .muted,
+    #importDialog .muted,
+    #deleteDialog .muted{
+      color:var(--td-skin-text) !important;
+      opacity:1 !important;
+    }
+    #createDialog input, #createDialog select,
+    #changePassphraseDialog input, #changePassphraseDialog select,
+    #recoverDialog input, #recoverDialog select,
+    #importDialog input, #importDialog select,
+    #deleteDialog input, #deleteDialog select{
+      background:#fff !important;
+      color:#111 !important;
+      -webkit-text-fill-color:#111 !important;
+      caret-color:#111 !important;
+      border:1px solid rgba(176, 136, 37, .58) !important;
+      box-shadow:0 1px 0 rgba(255,255,255,.9) inset !important;
+      color-scheme:light !important;
+    }
+    #createDialog input:-webkit-autofill, #createDialog input:-webkit-autofill:hover, #createDialog input:-webkit-autofill:focus,
+    #changePassphraseDialog input:-webkit-autofill, #changePassphraseDialog input:-webkit-autofill:hover, #changePassphraseDialog input:-webkit-autofill:focus,
+    #recoverDialog input:-webkit-autofill, #recoverDialog input:-webkit-autofill:hover, #recoverDialog input:-webkit-autofill:focus,
+    #importDialog input:-webkit-autofill, #importDialog input:-webkit-autofill:hover, #importDialog input:-webkit-autofill:focus,
+    #deleteDialog input:-webkit-autofill, #deleteDialog input:-webkit-autofill:hover, #deleteDialog input:-webkit-autofill:focus{
+      -webkit-box-shadow:0 0 0 1000px #fff inset !important;
+      -webkit-text-fill-color:#111 !important;
+      caret-color:#111 !important;
+      color:#111 !important;
+    }
+    #createDialog input::placeholder,
+    #changePassphraseDialog input::placeholder,
+    #recoverDialog input::placeholder,
+    #importDialog input::placeholder,
+    #deleteDialog input::placeholder{
+      color:#5d513d !important;
+      opacity:1 !important;
+      -webkit-text-fill-color:#5d513d !important;
+    }
+    #createDialog input:focus, #createDialog select:focus,
+    #changePassphraseDialog input:focus, #changePassphraseDialog select:focus,
+    #recoverDialog input:focus, #recoverDialog select:focus,
+    #importDialog input:focus, #importDialog select:focus,
+    #deleteDialog input:focus, #deleteDialog select:focus{
+      border-color:rgba(184, 138, 22, .9) !important;
+      box-shadow:0 0 0 3px rgba(184, 138, 22, .18) !important;
+    }
+    /* Skin-safe wallet dialog code chips: white highlight with black text across every skin. */
+    #createDialog code, #createDialog pre,
+    #changePassphraseDialog code, #changePassphraseDialog pre,
+    #recoverDialog code, #recoverDialog pre,
+    #importDialog code, #importDialog pre,
+    #deleteDialog code, #deleteDialog pre{
+      background:#fff !important;
+      color:#111 !important;
+      -webkit-text-fill-color:#111 !important;
+      border:1px solid rgba(176, 136, 37, .42) !important;
+      border-radius:8px !important;
+      box-shadow:0 1px 0 rgba(255,255,255,.9) inset !important;
+    }
+    #createDialog code,
+    #changePassphraseDialog code,
+    #recoverDialog code,
+    #importDialog code,
+    #deleteDialog code{
+      display:inline-block;
+      max-width:100%;
+      padding:.14rem .38rem;
+      white-space:normal;
+      overflow-wrap:anywhere;
+      word-break:break-word;
+      vertical-align:baseline;
+    }
+    #createDialog pre,
+    #changePassphraseDialog pre,
+    #recoverDialog pre,
+    #importDialog pre,
+    #deleteDialog pre{
+      padding:.5rem .65rem !important;
+      white-space:pre-wrap !important;
+      overflow:auto !important;
+    }
+    #createDialog pre code,
+    #changePassphraseDialog pre code,
+    #recoverDialog pre code,
+    #importDialog pre code,
+    #deleteDialog pre code{
+      display:block;
+      background:transparent !important;
+      border:none !important;
+      padding:0 !important;
+    }
     .qr-preview{
-      width:144px;height:144px;border:2px dashed #ccc;border-radius:8px;
+      width:144px;height:144px;border:2px dashed rgba(var(--td-skin-muted-rgb), 0.8);border-radius:8px;
       display:flex;align-items:center;justify-content:center;
-      font:600 16px/1.2 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#fff;user-select:none
+      font:600 16px/1.2 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:var(--td-skin-white);user-select:none
     }
 
     /* Assets table: two columns, left-justified, 30/70 split */
@@ -71,6 +264,10 @@
       padding: 8px 14px !important;
     }
     nav.topnav #dd-create br{
+      display: none !important;
+    }
+    body[data-client-ui-mode="operator_oma_only"] nav.topnav #dd-create a#menuCreateCompliance,
+    body[data-client-ui-mode="operator_oma_only"] nav.topnav #dd-create a#menuRecoverCompliance{
       display: none !important;
     }
 
@@ -119,7 +316,17 @@
     }
   </style>
 </head>
-<body>
+<body data-skin="classic_teal">
+<script>
+(function () {
+  var key = 'td_active_skin_id';
+  var allowed = { classic_teal: true, pink: true, pink_black: true, gold: true, gold_black: true, blue: true, blue_black: true, green: true, green_black: true, red: true, red_black: true, yellow: true, yellow_black: true, cyan: true, cyan_black: true, orange: true, orange_black: true };
+  try {
+    var skinId = String(sessionStorage.getItem(key) || '').trim();
+    if (allowed[skinId]) document.body.setAttribute('data-skin', skinId);
+  } catch (_) {}
+})();
+</script>
   <main class="container">
     <nav class="topnav" aria-label="Primary">
       <ul>
@@ -133,6 +340,7 @@
         <li><a href="/offers.html">Offers</a></li>
         <li><a href="/deploy.html">Deploy</a></li>
         <li><a href="/issue.html">Issue</a></li>
+        <li><a href="/covenants.html">Cov Tools</a></li>
         <li><a href="/redeem.html">Redeem</a></li>
         <li><a href="/energy.html">Energy</a></li>
         <li><a href="/manage.html">Settings</a></li>
@@ -149,8 +357,131 @@
         </div>
       </div>
     </nav>
+    <script type="module" src="/static/js/nav_choice_modal.js"></script>
 
     <!-- Menu styles live in /static/css/style.css -->
+
+    <dialog id="tdproLicenseRequiredDialog">
+      <article>
+        <header>
+          <strong id="tdproLicenseRequiredTitle">TDPRO license required</strong>
+        </header>
+        <p id="tdproLicenseRequiredBody">
+          TDPRO license required.
+        </p>
+        <p id="tdproLicenseRequiredTestnetNote">
+          These pages are free to use with testnet-10 without a license.
+        </p>
+        <p>
+          <strong>Warning:</strong> <span id="tdproLicenseRequiredWarning">The testnet-10 network is not a permanent record. It is not for real-world use cases. Data stored there will be deleted from time to time.</span>
+        </p>
+        <footer>
+          <button id="tdproLicenseRequiredButton" type="button" onclick="window.closeTdproLicenseRequiredDialog && window.closeTdproLicenseRequiredDialog()">OK</button>
+        </footer>
+      </article>
+    </dialog>
+
+    <script>
+      (function () {
+        var noticeKey = 'tdpro_license_required';
+
+        function cleanNoticeUrl() {
+          try {
+            var url = new URL(window.location.href);
+            url.searchParams.delete(noticeKey);
+            history.replaceState(null, '', url.pathname + url.search + url.hash);
+          } catch (_) {}
+        }
+
+        function textOrDefault(value, fallback) {
+          var text = typeof value === 'string' ? value.trim() : '';
+          return text || fallback;
+        }
+
+        function defaultGateMessage() {
+          return {
+            gate_title: 'TDPRO license required',
+            gate_body: 'TDPRO license required.',
+            gate_testnet_note: 'These pages are free to use with testnet-10 without a license.',
+            gate_warning: 'The testnet-10 network is not a permanent record. It is not for real-world use cases. Data stored there will be deleted from time to time.',
+            gate_button_label: 'OK'
+          };
+        }
+
+        function applyGateMessage(message) {
+          var fallback = defaultGateMessage();
+          var gate = message && typeof message === 'object' ? message : {};
+          var title = document.getElementById('tdproLicenseRequiredTitle');
+          var body = document.getElementById('tdproLicenseRequiredBody');
+          var testnetNote = document.getElementById('tdproLicenseRequiredTestnetNote');
+          var warning = document.getElementById('tdproLicenseRequiredWarning');
+          var button = document.getElementById('tdproLicenseRequiredButton');
+
+          if (title) title.textContent = textOrDefault(gate.gate_title, fallback.gate_title);
+          if (body) body.textContent = textOrDefault(gate.gate_body, fallback.gate_body);
+          if (testnetNote) testnetNote.textContent = textOrDefault(gate.gate_testnet_note, fallback.gate_testnet_note);
+          if (warning) warning.textContent = textOrDefault(gate.gate_warning, fallback.gate_warning);
+          if (button) button.textContent = textOrDefault(gate.gate_button_label, fallback.gate_button_label);
+        }
+
+        async function loadConfiguredGateMessage() {
+          const resp = await fetch('/api/v1/entitlement-token-settings/gate-message?package_type=PRO', {
+            method: 'GET',
+            headers: { 'Accept': 'application/json' },
+            credentials: 'same-origin'
+          });
+
+          if (!resp.ok) throw new Error('gate_message_fetch_failed_' + resp.status);
+          const json = await resp.json();
+          if (!json || json.ok !== true || !json.gate_message || typeof json.gate_message !== 'object') {
+            throw new Error('gate_message_response_invalid');
+          }
+          applyGateMessage(json.gate_message);
+        }
+
+        function currentGateAlertText() {
+          var title = document.getElementById('tdproLicenseRequiredTitle');
+          var body = document.getElementById('tdproLicenseRequiredBody');
+          var testnetNote = document.getElementById('tdproLicenseRequiredTestnetNote');
+          var warning = document.getElementById('tdproLicenseRequiredWarning');
+          return [
+            title ? title.textContent : '',
+            body ? body.textContent : '',
+            testnetNote ? testnetNote.textContent : '',
+            warning ? 'Warning! ' + warning.textContent : ''
+          ].filter(Boolean).join(' ');
+        }
+
+        window.closeTdproLicenseRequiredDialog = function () {
+          var dlg = document.getElementById('tdproLicenseRequiredDialog');
+          try {
+            if (dlg && dlg.open) dlg.close();
+          } catch (_) {}
+          cleanNoticeUrl();
+        };
+
+        document.addEventListener('DOMContentLoaded', async function () {
+          try {
+            var params = new URLSearchParams(window.location.search || '');
+            if (params.get(noticeKey) !== '1') return;
+            var dlg = document.getElementById('tdproLicenseRequiredDialog');
+
+            try {
+              await loadConfiguredGateMessage();
+            } catch (err) {
+              console.warn('TDPRO gate message fetch failed:', err);
+            }
+
+            if (dlg && typeof dlg.showModal === 'function') {
+              dlg.showModal();
+            } else {
+              alert(currentGateAlertText());
+              cleanNoticeUrl();
+            }
+          } catch (_) {}
+        });
+      })();
+    </script>
 
     <script>
       (function () {
@@ -186,7 +517,74 @@
       });
 
       // Create actions (Standard vs Compliance)
+      function readClientUiMode() {
+        try {
+          var cached = String(sessionStorage.getItem('td_active_client_ui_mode') || '').trim();
+          if (cached === 'operator_oma_only' || cached === 'broker_compliance') return cached;
+        } catch(_) {}
+        var bodyMode = document.body ? String(document.body.getAttribute('data-client-ui-mode') || '').trim() : '';
+        return (bodyMode === 'operator_oma_only' || bodyMode === 'broker_compliance') ? bodyMode : 'broker_compliance';
+      }
+
+      function setClientUiMode(mode) {
+        var normalized = (mode === 'operator_oma_only') ? 'operator_oma_only' : 'broker_compliance';
+        try { sessionStorage.setItem('td_active_client_ui_mode', normalized); } catch(_) {}
+        if (document.body) document.body.setAttribute('data-client-ui-mode', normalized);
+        applyWalletMenuMode();
+        return normalized;
+      }
+
+      function isOperatorOmaOnlyMode() {
+        return readClientUiMode() === 'operator_oma_only';
+      }
+
+      function setMenuItemVisible(id, visible) {
+        var el = document.getElementById(id);
+        if (!el) return;
+        el.hidden = !visible;
+        el.style.display = visible ? '' : 'none';
+        var next = el.nextSibling;
+        while (next && next.nodeType === 3 && !String(next.nodeValue || '').trim()) next = next.nextSibling;
+        if (next && next.nodeType === 1 && String(next.tagName || '').toUpperCase() === 'BR') {
+          next.hidden = !visible;
+          next.style.display = visible ? '' : 'none';
+        }
+      }
+
+      function applyWalletMenuMode() {
+        var operatorMode = isOperatorOmaOnlyMode();
+        var menuCreateStandard = document.getElementById('menuCreateStandard');
+        var menuRecoverStandard = document.getElementById('menuRecoverStandard');
+        var menuCreateCompliance = document.getElementById('menuCreateCompliance');
+        var menuRecoverCompliance = document.getElementById('menuRecoverCompliance');
+        if (menuCreateStandard) menuCreateStandard.textContent = operatorMode ? 'Self Custody OMA Wallet' : 'Self Custody Wallet';
+        if (menuRecoverStandard) menuRecoverStandard.textContent = operatorMode ? 'Recover Self Custody OMA Wallet' : 'Recover Self Custody Wallet';
+        if (menuCreateCompliance) menuCreateCompliance.textContent = 'Broker Custody Compliance Wallet';
+        if (menuRecoverCompliance) menuRecoverCompliance.textContent = 'Recover Broker Custody Wallet';
+        setMenuItemVisible('menuCreateCompliance', !operatorMode);
+        setMenuItemVisible('menuRecoverCompliance', !operatorMode);
+      }
+
+      function loadClientUiModeForWalletPage() {
+        return fetch('/api/v1/wrapped-config', { credentials: 'include' })
+          .then(function(r){ return r.json().catch(function(){ return null; }); })
+          .then(function(j){
+            var publicSite = j && j.publicSite && typeof j.publicSite === 'object' ? j.publicSite : null;
+            return setClientUiMode(publicSite ? publicSite.clientUiMode : 'broker_compliance');
+          })
+          .catch(function(){
+            applyWalletMenuMode();
+            return readClientUiMode();
+          });
+      }
+
+      window.__CW_isOperatorOmaOnlyMode = isOperatorOmaOnlyMode;
+      window.__CW_loadClientUiModeForWalletPage = loadClientUiModeForWalletPage;
+      applyWalletMenuMode();
+      loadClientUiModeForWalletPage();
+
       function setCreateMode(mode) {
+        if (isOperatorOmaOnlyMode() && mode === 'compliance') mode = 'standard';
         window.__CW_CREATE_WALLET_TYPE = (mode === 'compliance') ? 'compliance' : 'standard';
 
         // Reset dialog state to "confirm" view each time
@@ -222,6 +620,7 @@
       }
 
       function setRecoverMode(mode) {
+        if (isOperatorOmaOnlyMode() && mode === 'compliance') mode = 'standard';
         window.__CW_RECOVER_WALLET_TYPE = (mode === 'compliance') ? 'compliance' : 'standard';
 
         var dlg = document.getElementById('recoverDialog');
@@ -238,7 +637,7 @@
         if (intro) {
           intro.innerHTML = (window.__CW_RECOVER_WALLET_TYPE === 'compliance')
             ? 'Recover an existing Broker Custody Compliance Wallet descriptor using the local BCW access keyfile. The passphrase and authorization secret stay in this browser.'
-            : 'Recover an existing Self Custody Wallet on this server. You must provide either the encrypted keyfile or the recovery file, plus the passphrase and the mnemonic phrase.';
+            : 'Recover an existing Self Custody Wallet on this server. Use either Option A: Recovery file + passphrase, or Option B: Keyfile + passphrase + 12-word mnemonic phrase.';
         }
 
         var mnemonicWrap = document.getElementById('recoverMnemonicWrap');
@@ -306,7 +705,7 @@
 
     <!-- Address + toolbar -->
     <section class="card">
-      <header><h3>Address</h3></header>
+      <header><h4 id="walletIdHeader">Wallet ID: —</h4></header>
 
       <div class="toolbar" id="networkSelectorRow" style="margin:.25rem 0 .25rem 0">
         <label for="networkSelect" style="min-width:60px;margin:0">Network</label>
@@ -370,12 +769,12 @@
 
           <div class="toolbar" style="margin:.5rem 0 .25rem 0">
             <label for="wTo" style="min-width:50px;margin:0">To</label>
-            <input id="wTo" type="text" placeholder="kaspa:..." style="padding:6px 8px;border:1px solid #ddd;border-radius:6px;max-width:100%">
+            <input id="wTo" type="text" placeholder="kaspa:..." style="padding:6px 8px;border:1px solid rgba(var(--td-skin-white-rgb), 0.75);border-radius:6px;max-width:100%">
           </div>
 
           <div class="toolbar" style="margin:.25rem 0 .5rem 0">
             <label for="wAmt" style="min-width:50px;margin:0">Amount</label>
-            <input id="wAmt" type="text" placeholder="e.g. 1.00" style="width:180px;padding:6px 8px;border:1px solid #ddd;border-radius:6px">            <button id="btnMax" type="button" class="secondary half">MAX</button>
+            <input id="wAmt" type="text" placeholder="e.g. 1.00" style="width:180px;padding:6px 8px;border:1px solid rgba(var(--td-skin-white-rgb), 0.75);border-radius:6px">            <button id="btnMax" type="button" class="secondary half">MAX</button>
             <span id="wSendResult" class="muted" style="margin-left:auto"></span>
           </div>
 
@@ -412,6 +811,10 @@
         <h3 id="bulkHelperBridgeTitle">Broadcast Maker</h3>
         <h3 id="bulkHelperCouponTitle" style="display:none">Coupon Broadcaster</h3>
       </header>
+
+      <p class="muted" style="margin:.25rem 0 .75rem 0;border:1px solid rgba(255,210,92,.55);border-radius:10px;padding:.55rem .7rem;background:rgba(255,210,92,.08)">
+        <strong>Coupon Broadcaster compatibility:</strong> KRC20 coupon tokens only. KCC20 token support is not available yet.
+      </p>
 
       <div id="bulkHelperBridgePanel">
         <p class="muted" style="margin:.25rem 0 .75rem 0">
@@ -461,7 +864,6 @@
         <p class="muted" style="margin:.25rem 0 .75rem 0">
           Load a subscriber CSV file, preview the recipient rows, confirm that it matches the Active wallet ID, selected coupon token, network, amount, and unlocked keyfile session, then simply click to broadcast the coupons.
         </p>
-
         <details class="muted" style="margin:.25rem 0 .85rem 0">
           <summary><strong>How to create a coupon subscriber CSV file</strong></summary>
           <div style="display:grid; gap:.55rem; margin-top:.65rem;">
@@ -574,10 +976,13 @@ kaspatest:replace_with_coupon_receive_address,Todd,todd@example.com,SUB-001,Todd
 
         <div class="grid" style="margin-top:.75rem">
           <label for="createPassword">Keyfile Passphrase
-            <input id="createPassword" type="password" placeholder="required" autocomplete="new-password">
+            <input id="createPassword" type="password" placeholder="required" autocomplete="new-password" autocorrect="off" autocapitalize="none" spellcheck="false">
+          </label>
+          <label for="createPasswordConfirm">Confirm Keyfile Passphrase
+            <input id="createPasswordConfirm" type="password" placeholder="type it again" autocomplete="new-password" autocorrect="off" autocapitalize="none" spellcheck="false">
           </label>
         </div>
-        <small class="muted">Passphrase cannot be blank. Leading and trailing spaces are ignored by this form; do not rely on spaces at the beginning or end. Use a unique passphrase and save it offline.</small>
+        <small class="muted"><strong>Save this passphrase exactly.</strong> Do not rely on memory. Do not let your phone or browser create a passphrase unless you save the exact value. If this passphrase is wrong or lost, the keyfile cannot be unlocked.</small>
 
         <div id="createComplianceFields" style="display:none; margin-top:.5rem">
           <div class="grid">
@@ -595,10 +1000,11 @@ kaspatest:replace_with_coupon_receive_address,Todd,todd@example.com,SUB-001,Todd
 
         <!-- Done (success state shown after create) -->
         <p id="createDoneText" class="muted" style="display:none"></p>
+        <div id="createDoneChecklist" class="muted" style="display:none; border:1px solid var(--muted-border, #ddd); border-radius:8px; padding:.75rem; margin-top:.75rem"></div>
         <footer id="createDoneActions" class="toolbar" style="margin-top:1rem; display:none">
           <button id="btnCreateDownloadRecovery" type="button" class="secondary">Download recovery keys</button>
           <button id="btnCreateDownloadKeyfile" type="button" class="secondary">Download keyfile</button>
-          <button id="btnCreateContinueDlg" type="button" autofocus>Continue</button>
+          <button id="btnCreateContinueDlg" type="button" autofocus disabled>Continue</button>
         </footer>
       </article>
     </dialog>
@@ -649,7 +1055,7 @@ kaspatest:replace_with_coupon_receive_address,Todd,todd@example.com,SUB-001,Todd
         </p>
 
         <div class="grid" style="margin-top:.75rem">
-          <label for="recoverKeyfile">Keyfile
+          <label for="recoverKeyfile">Recovery file or keyfile
             <input id="recoverKeyfile" type="file" accept="application/json,.json">
           </label>
           <label for="recoverPassphrase">Keyfile Passphrase
@@ -658,7 +1064,8 @@ kaspatest:replace_with_coupon_receive_address,Todd,todd@example.com,SUB-001,Todd
         </div>
 
         <label id="recoverMnemonicWrap" for="recoverMnemonic" style="margin-top:.75rem">Mnemonic Phrase
-          <textarea id="recoverMnemonic" rows="3" placeholder="required"></textarea>
+          <textarea id="recoverMnemonic" rows="3" placeholder="required only when using keyfile"></textarea>
+          <small class="muted">Recovery file path: use Recovery file + passphrase. Keyfile path: use Keyfile + passphrase + 12-word mnemonic phrase.</small>
         </label>
 
         <footer class="toolbar" style="margin-top:1rem">
@@ -729,6 +1136,7 @@ kaspatest:replace_with_coupon_receive_address,Todd,todd@example.com,SUB-001,Todd
 <script src="/static/js/send_engine.js" defer></script>
 <script src="/static/js/network_shared.js" defer></script>
 <script src="/static/js/logout_shared.js" defer></script>
+<script src="/static/js/sponsored_offers_shared.js" defer></script>
 <script src="/static/js/wallet.js" defer></script>
 <script src="/static/js/swap_analyzer_shared.js" defer></script>
 <script src="/static/js/swaps.js" defer></script>
@@ -772,10 +1180,24 @@ kaspatest:replace_with_coupon_receive_address,Todd,todd@example.com,SUB-001,Todd
       }
     }
 
-    function loadWallets() {
-      applyNetworkUi();
+    function isOperatorOmaOnlyMode() {
+      if (window.__CW_isOperatorOmaOnlyMode) return window.__CW_isOperatorOmaOnlyMode();
+      try {
+        if (String(sessionStorage.getItem('td_active_client_ui_mode') || '').trim() === 'operator_oma_only') return true;
+      } catch(_) {}
+      return !!(document.body && document.body.getAttribute('data-client-ui-mode') === 'operator_oma_only');
+    }
 
-      return fetch('/api/wallets')
+    function ensureClientUiModeForWallets() {
+      if (window.__CW_loadClientUiModeForWalletPage) return window.__CW_loadClientUiModeForWalletPage();
+      return Promise.resolve(isOperatorOmaOnlyMode() ? 'operator_oma_only' : 'broker_compliance');
+    }
+
+    function loadWallets() {
+      return ensureClientUiModeForWallets().then(function(){
+        applyNetworkUi();
+
+        return fetch('/api/wallets')
         .then(function(r){ return r.json(); })
         .then(function(data){
           var items = Array.isArray(data.items) ? data.items : [];
@@ -783,9 +1205,26 @@ kaspatest:replace_with_coupon_receive_address,Todd,todd@example.com,SUB-001,Todd
           ACTIVE_ID = data.active_id || null;
 
           var desiredNet = uiNetwork();
+          var operatorOmaOnly = isOperatorOmaOnlyMode();
           var filtered = items.filter(function(it){
-            return it && it.network === desiredNet;
+            if (!it || it.network !== desiredNet) return false;
+            if (operatorOmaOnly && it.wallet_type === 'compliance') return false;
+            return true;
           });
+
+          if (operatorOmaOnly && filtered.length === 0) {
+            var firstStandard = items.find(function(it){
+              return it && it.wallet_type !== 'compliance' && (it.network === 'mainnet' || it.network === 'testnet');
+            });
+            if (firstStandard) {
+              desiredNet = firstStandard.network;
+              if (netSel) netSel.value = desiredNet;
+              applyNetworkUi();
+              filtered = items.filter(function(it){
+                return it && it.network === desiredNet && it.wallet_type !== 'compliance';
+              });
+            }
+          }
 
           sel.innerHTML = '';
           filtered.forEach(function(it){
@@ -812,6 +1251,11 @@ kaspatest:replace_with_coupon_receive_address,Todd,todd@example.com,SUB-001,Todd
             var s = note.querySelector('small');
             if (!s) { s = document.createElement('small'); note.appendChild(s); }
             s.textContent = ACTIVE_ID ? '(active)' : '';
+          }
+
+          var walletIdHeader = document.getElementById('walletIdHeader');
+          if (walletIdHeader) {
+            walletIdHeader.textContent = ACTIVE_ID ? ('Wallet ID: ' + ACTIVE_ID) : 'Wallet ID: —';
           }
 
           // If active wallet is not in this network, auto-switch to first wallet in-network.
@@ -848,6 +1292,7 @@ kaspatest:replace_with_coupon_receive_address,Todd,todd@example.com,SUB-001,Todd
           sel.disabled = true;
           return [];
         });
+      });
     }
 
     // Initial load
@@ -914,7 +1359,12 @@ kaspatest:replace_with_coupon_receive_address,Todd,todd@example.com,SUB-001,Todd
     function openDeleteDialog(){
       // Ensure latest wallet list/cache
       loadWallets().then(function(){
-        var deletable = WALLET_LIST.filter(function(it){ return it && it.id && it.id !== ACTIVE_ID; });
+        var operatorOmaOnly = isOperatorOmaOnlyMode();
+        var deletable = WALLET_LIST.filter(function(it){
+          if (!it || !it.id || it.id === ACTIVE_ID) return false;
+          if (operatorOmaOnly && it.wallet_type === 'compliance') return false;
+          return true;
+        });
         // Friendly no-op if none
         if (!deletable.length){
           setNote('no other wallets to delete');
@@ -1016,8 +1466,12 @@ kaspatest:replace_with_coupon_receive_address,Todd,todd@example.com,SUB-001,Todd
       var walletType = (window.__CW_CREATE_WALLET_TYPE === 'compliance') ? 'compliance' : 'standard';
 
       var pwdEl = document.getElementById('createPassword');
+      var pwdConfirmEl = document.getElementById('createPasswordConfirm');
       var passphrase = String(pwdEl && pwdEl.value ? pwdEl.value : '').trim();
+      var passphraseConfirm = String(pwdConfirmEl && pwdConfirmEl.value ? pwdConfirmEl.value : '').trim();
       if (!passphrase) { alert('Keyfile passphrase is required.'); return; }
+      if (!passphraseConfirm) { alert('Confirm your keyfile passphrase before creating the wallet.'); return; }
+      if (passphrase !== passphraseConfirm) { alert('Passphrases do not match. Type the same passphrase in both fields.'); return; }
 
       var brokerId = '';
 
@@ -1057,6 +1511,8 @@ kaspatest:replace_with_coupon_receive_address,Todd,todd@example.com,SUB-001,Todd
 
           if (walletType === 'compliance') {
             payload.broker_id = brokerId;
+            payload.auth_secret = String(priv0.toString());
+            payload.auth_pubkey = userPubKey;
           }
 
           return fetch('/setup/wallet', {
@@ -1121,7 +1577,6 @@ kaspatest:replace_with_coupon_receive_address,Todd,todd@example.com,SUB-001,Todd
                 ? 'td-compliance-wallet-access-v1-' + wid + '.json'
                 : 'td-wallet-v1-' + wid + '.json';
               var rname = 'td-wallet-recovery-v1-' + wid + '.json';
-              downloadJson(fname, keyfile);
 
               // helper to render the modal "done" state once we have an address (or '—')
               function renderDone(a){
@@ -1134,16 +1589,50 @@ kaspatest:replace_with_coupon_receive_address,Todd,todd@example.com,SUB-001,Todd
                 var actions = document.getElementById('createActions');
                 if (actions) actions.style.display = 'none';
 
+                var recoveryDownloaded = false;
+                var keyfileDownloaded = false;
+                var checklist = document.getElementById('createDoneChecklist');
+                var btn = document.getElementById('btnCreateContinueDlg');
+
+                function updateCreateContinueGate(){
+                  var needsRecovery = walletType !== 'compliance';
+                  var canContinue = keyfileDownloaded && (!needsRecovery || recoveryDownloaded);
+                  if (checklist) {
+                    var recoveryLine = needsRecovery
+                      ? '<div>' + (recoveryDownloaded ? '✓' : '☐') + ' Recovery keys file downloaded</div>'
+                      : '';
+                    var keyfileLabel = (walletType === 'compliance') ? 'Access keyfile downloaded' : 'Keyfile downloaded';
+                    checklist.innerHTML =
+                      '<strong>Required before continuing:</strong>' +
+                      recoveryLine +
+                      '<div>' + (keyfileDownloaded ? '✓' : '☐') + ' ' + keyfileLabel + '</div>' +
+                      (canContinue ? '<small>You may continue now.</small>' : '<small>The Continue button unlocks only after the required download button(s) are clicked.</small>');
+                    checklist.style.display = '';
+                  }
+                  if (btn) {
+                    btn.disabled = !canContinue;
+                    btn.setAttribute('aria-disabled', canContinue ? 'false' : 'true');
+                    btn.title = canContinue ? 'Continue' : 'Download the required wallet file(s) before continuing.';
+                  }
+                }
+
                 var doneText = document.getElementById('createDoneText');
                 if (doneText) {
                   if (walletType === 'compliance') {
                     doneText.innerHTML =
+                      '<strong>STOP — save your access keyfile now.</strong><br>' +
+                      'Download your access keyfile before you continue. You need this file and your exact passphrase to authorize wallet actions.<br>' +
+                      '<strong>A screenshot is not a backup.</strong> OMA / Token Depot cannot recover your passphrase or access keyfile for you.<br><br>' +
                       'Address: <code>' + (a || '—') + '</code><br>' +
                       'Access keyfile: <code>' + fname + '</code><br>' +
                       '<br><strong>Compliance Wallet access keyfile</strong><br>' +
                       '<small>This file authorizes your requests to the broker-custody Compliance Wallet. It does not contain the broker custody signing key and cannot independently spend wallet funds.</small>';
                   } else {
                     doneText.innerHTML =
+                      '<strong>STOP — save your wallet files now.</strong><br>' +
+                      'Download BOTH files before you continue: the Recovery keys file and the Keyfile.<br>' +
+                      'You need these files and your exact passphrase to unlock or recover this wallet.<br>' +
+                      '<strong>A screenshot is not a backup.</strong> OMA / Token Depot cannot recover your passphrase, your keyfile, or your recovery keys for you.<br><br>' +
                       'Address: <code>' + (a || '—') + '</code><br>' +
                       'Recovery keys file: <code>' + rname + '</code><br>' +
                       'Keyfile: <code>' + fname + '</code><br>' +
@@ -1160,22 +1649,38 @@ kaspatest:replace_with_coupon_receive_address,Todd,todd@example.com,SUB-001,Todd
                 if (btnRec) {
                   btnRec.style.display = (walletType === 'compliance') ? 'none' : '';
                   btnRec.disabled = (walletType === 'compliance');
-                  btnRec.onclick = (walletType === 'compliance') ? null : function(){ downloadJson(rname, recovery); };
+                  btnRec.onclick = (walletType === 'compliance') ? null : function(){
+                    downloadJson(rname, recovery);
+                    recoveryDownloaded = true;
+                    updateCreateContinueGate();
+                  };
                 }
 
                 var btnKey = document.getElementById('btnCreateDownloadKeyfile');
                 if (btnKey) {
                   btnKey.textContent = (walletType === 'compliance') ? 'Download access keyfile' : 'Download keyfile';
                   btnKey.disabled = false;
-                  btnKey.onclick = function(){ downloadJson(fname, keyfile); };
+                  btnKey.onclick = function(){
+                    downloadJson(fname, keyfile);
+                    keyfileDownloaded = true;
+                    updateCreateContinueGate();
+                  };
                 }
 
-                var btn = document.getElementById('btnCreateContinueDlg');
                 if (btn) {
-                  btn.disabled = false;
-                  btn.focus();
-                  btn.onclick = function(){ try { createDlg && createDlg.close(); } catch(_) {} };
+                  btn.disabled = true;
+                  btn.setAttribute('aria-disabled', 'true');
+                  btn.onclick = function(){
+                    var needsRecovery = walletType !== 'compliance';
+                    if (!keyfileDownloaded || (needsRecovery && !recoveryDownloaded)) {
+                      alert('Download the required wallet file(s) before continuing. A screenshot is not a backup.');
+                      updateCreateContinueGate();
+                      return;
+                    }
+                    try { createDlg && createDlg.close(); } catch(_) {}
+                  };
                 }
+                updateCreateContinueGate();
               }
 
               renderDone(addr || '');
@@ -1217,8 +1722,7 @@ kaspatest:replace_with_coupon_receive_address,Todd,todd@example.com,SUB-001,Todd
 
       if (!file) { alert('Recovery file or keyfile is required.'); return; }
       if (!passphrase) { alert('Keyfile passphrase is required.'); return; }
-      if (recoverType === 'standard' && !enteredMnemonic) { alert('Mnemonic phrase is required.'); return; }
-
+      
       function kaspaReadyOrThrow(){
         if (window.kaspaReady && typeof window.kaspaReady.then === 'function') return window.kaspaReady;
         return Promise.reject(new Error(String(window.kaspaInitError || 'kaspa_not_ready')));
@@ -1321,8 +1825,15 @@ kaspatest:replace_with_coupon_receive_address,Todd,todd@example.com,SUB-001,Todd
             if (!keyfileMnemonic) {
               throw new Error(outerKind === 'td-wallet-recovery' ? 'Recovery file missing mnemonic' : 'Keyfile missing mnemonic');
             }
-            if (keyfileMnemonic !== enteredMnemonic) {
-              throw new Error('Mnemonic does not match recovery file');
+            if (outerKind === 'td-wallet-keyfile') {
+              if (!enteredMnemonic) {
+                throw new Error('Mnemonic phrase is required when recovering from a keyfile. Use the recovery file instead if you do not want to type the mnemonic.');
+              }
+              if (keyfileMnemonic !== enteredMnemonic) {
+                throw new Error('Mnemonic does not match keyfile');
+              }
+            } else if (outerKind === 'td-wallet-recovery' && enteredMnemonic && keyfileMnemonic !== enteredMnemonic) {
+              throw new Error('Entered mnemonic does not match recovery file');
             }
             if (recoveredWalletType !== 'standard') {
               throw new Error('Selected file is not a Self Custody Wallet recovery file.');
@@ -1993,10 +2504,10 @@ kaspatest:replace_with_coupon_receive_address,Todd,todd@example.com,SUB-001,Todd
   </script>
       <footer style="
       margin-top: 48px;
-      background: #000;
-      color: #fff;
+      background: var(--td-skin-black);
+      color: var(--td-skin-white);
       padding: 22px 16px;
-      border-top: 1px solid rgba(255,255,255,0.12);
+      border-top: 1px solid rgba(var(--td-skin-white-rgb), 0.12);
     ">
       <div style="
         max-width: 1100px;
@@ -2015,7 +2526,7 @@ kaspatest:replace_with_coupon_receive_address,Todd,todd@example.com,SUB-001,Todd
             Statesville, NC 28625
           </div>
           <div style="opacity: 0.9;">
-            Contact Us: <a href="tel:+17046037347" style="color:#fff; text-decoration: underline;">(704) 603-7347</a>
+            Contact Us: <a href="tel:+17046037347" style="color:var(--td-skin-white); text-decoration: underline;">(704) 603-7347</a>
           </div>
         </div>
 

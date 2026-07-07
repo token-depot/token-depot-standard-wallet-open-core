@@ -28,6 +28,7 @@
     form: {
       receiveAddress: '',
       takerTokenReceiveAddress: '',
+      atomicRefundLockDaa: '0',
       receiveSource: null,    // 'active' | 'external' | 'manual'
       complianceOnly: false,
       partialConsidered: false,
@@ -35,8 +36,10 @@
       partialStep: '',
       buyAsset: 'KAS',
       buyAmount: '',
-      ttlMode: 'hours',       // 'hours' | 'eod' | 'otc'
-      ttlHours: 168
+      offerDescription: '',
+      offerInfoUrl: '',
+      ttlMode: 'hours',       // 'hours' | 'eod' | 'gtc'
+      ttlHours: 4
     },
     offerId: null,
     fillId: null,
@@ -293,6 +296,8 @@
           <button id="swapsClose" class="secondary" type="button">Close</button>
         </header>
 
+        <div id="swapCreateSuccess" class="swap-create-success" tabindex="-1" style="display:none"></div>
+
         <section id="step">
           <div class="grid two">
             <div>
@@ -313,7 +318,7 @@
           <div class="field-block">
             <label>Maker Receive Address</label>
             <div class="row" style="gap:.5rem;margin-top:.25rem">
-              <input id="recvAddr" placeholder="Paste your KAS settlement address" autocomplete="off">
+              <input id="recvAddr" type="text" placeholder="Paste your KAS settlement address" autocomplete="off">
               <button id="btnRecvUseActive" type="button" class="secondary">Use this wallet's address</button>
             </div>
             <div id="recvHelp" class="note" style="margin-top:.25rem">
@@ -322,12 +327,20 @@
           </div>
 
           <div class="field-block">
-            <label>Taker Token Receive Address (P2P)</label>
+            <label>Taker Token Receive Address (Direct Atomic KCC20)</label>
             <div class="row" style="gap:.5rem;margin-top:.25rem">
-              <input id="takerRecvAddr" placeholder="Paste taker kaspa:… address to receive tokens" autocomplete="off">
+              <input id="takerRecvAddr" type="text" placeholder="Paste taker kaspa:… address to receive tokens" autocomplete="off">
             </div>
             <div class="note" style="margin-top:.25rem">
-              Module 4a (P2P): Maker must embed the recipient address for the token transfer.
+              Direct KCC20 atomic swaps lock the selected OMA L1/KCC20 amount to this fixed taker token receive address. Leave this blank to create a KCC20 Open Atomic Swap where the taker receive address is selected dynamically at claim.
+            </div>
+          </div>
+
+          <div class="field-block" id="atomicRefundLockDaaBlock">
+            <label>Maker cancel policy</label>
+            <input id="atomicRefundLockDaa" type="hidden" value="0">
+            <div class="note" style="margin-top:.25rem">
+              Direct KCC20 atomic offers use immediate maker cancel while the offer is live. No DAA lock or expiration is required to cancel your own offer.
             </div>
           </div>
 
@@ -360,14 +373,30 @@
                   <select id="ttlMode">
                     <option value="hours" selected>Hours</option>
                     <option value="eod">End of Day</option>
-                    <option value="otc">OTC (manual)</option>
+                    <option value="gtc">Good Till Cancelled (GTC)</option>
                   </select>
-                  <input id="ttlHours" type="number" min="1" max="168" step="1" value="168">
+                  <input id="ttlHours" type="number" min="1" max="168" step="1" value="4">
                 </div>
               </div>
             </div>
             <div class="note" style="margin-top:.25rem">
-              Enter 1 to 168 hours. OTC/manual offers are good until the 7-day maximum.
+              TTL controls how long the offer remains visible before expiring automatically. Hours defaults to 4 and may be 1–168. End of Day expires at local midnight. Good Till Cancelled does not expire automatically; use My Swaps → Cancel/Expire to remove it.
+            </div>
+          </div>
+
+          <div class="field-block">
+            <label for="offerDescription">Offer description / terms (optional)</label>
+            <textarea id="offerDescription" rows="3" maxlength="2000" placeholder="Example: 10% off Hoymiles equipment order. Valid for one eligible purchase."></textarea>
+            <div class="note" style="margin-top:.25rem">
+              Use this for coupon terms, merchant instructions, or what the token can be redeemed for.
+            </div>
+          </div>
+
+          <div class="field-block">
+            <label for="offerInfoUrl">More information URL (optional)</label>
+            <input id="offerInfoUrl" type="text" maxlength="500" placeholder="https://example.com/offer-terms" autocomplete="off">
+            <div class="note" style="margin-top:.25rem">
+              Optional http/https link for full offer terms. No image/icon upload in this version.
             </div>
           </div>
 
@@ -459,11 +488,14 @@
     // Wire form events
     $('recvAddr')?.addEventListener('input', onRecvChange, {passive:true});
     $('takerRecvAddr')?.addEventListener('input', onTakerRecvChange, {passive:true});
+    $('atomicRefundLockDaa')?.addEventListener('input', onAtomicRefundLockDaaChange, {passive:true});
     $('btnRecvUseActive')?.addEventListener('click', onRecvUseActive, {passive:true});
     $('partialToggle')?.addEventListener('change', onPartialToggle, {passive:true});
     $('partialMin')?.addEventListener('input', onPartialMinChange, {passive:true});
     $('partialStep')?.addEventListener('input', onPartialStepChange, {passive:true});
     $('buyAmount')?.addEventListener('input', onBuyAmountChange, {passive:true});
+    $('offerDescription')?.addEventListener('input', onOfferDescriptionChange, {passive:true});
+    $('offerInfoUrl')?.addEventListener('input', onOfferInfoUrlChange, {passive:true});
     $('ttlMode')?.addEventListener('change', onTtlModeChange, {passive:true});
     $('ttlHours')?.addEventListener('input', onTtlHoursChange, {passive:true});
 
@@ -473,6 +505,7 @@
     // Reset state
     S.form.receiveAddress = '';
     S.form.takerTokenReceiveAddress = '';
+    S.form.atomicRefundLockDaa = '0';
     S.form.receiveSource = null;
     setComplianceOnlyDerived(false);
     S.form.partialConsidered = false;
@@ -480,20 +513,25 @@
     S.form.partialStep = '';
     S.form.buyAsset = 'KAS';
     S.form.buyAmount = '';
+    S.form.offerDescription = '';
+    S.form.offerInfoUrl = '';
     S.form.ttlMode = 'hours';
-    S.form.ttlHours = 168;
+    S.form.ttlHours = 4;
     S.offerId = null;
     S.fillId = null;
     S.takeOffer = null;
 
     if ($('recvAddr')) $('recvAddr').value = '';
     if ($('takerRecvAddr')) $('takerRecvAddr').value = '';
+    if ($('atomicRefundLockDaa')) $('atomicRefundLockDaa').value = S.form.atomicRefundLockDaa;
     if ($('buyAmount')) $('buyAmount').value = '';
+    if ($('offerDescription')) $('offerDescription').value = '';
+    if ($('offerInfoUrl')) $('offerInfoUrl').value = '';
     if ($('partialToggle')) $('partialToggle').checked = false;
     if ($('partialMin')) $('partialMin').value = '';
     if ($('partialStep')) $('partialStep').value = '';
     if ($('ttlMode')) $('ttlMode').value = 'hours';
-    if ($('ttlHours')) $('ttlHours').value = '168';
+    if ($('ttlHours')) $('ttlHours').value = '4';
     syncPaymentMethodUi();
     if ($('addrRules')) $('addrRules').innerHTML = '';
     if ($('results')) $('results').textContent = '';
@@ -547,7 +585,7 @@
           return;
         }
 
-        const originKind = (ctx.originKind === 'EVM') ? 'EVM' : 'KRC';
+        const originKind = (ctx.originKind === 'EVM') ? 'EVM' : (ctx.originKind === 'OMA_L1' ? 'OMA_L1' : 'KRC');
         S.originKind = originKind;
         S.sendContext = {
           originKind,
@@ -557,7 +595,15 @@
           assetKind: ctx.assetKind || '',
           assetId: ctx.assetId || '',
           assetName: typeof ctx.assetName === 'string' ? ctx.assetName.trim() : '',
-          amount: ctx.amount || ''
+          amount: ctx.amount || '',
+          assetSelectValue: typeof ctx.assetSelectValue === 'string' ? ctx.assetSelectValue.trim() : '',
+          assetCovenantId: typeof ctx.assetCovenantId === 'string' ? ctx.assetCovenantId.trim().toLowerCase() : '',
+          tokenSymbol: typeof ctx.tokenSymbol === 'string' ? ctx.tokenSymbol.trim() : '',
+          amountRawAvailable: typeof ctx.amountRawAvailable === 'string' ? ctx.amountRawAvailable.trim() : '',
+          amountHumanAvailable: typeof ctx.amountHumanAvailable === 'string' ? ctx.amountHumanAvailable.trim() : '',
+          sourceSelection: typeof ctx.sourceSelection === 'string' ? ctx.sourceSelection.trim() : '',
+          route: typeof ctx.route === 'string' ? ctx.route.trim() : '',
+          swapContextKind: typeof ctx.swapContextKind === 'string' ? ctx.swapContextKind.trim() : ''
         };
         S.sendWallet = {
           kind: originKind === 'EVM' ? 'EVM' : 'KRC',
@@ -664,6 +710,11 @@
     S.form.takerTokenReceiveAddress = v;
   }
 
+  function onAtomicRefundLockDaaChange(ev){
+    const v = String(ev && ev.target && ev.target.value || '').trim();
+    S.form.atomicRefundLockDaa = v;
+  }
+
   function setComplianceOnlyDerived(value){
     const checked = !!value;
     S.form.complianceOnly = checked;
@@ -714,9 +765,78 @@
     applyLocalHints();
   }
 
+  function onOfferDescriptionChange(ev){
+    const v = String(ev && ev.target && ev.target.value || '').trim();
+    S.form.offerDescription = v.slice(0, 2000);
+  }
+
+  function onOfferInfoUrlChange(ev){
+    const v = String(ev && ev.target && ev.target.value || '').trim();
+    S.form.offerInfoUrl = v.slice(0, 500);
+  }
+
+  function promptOpenOfferQuantity(){
+    const raw = window.prompt('How many identical open offers do you want to create?', '1');
+    if (raw === null) return null;
+
+    const value = String(raw || '').trim();
+    if (!/^\d+$/.test(value)) {
+      const err = new Error('invalid_open_offer_quantity');
+      err.reason = 'Open offer quantity must be a whole number.';
+      throw err;
+    }
+
+    const quantity = Number(value);
+    if (!Number.isSafeInteger(quantity) || quantity < 1) {
+      const err = new Error('invalid_open_offer_quantity');
+      err.reason = 'Open offer quantity must be at least 1.';
+      throw err;
+    }
+
+    if (quantity > 1000) {
+      const err = new Error('open_offer_quantity_too_large');
+      err.reason = 'Open offer quantity cannot exceed 1000 in one batch.';
+      throw err;
+    }
+
+    return quantity;
+  }
+
+  function makeOpenOfferBatchId(){
+    const bytes = new Uint8Array(8);
+    if (window.crypto && typeof window.crypto.getRandomValues === 'function') {
+      window.crypto.getRandomValues(bytes);
+      return Array.from(bytes).map(function(b){
+        return b.toString(16).padStart(2, '0');
+      }).join('');
+    }
+
+    return String(Date.now()) + '-' + Math.floor(Math.random() * 1000000000);
+  }
+
+  function hideOfferCreateSuccess(){
+    const elSuccess = $('swapCreateSuccess');
+    if (!elSuccess) return;
+    elSuccess.style.display = 'none';
+    elSuccess.textContent = '';
+  }
+
+  function showOfferCreateSuccess(message){
+    const elSuccess = $('swapCreateSuccess');
+    if (!elSuccess) return;
+    elSuccess.textContent = 'Success — ' + String(message || 'offer created.');
+    elSuccess.style.display = 'block';
+    try {
+      elSuccess.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } catch (_) {
+      try { elSuccess.scrollIntoView(); } catch (_) {}
+    }
+    try { elSuccess.focus({ preventScroll: true }); } catch (_) {}
+  }
+
   function onTtlModeChange(ev){
     const v = String(ev && ev.target && ev.target.value || 'hours');
-    S.form.ttlMode = (v === 'eod' || v === 'otc') ? v : 'hours';
+    S.form.ttlMode = (v === 'eod' || v === 'gtc') ? v : 'hours';
     const hoursInput = $('ttlHours');
     if (!hoursInput) return;
     if (S.form.ttlMode === 'hours') {
@@ -770,9 +890,617 @@
 
   function applyLocalHints(){
     syncPaymentMethodUi();
+    const isAtomicKcc20 = isOmaL1Kcc20DirectSwapContext();
+    const bindBtn = $('btnBind');
+    if (bindBtn) bindBtn.textContent = isAtomicKcc20 ? 'Sign & Create Atomic Direct Swap' : 'Make Offer (Swap)';
+    const refundBlock = $('atomicRefundLockDaaBlock');
+    if (refundBlock) refundBlock.style.display = isAtomicKcc20 ? '' : 'none';
   }
 
   // --------------- Payload builder ---------------
+
+
+  function isOmaL1Kcc20DirectSwapContext(){
+    const ctx = S.sendContext || null;
+    if (!ctx || typeof ctx !== 'object') return false;
+    return String(ctx.assetKind || '').trim() === 'oma_l1_covenant_token' || String(ctx.route || '').trim() === 'oma_l1_holder_transfer';
+  }
+
+  function normalizeHex64OrEmpty(value){
+    const s = String(value || '').trim().toLowerCase();
+    return /^[0-9a-f]{64}$/.test(s) ? s : '';
+  }
+
+  function kasDecimalToSompiString(value){
+    const raw = String(value || '').trim();
+    const normalized0 = raw.startsWith('.') ? ('0' + raw) : raw;
+    const normalized = normalized0.endsWith('.') ? normalized0.slice(0, -1) : normalized0;
+    if (!/^\d+(\.\d+)?$/.test(normalized)) throw new Error('invalid_kas_price_amount');
+    const parts = normalized.split('.');
+    const whole = String(parts[0] || '0');
+    const frac = String(parts[1] || '');
+    if (frac.length > 8) throw new Error('invalid_kas_price_precision');
+    const sompi = (BigInt(whole || '0') * 100000000n) + BigInt((frac + '00000000').slice(0, 8) || '0');
+    if (sompi <= 0n) throw new Error('invalid_kas_price_nonpositive');
+    return sompi.toString();
+  }
+
+  function decimalTokenAmountToRawString(value, decimals, errorPrefix){
+    const raw = String(value || '').trim();
+    const normalized0 = raw.startsWith('.') ? ('0' + raw) : raw;
+    const normalized = normalized0.endsWith('.') ? normalized0.slice(0, -1) : normalized0;
+    const prefix = errorPrefix || 'kcc20_atomic_swap_token_amount';
+    const dec = Number(decimals);
+    if (!Number.isInteger(dec) || dec < 0 || dec > 18) throw new Error(prefix + '_decimals_invalid');
+    if (!/^\d+(\.\d+)?$/.test(normalized)) throw new Error(prefix + '_human_amount_invalid');
+    const parts = normalized.split('.');
+    const whole = String(parts[0] || '0');
+    const frac = String(parts[1] || '');
+    if (frac.length > dec) throw new Error(prefix + '_human_amount_precision_exceeds_decimals');
+    const scale = 10n ** BigInt(dec);
+    const rawAmount = (BigInt(whole || '0') * scale) + BigInt((frac + '0'.repeat(dec)).slice(0, dec) || '0');
+    if (rawAmount <= 0n) throw new Error(prefix + '_human_amount_nonpositive');
+    return rawAmount.toString();
+  }
+
+  function inferDecimalsFromRawAndHuman(rawText, humanText){
+    const raw = String(rawText || '').trim();
+    const human = String(humanText || '').trim();
+    if (!/^\d+$/.test(raw) || !/^\d+(\.\d+)?$/.test(human)) return null;
+    for (let dec = 0; dec <= 18; dec += 1) {
+      try {
+        if (decimalTokenAmountToRawString(human, dec, 'kcc20_atomic_swap_decimal_infer') === raw) return dec;
+      } catch (_) {}
+    }
+    return null;
+  }
+
+  function kcc20DirectSwapTokenDecimals(payload){
+    const sell = payload && payload.sell && typeof payload.sell === 'object' ? payload.sell : {};
+    const ctx = S.sendContext && typeof S.sendContext === 'object' ? S.sendContext : {};
+    const candidates = [
+      sell.decimals, sell.token_decimals, sell.tokenDecimals, sell.asset_decimals, sell.assetDecimals,
+      ctx.decimals, ctx.token_decimals, ctx.tokenDecimals, ctx.asset_decimals, ctx.assetDecimals
+    ];
+    for (const value of candidates) {
+      if (value === null || value === undefined || value === '') continue;
+      const n = Number(value);
+      if (Number.isInteger(n) && n >= 0 && n <= 18) return n;
+    }
+    const inferred = inferDecimalsFromRawAndHuman(ctx.amountRawAvailable, ctx.amountHumanAvailable);
+    return inferred !== null ? inferred : 0;
+  }
+
+  function kcc20DirectSwapSellAmountRaw(payload){
+    return decimalTokenAmountToRawString(
+      payload && payload.sell_amount,
+      kcc20DirectSwapTokenDecimals(payload),
+      'kcc20_direct_swap_sell_amount'
+    );
+  }
+
+  function isKcc20DirectSwapPayload(payload){
+    const sell = payload && payload.sell && typeof payload.sell === 'object' ? payload.sell : null;
+    return !!(sell && String(sell.type || '').trim() === 'OMA_L1_COVENANT_TOKEN' && normalizeHex64OrEmpty(sell.asset_covenant_id));
+  }
+
+  function kcc20DirectSwapPlanRequest(payload){
+    const sell = payload && payload.sell && typeof payload.sell === 'object' ? payload.sell : {};
+    return {
+      asset_covenant_id: normalizeHex64OrEmpty(sell.asset_covenant_id),
+      transfer_amount_raw: kcc20DirectSwapSellAmountRaw(payload),
+      kas_price_sompi: kasDecimalToSompiString(payload && payload.buy_amount),
+      maker_kas_receive_address: String(payload && payload.receiveEndpoint && payload.receiveEndpoint.address || '').trim(),
+      taker_recipient_address: String(S.form.takerTokenReceiveAddress || '').trim()
+    };
+  }
+
+  function kcc20AtomicRefundLockDaaOrThrow(){
+    // Direct KCC20 atomic v4 offers are maker-cancelable at any time while live.
+    // Keep the legacy request field as 0 for compatibility, but do not expose or require a DAA lock in the UI.
+    const raw = String(S.form.atomicRefundLockDaa || '0').trim() || '0';
+    if (!/^\d+$/.test(raw)) throw new Error('kcc20_atomic_swap_refund_lock_daa_invalid');
+    return raw;
+  }
+
+  function kcc20AtomicDirectMakerLockRequest(payload){
+    const sell = payload && payload.sell && typeof payload.sell === 'object' ? payload.sell : {};
+    return {
+      asset_covenant_id: normalizeHex64OrEmpty(sell.asset_covenant_id),
+      lock_amount_raw: kcc20DirectSwapSellAmountRaw(payload),
+      kas_price_sompi: kasDecimalToSompiString(payload && payload.buy_amount),
+      maker_kas_receive_address: String(payload && payload.receiveEndpoint && payload.receiveEndpoint.address || '').trim(),
+      maker_token_refund_address: String(S.sendContext && S.sendContext.address || '').trim(),
+      taker_token_receive_address: String(S.form.takerTokenReceiveAddress || '').trim(),
+      refund_lock_daa: kcc20AtomicRefundLockDaaOrThrow(),
+      ttl: payload && typeof payload.ttl === 'number' ? payload.ttl : 0
+    };
+  }
+
+  async function buildKcc20AtomicDirectMakerLockFromPayload(payload){
+    const req = kcc20AtomicDirectMakerLockRequest(payload);
+    if (!req.asset_covenant_id) throw new Error('kcc20_atomic_swap_asset_covenant_id_missing');
+    if (!req.lock_amount_raw) throw new Error('kcc20_atomic_swap_lock_amount_raw_missing');
+    if (!req.kas_price_sompi) throw new Error('kcc20_atomic_swap_kas_price_sompi_missing');
+    if (!req.maker_kas_receive_address) throw new Error('kcc20_atomic_swap_maker_kas_receive_address_missing');
+    if (!req.maker_token_refund_address) throw new Error('kcc20_atomic_swap_maker_token_refund_address_missing');
+    if (!req.taker_token_receive_address) throw new Error('kcc20_atomic_swap_taker_token_receive_address_required');
+    return await postJSON('/api/covenants/issuer-token/atomic-swap/direct/maker-lock/build', req);
+  }
+
+  function kcc20AtomicOpenMakerLockRequest(payload){
+    const sell = payload && payload.sell && typeof payload.sell === 'object' ? payload.sell : {};
+    return {
+      asset_covenant_id: normalizeHex64OrEmpty(sell.asset_covenant_id),
+      lock_amount_raw: kcc20DirectSwapSellAmountRaw(payload),
+      kas_price_sompi: kasDecimalToSompiString(payload && payload.buy_amount),
+      maker_kas_receive_address: String(payload && payload.receiveEndpoint && payload.receiveEndpoint.address || '').trim(),
+      maker_token_refund_address: String(S.sendContext && S.sendContext.address || '').trim(),
+      ttl: payload && typeof payload.ttl === 'number' ? payload.ttl : 0
+    };
+  }
+
+  async function buildKcc20AtomicOpenMakerLockFromPayload(payload){
+    const req = kcc20AtomicOpenMakerLockRequest(payload);
+    if (!req.asset_covenant_id) throw new Error('kcc20_atomic_open_swap_asset_covenant_id_missing');
+    if (!req.lock_amount_raw) throw new Error('kcc20_atomic_open_swap_lock_amount_raw_missing');
+    if (!req.kas_price_sompi) throw new Error('kcc20_atomic_open_swap_kas_price_sompi_missing');
+    if (!req.maker_kas_receive_address) throw new Error('kcc20_atomic_open_swap_maker_kas_receive_address_missing');
+    if (!req.maker_token_refund_address) throw new Error('kcc20_atomic_open_swap_maker_token_refund_address_missing');
+    return await postJSON('/api/covenants/issuer-token/atomic-swap/open/maker-lock/build', req);
+  }
+
+  function renderKcc20AtomicOpenMakerLockPanel(build, submitOut){
+    const token = build && build.token_definition ? build.token_definition : {};
+    const terms = build && build.atomic_swap_terms ? build.atomic_swap_terms : {};
+    const plan = build && build.maker_lock_plan ? build.maker_lock_plan : {};
+    const locked = plan && plan.swap_locked_holder_output ? plan.swap_locked_holder_output : {};
+    const change = plan && plan.maker_change_holder_output ? plan.maker_change_holder_output : null;
+    const tracking = submitOut && submitOut.tracking ? submitOut.tracking : null;
+    const listing = submitOut && submitOut.open_swap_offer_listing ? submitOut.open_swap_offer_listing : null;
+    const rows = [
+      ['Mode', 'KCC20 Atomic Open Swap'],
+      ['Status', submitOut && submitOut.ok === true ? 'Submitted live' : 'Build ready'],
+      ['Token', String(token.token_symbol || build?.token_symbol || 'OMA L1')],
+      ['Asset covenant ID', String(build?.asset_covenant_id || '')],
+      ['Lock amount raw', String(terms.lock_amount_raw || build?.lock_amount_raw || '')],
+      ['KAS price', String(terms.kas_price_kas || build?.kas_price_kas || '') + ' KAS'],
+      ['Maker KAS receive', String(terms.maker_kas_receive_address || build?.maker_kas_receive_address || '')],
+      ['Maker token refund', String(terms.maker_token_refund_address || build?.maker_token_refund_address || '')],
+      ['Taker token receive', 'Dynamic at claim'],
+      ['Offer TTL seconds', String(terms.offer_ttl_seconds || build?.offer_ttl_seconds || '')],
+      ['Policy kind', String(build?.policy_body?.policy_body_kind || submitOut?.policy_body_kind || 'open_dynamic_taker_atomic_swap_claim_or_maker_cancel_v1')],
+      ['Swap locked output', String(locked.address || tracking?.swap_locked_holder_address || '')],
+      ['Maker token change raw', change ? String(change.amount_raw || '') : '0'],
+      ['Submit txid', submitOut ? String(submitOut.submitted_txid || '') : '—'],
+      ['Tracked outpoint', tracking ? String(tracking.source_outpoint_key || '') : '—'],
+      ['Tracking status', tracking ? String(tracking.record_status || '') : '—'],
+      ['Open offer ID', listing ? String(listing.offerId || '') : '—'],
+      ['Open offer state', listing ? String(listing.state || '') : '—']
+    ];
+    const rowHtml = function(pair){
+      return '<div style="opacity:.75">' + escapeHtml(pair[0]) + '</div><div style="word-break:break-all">' + escapeHtml(pair[1]) + '</div>';
+    };
+    return [
+      '<div class="panel">',
+        '<div><strong>KCC20 Atomic Open Swap</strong></div>',
+        '<div style="color:#059669;margin-top:6px"><strong>' + (submitOut && submitOut.ok === true ? 'Created live.' : 'Build ready.') + '</strong> Dynamic-taker atomic maker-lock path.</div>',
+        '<div style="display:grid;grid-template-columns:190px 1fr;gap:4px 10px;margin-top:8px">',
+          rows.map(rowHtml).join(''),
+        '</div>',
+      '</div>'
+    ].join('');
+  }
+
+  async function signKcc20AtomicOpenMakerLock(build, priv0Hex){
+    const signed = await signKcc20AtomicDirectMakerLock(build, priv0Hex);
+    return Object.assign({}, signed, { stage: 'kcc20_atomic_open_swap_wallet_ui_maker_lock_signed_v1' });
+  }
+
+  async function submitKcc20AtomicOpenMakerLock(build, signed){
+    return await submitKcc20AtomicDirectMakerLock(build, signed);
+  }
+
+  function renderKcc20AtomicDirectMakerLockPanel(build, submitOut){
+    const token = build && build.token_definition ? build.token_definition : {};
+    const terms = build && build.atomic_swap_terms ? build.atomic_swap_terms : {};
+    const plan = build && build.maker_lock_plan ? build.maker_lock_plan : {};
+    const locked = plan && plan.swap_locked_holder_output ? plan.swap_locked_holder_output : {};
+    const change = plan && plan.maker_change_holder_output ? plan.maker_change_holder_output : null;
+    const tracking = submitOut && submitOut.tracking ? submitOut.tracking : null;
+    const rows = [
+      ['Mode', 'KCC20 Atomic Direct Swap v3'],
+      ['Status', submitOut && submitOut.ok === true ? 'Submitted live' : 'Build ready'],
+      ['Token', String(token.token_symbol || build?.token_symbol || 'OMA L1')],
+      ['Asset covenant ID', String(build?.asset_covenant_id || '')],
+      ['Lock amount raw', String(terms.lock_amount_raw || build?.lock_amount_raw || '')],
+      ['KAS price', String(terms.kas_price_kas || build?.kas_price_kas || '') + ' KAS'],
+      ['Maker KAS receive', String(terms.maker_kas_receive_address || build?.maker_kas_receive_address || '')],
+      ['Maker token refund', String(terms.maker_token_refund_address || build?.maker_token_refund_address || '')],
+      ['Taker token receive', String(terms.taker_token_receive_address || build?.taker_token_receive_address || '')],
+      ['Refund lock DAA', String(terms.refund_lock_daa || build?.refund_lock_daa || '')],
+      ['Policy kind', String(build?.policy_body?.policy_body_kind || submitOut?.policy_body_kind || 'direct_fixed_recipient_atomic_swap_claim_or_refund_with_taker_change_final_true_v3')],
+      ['Swap locked output', String(locked.address || tracking?.swap_locked_holder_address || '')],
+      ['Maker token change raw', change ? String(change.amount_raw || '') : '0'],
+      ['Submit txid', submitOut ? String(submitOut.submitted_txid || '') : '—'],
+      ['Tracked outpoint', tracking ? String(tracking.source_outpoint_key || '') : '—'],
+      ['Tracking status', tracking ? String(tracking.record_status || '') : '—']
+    ];
+    const rowHtml = function(pair){
+      return '<div style="opacity:.75">' + escapeHtml(pair[0]) + '</div><div style="word-break:break-all">' + escapeHtml(pair[1]) + '</div>';
+    };
+    return [
+      '<div class="panel">',
+        '<div><strong>KCC20 Atomic Direct Swap</strong></div>',
+        '<div style="color:#059669;margin-top:6px"><strong>' + (submitOut && submitOut.ok === true ? 'Created live.' : 'Build ready.') + '</strong> Fixed-recipient v3 atomic maker-lock path.</div>',
+        '<div style="display:grid;grid-template-columns:190px 1fr;gap:4px 10px;margin-top:8px">',
+          rows.map(rowHtml).join(''),
+        '</div>',
+      '</div>'
+    ].join('');
+  }
+
+  async function signKcc20AtomicDirectMakerLock(build, priv0Hex){
+    const kaspaSdk = await getKaspaSdkOrThrow();
+    if (!build || build.ok !== true || !build.txToSignSafeJson) throw new Error('kcc20_atomic_swap_maker_lock_build_missing_tx');
+    const tx = kaspaSdk.Transaction.deserializeFromSafeJSON(build.txToSignSafeJson);
+    const priv0 = new kaspaSdk.PrivateKey(priv0Hex);
+    const expectedAddress = String(build.fromAddress || '').trim();
+    const networkId = String(build.networkId || '').trim();
+    if (expectedAddress && networkId) {
+      const derived = String(priv0.toAddress(networkId).toString());
+      if (derived !== expectedAddress) throw new Error('kcc20_atomic_swap_active_key_does_not_match_maker_fromAddress');
+    }
+
+    const signCtx = build.signing_context_public && typeof build.signing_context_public === 'object' ? build.signing_context_public : {};
+    const signInputIndexes = Array.isArray(build.signInputIndexes) ? build.signInputIndexes.map(function(v){ return Number(v); }) : [];
+    const signSet = new Set(signInputIndexes);
+    const holderInputs = Array.isArray(signCtx.holder_inputs) ? signCtx.holder_inputs.map(function(input){
+      return {
+        inputIndex: Number(input.input_index),
+        sourceHolderOutpoint: String(input.source_holder_outpoint || ''),
+        redeemScriptHex: String(input.source_holder_redeem_script_hex || '').trim()
+      };
+    }) : [];
+    if (!holderInputs.length) throw new Error('kcc20_atomic_swap_maker_lock_holder_inputs_missing');
+    holderInputs.forEach(function(input){
+      if (!Number.isInteger(input.inputIndex) || input.inputIndex < 0) throw new Error('kcc20_atomic_swap_maker_lock_holder_input_index_invalid');
+      if (!signSet.has(input.inputIndex)) throw new Error('kcc20_atomic_swap_maker_lock_holder_input_not_signable');
+      if (!/^[0-9a-f]+$/i.test(input.redeemScriptHex) || input.redeemScriptHex.length % 2 !== 0) throw new Error('kcc20_atomic_swap_maker_lock_holder_redeem_script_missing');
+    });
+
+    const fundingUsed = signCtx.native_kas_funding_input_used === true;
+    const fundingInputIndex = fundingUsed ? Number(signCtx.native_kas_funding_input_index) : null;
+    if (fundingUsed && (!Number.isInteger(fundingInputIndex) || fundingInputIndex < 0 || !signSet.has(fundingInputIndex))) throw new Error('kcc20_atomic_swap_maker_lock_native_funding_input_not_signable');
+
+    const beforeHolderSignatureScriptsEmpty = holderInputs.every(function(input){
+      const txInput = tx.inputs[input.inputIndex];
+      return txInput && (!txInput.signatureScript || String(txInput.signatureScript).length === 0);
+    });
+
+    const dummySig = new Uint8Array(65);
+    const scripts = holderInputs.map(function(input){
+      return { input, script: kaspaSdk.ScriptBuilder.fromScript(input.redeemScriptHex) };
+    });
+
+    scripts.forEach(function(item){
+      fillKcc20DirectSignatureScript(tx, item.input.inputIndex, item.script.encodePayToScriptHashSignatureScript(dummySig), 'kcc20_atomic_swap_maker_lock_holder_input_missing_for_dummy_sig');
+    });
+    scripts.forEach(function(item){
+      const sig = kaspaSdk.createInputSignature(tx, item.input.inputIndex, priv0, null);
+      fillKcc20DirectSignatureScript(tx, item.input.inputIndex, item.script.encodePayToScriptHashSignatureScript(sig), 'kcc20_atomic_swap_maker_lock_holder_input_missing_for_final_sig');
+    });
+    if (fundingUsed && fundingInputIndex !== null) {
+      const fundingSig = kaspaSdk.createInputSignature(tx, fundingInputIndex, priv0, null);
+      fillKcc20DirectSignatureScript(tx, fundingInputIndex, fundingSig, 'kcc20_atomic_swap_maker_lock_native_funding_input_missing_for_final_sig');
+    }
+
+    tx.finalize();
+    const signedSafeJson = tx.serializeToSafeJSON();
+    kaspaSdk.Transaction.deserializeFromSafeJSON(signedSafeJson);
+    const signedSafeJsonSha256 = await sha256HexText(signedSafeJson);
+    const holderSignatureScriptLengths = holderInputs.map(function(input){ return String(tx.inputs[input.inputIndex] && tx.inputs[input.inputIndex].signatureScript || '').length; });
+
+    return {
+      ok: true,
+      stage: 'kcc20_atomic_swap_wallet_ui_maker_lock_signed_v1',
+      holder_input_count: holderInputs.length,
+      native_funding_input_used: fundingUsed,
+      native_funding_input_index: fundingInputIndex,
+      before_holder_signature_scripts_empty: beforeHolderSignatureScriptsEmpty,
+      after_holder_signature_scripts_present: holderSignatureScriptLengths.every(function(n){ return Number(n) > 0; }),
+      holder_signature_script_lengths: holderSignatureScriptLengths,
+      signed_safe_json_sha256: signedSafeJsonSha256,
+      signed_tx_deserialize_check_ok: true,
+      private_key_printed: false,
+      signed_transaction_printed: false,
+      signature_script_printed: false,
+      redeem_script_printed: false,
+      submit_token_printed: false,
+      signedSafeJson
+    };
+  }
+
+  async function submitKcc20AtomicDirectMakerLock(build, signed){
+    if (!build || !signed || !signed.signedSafeJson) throw new Error('kcc20_atomic_swap_maker_lock_submit_missing_signed_tx');
+    const submitRoute = String(build.submit_route || '').trim();
+    const submitToken = String(build.submit_token || '').trim();
+    const submitIntent = String(build.submit_intent_required || '').trim();
+    if (!submitRoute || !submitToken || !submitIntent) throw new Error('kcc20_atomic_swap_maker_lock_submit_context_missing');
+    return await postJSON(submitRoute, {
+      submit_intent: submitIntent,
+      submit_token: submitToken,
+      signed_safe_json: signed.signedSafeJson,
+      signed_safe_json_sha256: signed.signed_safe_json_sha256
+    });
+  }
+
+  async function buildKcc20DirectSwapPlanFromPayload(payload){
+    const req = kcc20DirectSwapPlanRequest(payload);
+    if (!req.asset_covenant_id) throw new Error('kcc20_direct_swap_asset_covenant_id_missing');
+    if (!req.transfer_amount_raw) throw new Error('kcc20_direct_swap_transfer_amount_raw_missing');
+    if (!req.maker_kas_receive_address) throw new Error('kcc20_direct_swap_maker_receive_address_missing');
+    if (!req.taker_recipient_address) throw new Error('kcc20_direct_swap_taker_token_receive_address_required');
+    return await postJSON('/api/covenants/issuer-token/kcc20-direct-swap/build', req);
+  }
+
+  function renderKcc20DirectSwapPlanPanel(out, payload){
+    const token = out && out.token_definition ? out.token_definition : {};
+    const tokenLeg = out && out.direct_swap_plan && out.direct_swap_plan.token_leg ? out.direct_swap_plan.token_leg : {};
+    const kasLeg = out && out.direct_swap_plan && out.direct_swap_plan.kas_leg ? out.direct_swap_plan.kas_leg : {};
+    const tokenSymbol = String(token.token_symbol || (payload && payload.sell && payload.sell.symbol) || 'OMA L1');
+    const assetCovenantId = String(out && out.asset_covenant_id || '');
+    const holderTransferBuildRoute = String(tokenLeg.holder_transfer_build_route || '/api/covenants/issuer-token/holder-transfer/build');
+    const rows = [
+      ['Mode', 'KCC20-compatible Direct Swap'],
+      ['Token', tokenSymbol],
+      ['Asset covenant ID', assetCovenantId],
+      ['Token amount raw', String(tokenLeg.transfer_amount_raw || '')],
+      ['Token recipient', String(out && out.taker_recipient_address || '')],
+      ['Maker KAS receive address', String(out && out.maker_kas_receive_address || '')],
+      ['KAS price', String(kasLeg.requested_kas_price_kas || '') + ' KAS'],
+      ['Selected source count', String(tokenLeg.selected_source_count ?? '')],
+      ['Sender token change raw', String(tokenLeg.sender_change_amount_raw || '0')],
+      ['Payment status', String(kasLeg.payment_verification_status || '')],
+      ['Token submit allowed here', 'No']
+    ];
+    const analyzerRows = [
+      ['Analyzer metadata kind', 'kcc20_direct_1i_visible_analyzer_metadata_for_oma_l1_token_v1'],
+      ['Asset kind', 'OMA L1 covenant token'],
+      ['Token standard', 'oma_l1_covenant_token_profile_v0_1'],
+      ['Transfer route', 'oma_l1_holder_transfer'],
+      ['Holder transfer build route', holderTransferBuildRoute],
+      ['Selected source count', String(tokenLeg.selected_source_count ?? '')],
+      ['Selected holder amount raw total', String(tokenLeg.selected_holder_amount_raw_total || '')],
+      ['Transfer amount raw', String(tokenLeg.transfer_amount_raw || '')],
+      ['Sender change amount raw', String(tokenLeg.sender_change_amount_raw || '0')],
+      ['KAS payment required before token submit', 'Yes'],
+      ['Token leg remains unsubmitted until KAS payment is verified', 'Yes']
+    ];
+    const rowHtml = function(pair){
+      return '<div style="opacity:.75">' + escapeHtml(pair[0]) + '</div><div style="word-break:break-all">' + escapeHtml(pair[1]) + '</div>';
+    };
+    return [
+      '<div class="panel">',
+        '<div><strong>KCC20 Direct Swap plan</strong></div>',
+        '<div style="color:#059669;margin-top:6px"><strong>Plan ready.</strong> No signing, submit, broadcast, or mint occurred.</div>',
+        '<div style="display:grid;grid-template-columns:160px 1fr;gap:4px 10px;margin-top:8px">',
+          rows.map(rowHtml).join(''),
+        '</div>',
+      '</div>',
+      '<div class="panel" style="margin-top:.75rem">',
+        '<div><strong>Analyzer-visible OMA L1 / KCC20 metadata</strong></div>',
+        '<div style="color:#059669;margin-top:6px"><strong>Analyzer-visible.</strong> Token leg remains unsubmitted until KAS payment is verified.</div>',
+        '<div style="display:grid;grid-template-columns:210px 1fr;gap:4px 10px;margin-top:8px">',
+          analyzerRows.map(rowHtml).join(''),
+        '</div>',
+      '</div>'
+    ].join('');
+  }
+
+  function buildKcc20DirectSwapAnalyzerMetadata(out, payload){
+    const token = out && out.token_definition && typeof out.token_definition === 'object' ? out.token_definition : {};
+    const tokenLeg = out && out.direct_swap_plan && out.direct_swap_plan.token_leg ? out.direct_swap_plan.token_leg : {};
+    const kasLeg = out && out.direct_swap_plan && out.direct_swap_plan.kas_leg ? out.direct_swap_plan.kas_leg : {};
+    const sell = payload && payload.sell && typeof payload.sell === 'object' ? payload.sell : {};
+    const assetCovenantId = String((out && out.asset_covenant_id) || sell.asset_covenant_id || '').trim().toLowerCase();
+    const symbol = String(token.token_symbol || sell.symbol || sell.name || 'OMA_L1').trim() || 'OMA_L1';
+    const displayName = String(token.token_name || sell.name || symbol).trim() || symbol;
+    const decimals = token.decimals != null ? token.decimals : (token.token_decimals != null ? token.token_decimals : '0');
+
+    return {
+      ok: out && out.ok !== false,
+      analyzer_kind: 'kcc20_direct_1h_analyzer_metadata_for_oma_l1_token_v1',
+      trade: {
+        sell: {
+          type: 'OMA_L1_COVENANT_TOKEN',
+          symbol,
+          name: displayName,
+          asset_covenant_id: assetCovenantId,
+          standard: 'oma_l1_covenant_token_profile_v0_1',
+          route: 'oma_l1_holder_transfer'
+        },
+        buy: { type: 'KAS', symbol: 'KAS', name: 'KAS' },
+        sell_amount: String(tokenLeg.transfer_amount_raw || (payload && payload.sell_amount) || ''),
+        buy_amount: String(kasLeg.requested_kas_price_kas || (payload && payload.buy_amount) || ''),
+        ttl: payload && typeof payload.ttl === 'number' ? payload.ttl : 0
+      },
+      sell_amount: String(tokenLeg.transfer_amount_raw || (payload && payload.sell_amount) || ''),
+      buy_amount: String(kasLeg.requested_kas_price_kas || (payload && payload.buy_amount) || ''),
+      receiveEndpoint: payload && payload.receiveEndpoint ? payload.receiveEndpoint : {},
+      assetMeta: {
+        sell: {
+          kind: 'OMA_L1_COVENANT_TOKEN',
+          ticker: symbol,
+          symbol,
+          name: displayName,
+          ca: assetCovenantId,
+          decimals,
+          totalMinted: token.total_issued_raw || token.issued_supply_raw || token.total_supply_raw || '',
+          maxSupply: token.max_supply_raw || token.max_issuable_raw || '',
+          holderTotal: tokenLeg.selected_source_count != null ? tokenLeg.selected_source_count : '',
+          transferTotal: '',
+          mintTotal: '',
+          explorerUrl: ''
+        },
+        buy: {
+          kind: 'KAS',
+          ticker: 'KAS',
+          symbol: 'KAS',
+          name: 'KAS',
+          decimals: 8
+        }
+      },
+      solvency: {
+        sell_ok: out && out.ok === true,
+        fee_ok: null
+      },
+      fees: {}
+    };
+  }
+
+  async function sha256HexText(text){
+    const bytes = new TextEncoder().encode(String(text || ''));
+    const digest = await crypto.subtle.digest('SHA-256', bytes);
+    return Array.from(new Uint8Array(digest)).map(function(b){ return b.toString(16).padStart(2, '0'); }).join('');
+  }
+
+  async function getKaspaSdkOrThrow(){
+    const direct = window.kaspa && typeof window.kaspa === 'object' ? window.kaspa : null;
+    if (direct && direct.Transaction && direct.PrivateKey && direct.ScriptBuilder && typeof direct.createInputSignature === 'function') return direct;
+    const ready = window.kaspaReady ? await window.kaspaReady : null;
+    if (ready && ready.Transaction && ready.PrivateKey && ready.ScriptBuilder && typeof ready.createInputSignature === 'function') return ready;
+    throw new Error('kaspa_sdk_unavailable');
+  }
+
+  function fillKcc20DirectSignatureScript(tx, inputIndex, signatureScript, reason){
+    const inputs = tx && Array.isArray(tx.inputs) ? tx.inputs : [];
+    if (!Number.isInteger(inputIndex) || inputIndex < 0 || !inputs[inputIndex]) throw new Error(reason || 'kcc20_direct_swap_input_missing');
+    inputs[inputIndex].signatureScript = signatureScript;
+    tx.inputs = inputs;
+  }
+
+  async function buildAndSignKcc20DirectHolderTransfer(payload, planOut, priv0Hex){
+    const kaspaSdk = await getKaspaSdkOrThrow();
+    const transferReq = {
+      asset_covenant_id: normalizeHex64OrEmpty(payload && payload.sell && payload.sell.asset_covenant_id),
+      source_selection: 'automatic_backend',
+      recipient_address: String(S.form.takerTokenReceiveAddress || '').trim(),
+      transfer_amount_raw: kcc20DirectSwapSellAmountRaw(payload)
+    };
+    if (!transferReq.asset_covenant_id) throw new Error('kcc20_direct_swap_holder_transfer_asset_covenant_id_missing');
+    if (!transferReq.recipient_address) throw new Error('kcc20_direct_swap_holder_transfer_recipient_required');
+    if (!transferReq.transfer_amount_raw) throw new Error('kcc20_direct_swap_holder_transfer_amount_required');
+
+    const build = await postJSON('/api/covenants/issuer-token/holder-transfer/build', transferReq);
+    if (!build || build.ok !== true || build.transfer_build_kind !== 'oma_l1_holder_transfer_build_v1') {
+      const err = new Error('kcc20_direct_swap_holder_transfer_build_failed');
+      err.reason = build && build.reason ? String(build.reason) : 'kcc20_direct_swap_holder_transfer_build_failed';
+      throw err;
+    }
+
+    const tx = kaspaSdk.Transaction.deserializeFromSafeJSON(build.txToSignSafeJson);
+    const priv0 = new kaspaSdk.PrivateKey(priv0Hex);
+    const expectedAddress = String(build.fromAddress || '').trim();
+    const networkId = String(build.networkId || '').trim();
+    if (expectedAddress && networkId) {
+      const derived = String(priv0.toAddress(networkId).toString());
+      if (derived !== expectedAddress) throw new Error('kcc20_direct_swap_active_key_does_not_match_holder_transfer_fromAddress');
+    }
+
+    const signCtx = build.signing_context_public && typeof build.signing_context_public === 'object' ? build.signing_context_public : {};
+    const signInputIndexes = Array.isArray(build.signInputIndexes) ? build.signInputIndexes.map(function(v){ return Number(v); }) : [];
+    const signSet = new Set(signInputIndexes);
+    const holderInputs = Array.isArray(signCtx.holder_inputs) ? signCtx.holder_inputs.map(function(input){
+      return {
+        inputIndex: Number(input.input_index),
+        sourceHolderOutpoint: String(input.source_holder_outpoint || ''),
+        redeemScriptHex: String(input.source_holder_redeem_script_hex || '').trim()
+      };
+    }) : [];
+    const fundingInputIndex = Number.isInteger(Number(signCtx.native_kas_funding_input_index)) ? Number(signCtx.native_kas_funding_input_index) : null;
+
+    if (!holderInputs.length) throw new Error('kcc20_direct_swap_holder_inputs_missing');
+    holderInputs.forEach(function(input){
+      if (!Number.isInteger(input.inputIndex) || input.inputIndex < 0) throw new Error('kcc20_direct_swap_holder_input_index_invalid');
+      if (!signSet.has(input.inputIndex)) throw new Error('kcc20_direct_swap_holder_input_not_signable');
+      if (!/^[0-9a-f]+$/i.test(input.redeemScriptHex) || input.redeemScriptHex.length % 2 !== 0) throw new Error('kcc20_direct_swap_holder_redeem_script_missing');
+    });
+    if (fundingInputIndex !== null && !signSet.has(fundingInputIndex)) throw new Error('kcc20_direct_swap_native_funding_input_not_signable');
+
+    const beforeHolderSignatureScriptsEmpty = holderInputs.every(function(input){
+      const txInput = tx.inputs[input.inputIndex];
+      return txInput && (!txInput.signatureScript || String(txInput.signatureScript).length === 0);
+    });
+
+    const dummySig = new Uint8Array(65);
+    const scripts = holderInputs.map(function(input){
+      return { input, script: kaspaSdk.ScriptBuilder.fromScript(input.redeemScriptHex) };
+    });
+
+    scripts.forEach(function(item){
+      fillKcc20DirectSignatureScript(tx, item.input.inputIndex, item.script.encodePayToScriptHashSignatureScript(dummySig), 'kcc20_direct_swap_holder_input_missing_for_dummy_sig');
+    });
+    scripts.forEach(function(item){
+      const sig = kaspaSdk.createInputSignature(tx, item.input.inputIndex, priv0, null);
+      fillKcc20DirectSignatureScript(tx, item.input.inputIndex, item.script.encodePayToScriptHashSignatureScript(sig), 'kcc20_direct_swap_holder_input_missing_for_final_sig');
+    });
+    if (fundingInputIndex !== null) {
+      const fundingSig = kaspaSdk.createInputSignature(tx, fundingInputIndex, priv0, null);
+      fillKcc20DirectSignatureScript(tx, fundingInputIndex, fundingSig, 'kcc20_direct_swap_native_funding_input_missing_for_final_sig');
+    }
+
+    tx.finalize();
+    const signedSafeJson = tx.serializeToSafeJSON();
+    kaspaSdk.Transaction.deserializeFromSafeJSON(signedSafeJson);
+
+    const holderSignatureScriptLengths = holderInputs.map(function(input){ return String(tx.inputs[input.inputIndex] && tx.inputs[input.inputIndex].signatureScript || '').length; });
+    const signedSafeJsonSha256 = await sha256HexText(signedSafeJson);
+
+    return {
+      ok: true,
+      stage: 'kcc20_direct_1h_holder_transfer_signed_no_submit_v1',
+      plan_kind: planOut && planOut.plan_kind ? String(planOut.plan_kind) : '',
+      transfer_build_kind: build.transfer_build_kind,
+      application_status: 'kcc20_direct_swap_token_leg_signed_no_submit_v1',
+      asset_covenant_id: build.asset_covenant_id || transferReq.asset_covenant_id,
+      token_symbol: build.token_definition && build.token_definition.token_symbol ? String(build.token_definition.token_symbol) : String(payload && payload.sell && payload.sell.symbol || ''),
+      fromAddress: build.fromAddress || '',
+      recipient_address: transferReq.recipient_address,
+      transfer_amount_raw: transferReq.transfer_amount_raw,
+      selected_source_count: build.transfer_plan && build.transfer_plan.source_selection ? build.transfer_plan.source_selection.selected_source_count : null,
+      selected_amount_raw_total: build.transfer_plan && build.transfer_plan.source_selection ? build.transfer_plan.source_selection.selected_amount_raw_total : '',
+      recipient_amount_raw: build.transfer_plan && build.transfer_plan.recipient_holder_output ? build.transfer_plan.recipient_holder_output.amount_raw : '',
+      sender_change_amount_raw: build.transfer_plan && build.transfer_plan.sender_change_holder_output ? build.transfer_plan.sender_change_holder_output.amount_raw : '0',
+      same_asset_covenant_id_preserved: build.invariants && build.invariants.same_asset_covenant_id_preserved === true,
+      amount_raw_conserved: build.invariants && build.invariants.amount_raw_conserved === true,
+      native_refund_covenant_present: build.transfer_plan && build.transfer_plan.native_carrier_refund_output ? build.transfer_plan.native_carrier_refund_output.covenant_present === true : null,
+      native_refund_normal_send_expected: build.transfer_plan && build.transfer_plan.native_carrier_refund_output ? build.transfer_plan.native_carrier_refund_output.normal_send_expected === true : null,
+      submit_route: build.submit_route || '/api/covenants/issuer-token/holder-transfer/submit',
+      submit_token_present: typeof build.submit_token === 'string' && build.submit_token.length > 0,
+      signInputIndexes,
+      holder_input_count: holderInputs.length,
+      funding_input_index: fundingInputIndex,
+      before_holder_signature_scripts_empty: beforeHolderSignatureScriptsEmpty,
+      after_holder_signature_scripts_present: holderSignatureScriptLengths.every(function(n){ return Number(n) > 0; }),
+      holder_signature_script_lengths: holderSignatureScriptLengths,
+      native_funding_signature_script_present: fundingInputIndex === null ? null : (typeof tx.inputs[fundingInputIndex].signatureScript === 'string' && tx.inputs[fundingInputIndex].signatureScript.length > 0),
+      signed_safe_json_sha256: signedSafeJsonSha256,
+      signed_tx_deserialize_check_ok: true,
+      submit_called: false,
+      broadcasting: 'none',
+      minting: 'none',
+      wallet_mutation: 'none',
+      private_key_printed: false,
+      signed_transaction_printed: false,
+      signature_script_printed: false,
+      redeem_script_printed: false,
+      submit_token_printed: false,
+      signedSafeJson,
+      submit_token: build.submit_token || '',
+      transfer_build_safe_sha256: build.unsigned_safe_json_sha256 || ''
+    };
+  }
 
 function collectPayload(){
     if (!S.sendContext || !S.sendContext.address) {
@@ -842,24 +1570,56 @@ function collectPayload(){
       throw err;
     }
 
-    // SELL from wallet token selector (KAS/KRC-only for now)
+    const offerDescription = String(S.form.offerDescription || '').trim().slice(0, 2000);
+    const offerInfoUrl = String(S.form.offerInfoUrl || '').trim().slice(0, 500);
+    if (offerInfoUrl) {
+      let parsedUrl = null;
+      try { parsedUrl = new URL(offerInfoUrl); } catch (_) { parsedUrl = null; }
+      if (!parsedUrl || (parsedUrl.protocol !== 'https:' && parsedUrl.protocol !== 'http:')) {
+        const err = new Error('invalid_offer_info_url');
+        err.reason = 'More information URL must start with https:// or http://.';
+        throw err;
+      }
+    }
+
+    // SELL from wallet token selector/context. KCC20-DIRECT-1F preserves OMA L1 covenant-token identity.
     const tokenSel = document.getElementById('tokenSelect');
     const assetRaw = tokenSel ? String(tokenSel.value || 'KAS').trim() : 'KAS';
-    let sellType = 'KAS';
-    let sellSymbol = 'KAS';
-    if (assetRaw.toUpperCase() === 'KAS') {
-      sellType = 'KAS';
-      sellSymbol = 'KAS';
-    } else {
-      sellType = 'KRC20';
-      sellSymbol = assetRaw.toUpperCase();
-    }
-    const sell = { type: sellType, symbol: sellSymbol };
     const sellName = S.sendContext && typeof S.sendContext.assetName === 'string'
       ? S.sendContext.assetName.trim()
       : '';
-    if (sellName && /^CA:/i.test(sellSymbol)) {
-      sell.name = sellName;
+    let sellType = 'KAS';
+    let sellSymbol = 'KAS';
+    let sell = null;
+    if (isOmaL1Kcc20DirectSwapContext()) {
+      const assetCovenantId = normalizeHex64OrEmpty(S.sendContext && S.sendContext.assetCovenantId);
+      if (!assetCovenantId) {
+        const err = new Error('kcc20_direct_swap_asset_covenant_id_missing');
+        err.reason = 'Selected OMA L1 / KCC20-compatible asset is missing its covenant ID. Refresh holdings and try again.';
+        throw err;
+      }
+      sellType = 'OMA_L1_COVENANT_TOKEN';
+      sellSymbol = String((S.sendContext && S.sendContext.tokenSymbol) || sellName || 'OMA_L1').trim() || 'OMA_L1';
+      sell = {
+        type: sellType,
+        symbol: sellSymbol,
+        name: sellName || sellSymbol,
+        asset_covenant_id: assetCovenantId,
+        route: 'oma_l1_holder_transfer',
+        standard: 'oma_l1_covenant_token_profile_v0_1',
+        swap_context_kind: 'kcc20_direct_1f_swaps_modal_preserve_oma_l1_direct_context_v1'
+      };
+    } else if (assetRaw.toUpperCase() === 'KAS') {
+      sellType = 'KAS';
+      sellSymbol = 'KAS';
+      sell = { type: sellType, symbol: sellSymbol };
+    } else {
+      sellType = 'KRC20';
+      sellSymbol = assetRaw.toUpperCase();
+      sell = { type: sellType, symbol: sellSymbol };
+      if (sellName && /^CA:/i.test(sellSymbol)) {
+        sell.name = sellName;
+      }
     }
 
     // PAYMENT method is fixed to KAS internally. Display is normalized to KAS for all Kaspa-family networks.
@@ -931,22 +1691,21 @@ function collectPayload(){
       }
     }
 
-    // TTL → seconds for analyzer
+    // TTL → seconds for analyzer. ttl=0 means Good Till Cancelled (no automatic expiry).
     let ttlSeconds = 0;
     if (S.form.ttlMode === 'eod') {
       const now = new Date();
       const end = new Date(now);
-      end.setHours(23, 59, 0, 0);
+      end.setHours(24, 0, 0, 0);
       let diff = Math.floor((end.getTime() - now.getTime()) / 1000);
       if (!Number.isFinite(diff) || diff <= 0) diff = 60;
       if (diff > 168*60*60) diff = 168*60*60;
       ttlSeconds = diff;
-    } else if (S.form.ttlMode === 'otc') {
-      // For OTC/manual offers, cap at 7 days for now so posted offers remain visible longer.
-      ttlSeconds = 168*60*60;
+    } else if (S.form.ttlMode === 'gtc') {
+      ttlSeconds = 0;
     } else {
       const h = Number(S.form.ttlHours || 0);
-      const hours = (Number.isFinite(h) && h > 0) ? h : 4;
+      const hours = (Number.isFinite(h) && h > 0) ? Math.min(168, Math.max(1, h)) : 4;
       ttlSeconds = Math.round(hours * 60 * 60);
     }
 
@@ -957,6 +1716,8 @@ function collectPayload(){
       amount,
       sell_amount: amount,
       buy_amount: buyAmountRaw,
+      offerDescription,
+      offerInfoUrl,
       complianceOnly: !!S.form.complianceOnly,
       partial,
       ttl: ttlSeconds,
@@ -986,7 +1747,7 @@ function collectPayload(){
       case 'partial_min_exceeds_amount':
       case 'partial_fields_invalid':
         return 'Offer settings are invalid for this flow.';
-      case 'ttl_out_of_range': return 'TTL must be between 1 hour and 7 days (168 hours).';
+      case 'ttl_out_of_range': return 'TTL must be 0 for GTC, or between 1 hour and 7 days (168 hours).';
       case 'ttl_invalid': return 'TTL is invalid.';
       default:
         return code || 'Unknown blocker';
@@ -1085,6 +1846,55 @@ function collectPayload(){
     }
 
     try {
+      if (isKcc20DirectSwapPayload(payload)) {
+        const takerAddr = String(S.form.takerTokenReceiveAddress || '').trim();
+        const isKcc20AtomicOpen = !takerAddr;
+        const out = isKcc20AtomicOpen
+          ? await buildKcc20AtomicOpenMakerLockFromPayload(payload)
+          : await buildKcc20AtomicDirectMakerLockFromPayload(payload);
+        if (r) r.innerHTML = isKcc20AtomicOpen
+          ? renderKcc20AtomicOpenMakerLockPanel(out, null)
+          : renderKcc20AtomicDirectMakerLockPanel(out, null);
+        const analyzerOut = buildKcc20DirectSwapAnalyzerMetadata({
+          ok: out && out.ok === true,
+          asset_covenant_id: out && out.asset_covenant_id,
+          token_definition: out && out.token_definition,
+          direct_swap_plan: {
+            token_leg: {
+              transfer_amount_raw: out && out.atomic_swap_terms ? out.atomic_swap_terms.lock_amount_raw : payload.sell_amount,
+              selected_source_count: out && out.source_selection ? out.source_selection.selected_source_count : '',
+              selected_holder_amount_raw_total: out && out.source_selection ? out.source_selection.selected_amount_raw_total : '',
+              sender_change_amount_raw: out && out.maker_lock_plan && out.maker_lock_plan.maker_change_holder_output ? out.maker_lock_plan.maker_change_holder_output.amount_raw : '0',
+              holder_transfer_build_route: isKcc20AtomicOpen ? '/api/covenants/issuer-token/atomic-swap/open/maker-lock/build' : '/api/covenants/issuer-token/atomic-swap/direct/maker-lock/build'
+            },
+            kas_leg: {
+              requested_kas_price_kas: out && out.atomic_swap_terms ? out.atomic_swap_terms.kas_price_kas : payload.buy_amount,
+              payment_verification_status: 'atomic_maker_lock_build_ready'
+            }
+          },
+          taker_recipient_address: isKcc20AtomicOpen ? 'Dynamic at claim' : (out && out.atomic_swap_terms ? out.atomic_swap_terms.taker_token_receive_address : S.form.takerTokenReceiveAddress),
+          maker_kas_receive_address: out && out.atomic_swap_terms ? out.atomic_swap_terms.maker_kas_receive_address : payload.receiveEndpoint.address
+        }, payload);
+        renderAnalyzerPanel(
+          analyzerOut,
+          payload,
+          [],
+          [isKcc20AtomicOpen
+            ? 'KCC20 Atomic Open Swap build is ready. Click Sign & Create Atomic Open Swap to sign and submit the dynamic-taker maker-lock from this wallet UI.'
+            : 'KCC20 Atomic Direct Swap build is ready. Click Sign & Create Atomic Direct Swap to sign and submit the maker-lock from this wallet UI.']
+        );
+        const expectedStatus = isKcc20AtomicOpen
+          ? 'kcc20_atomic_open_swap_maker_lock_unsigned_build_only_no_submit_v1'
+          : 'kcc20_atomic_swap_maker_lock_unsigned_build_only_no_submit_v1';
+        if (out && out.ok === true && out.application_status === expectedStatus) {
+          $('btnBind')?.removeAttribute('disabled');
+        } else {
+          $('btnBind')?.setAttribute('disabled','');
+        }
+        await enforceOfferCreateGate();
+        return;
+      }
+
       const out = await postJSON('/api/offers/analyze', payload);
       const blockers = Array.isArray(out?.blockers) ? out.blockers : [];
       const notes    = Array.isArray(out?.notes)    ? out.notes    : [];
@@ -1141,6 +1951,7 @@ function collectPayload(){
 
   async function onBind(){
     const r = $('results');
+    hideOfferCreateSuccess();
 
     if (await enforceOfferCreateGate()) {
       if (r) r.textContent = OFFER_CREATE_GATE_MSG;
@@ -1200,15 +2011,139 @@ function collectPayload(){
       return;
     }
 
+    if (isKcc20DirectSwapPayload(payload)) {
+      const isKcc20AtomicOpen = !takerAddr;
+      const cfm = await window.CW_showConfirm({
+        to: isKcc20AtomicOpen ? recv : takerAddr,
+        amount: String(payload.sell_amount || '').trim() || '—',
+        ticker: String(sellSym || 'OMA L1'),
+        network,
+        confirmLabel: isKcc20AtomicOpen ? 'Sign & Create Atomic Open Swap' : 'Sign & Create Atomic Direct Swap',
+        cancelLabel: 'Cancel',
+        sendingText: isKcc20AtomicOpen ? 'Building Open atomic maker-lock…' : 'Building atomic maker-lock…'
+      });
+
+      if (!cfm || !cfm.ok) {
+        if (r) r.textContent = 'Cancelled.';
+        return;
+      }
+
+      const KEYRING_SESSION_KEY = 'cw_keyring_session';
+      const ksTxt = sessionStorage.getItem(KEYRING_SESSION_KEY) || '';
+      let keyring = null;
+      try { keyring = ksTxt ? JSON.parse(ksTxt) : null; } catch (_) { keyring = null; }
+
+      const unlockWalletMsg = 'Unlock active wallet in the Wallet tab first (same browser tab).';
+      const priv0Hex = keyring && typeof keyring.priv0_hex === 'string' ? String(keyring.priv0_hex).trim() : '';
+      if (!priv0Hex) {
+        try { cfm.setError(unlockWalletMsg); } catch (_) {}
+        if (r) r.textContent = unlockWalletMsg;
+        return;
+      }
+
+      const activeWallet = await loadActiveWalletOnce();
+      const activeWalletId = activeWallet && typeof activeWallet.wid === 'string' ? String(activeWallet.wid).trim() : '';
+      const activeWalletAddress = activeWallet && typeof activeWallet.address === 'string' ? String(activeWallet.address).trim() : '';
+      const sessWalletId = keyring && typeof keyring.wallet_id === 'string' ? String(keyring.wallet_id).trim() : '';
+      const sessAddress0 = keyring && typeof keyring.address0 === 'string' ? String(keyring.address0).trim() : '';
+
+      if (!activeWalletId || !activeWalletAddress) {
+        try { cfm.setError('Select an active wallet first.'); } catch (_) {}
+        if (r) r.textContent = 'Select an active wallet first.';
+        return;
+      }
+
+      if (!sessWalletId || !sessAddress0 || sessWalletId !== activeWalletId || sessAddress0 !== activeWalletAddress) {
+        try { cfm.setError(unlockWalletMsg); } catch (_) {}
+        if (r) r.textContent = unlockWalletMsg;
+        return;
+      }
+
+      try {
+        try { cfm.setSendingText && cfm.setSendingText(isKcc20AtomicOpen ? 'Building Open atomic maker-lock…' : 'Building atomic maker-lock…'); } catch (_) {}
+        if (r) r.textContent = isKcc20AtomicOpen ? 'Building Open atomic maker-lock…' : 'Building atomic maker-lock…';
+        const build = isKcc20AtomicOpen
+          ? await buildKcc20AtomicOpenMakerLockFromPayload(payload)
+          : await buildKcc20AtomicDirectMakerLockFromPayload(payload);
+        if (r) r.innerHTML = isKcc20AtomicOpen
+          ? renderKcc20AtomicOpenMakerLockPanel(build, null)
+          : renderKcc20AtomicDirectMakerLockPanel(build, null);
+
+        try { cfm.setSendingText && cfm.setSendingText(isKcc20AtomicOpen ? 'Signing Open atomic maker-lock…' : 'Signing atomic maker-lock…'); } catch (_) {}
+        if (r) r.textContent = isKcc20AtomicOpen ? 'Signing Open atomic maker-lock…' : 'Signing atomic maker-lock…';
+        const signed = isKcc20AtomicOpen
+          ? await signKcc20AtomicOpenMakerLock(build, priv0Hex)
+          : await signKcc20AtomicDirectMakerLock(build, priv0Hex);
+
+        try { cfm.setSendingText && cfm.setSendingText(isKcc20AtomicOpen ? 'Submitting Open atomic maker-lock…' : 'Submitting atomic maker-lock…'); } catch (_) {}
+        if (r) r.textContent = isKcc20AtomicOpen ? 'Submitting Open atomic maker-lock…' : 'Submitting atomic maker-lock…';
+        const submitOut = isKcc20AtomicOpen
+          ? await submitKcc20AtomicOpenMakerLock(build, signed)
+          : await submitKcc20AtomicDirectMakerLock(build, signed);
+
+        if (!submitOut || submitOut.ok !== true) {
+          throw new Error(submitOut && submitOut.reason ? String(submitOut.reason) : (isKcc20AtomicOpen ? 'kcc20_atomic_open_swap_maker_lock_submit_failed' : 'kcc20_atomic_swap_maker_lock_submit_failed'));
+        }
+
+        S.kcc20AtomicDirectDraft = {
+          draft_kind: isKcc20AtomicOpen ? 'kcc20_atomic_open_swap_wallet_ui_maker_lock_submitted_v1' : 'kcc20_atomic_swap_wallet_ui_maker_lock_submitted_v1',
+          created_at_ms: Date.now(),
+          payload,
+          build_summary: {
+            build_kind: build.build_kind,
+            application_status: build.application_status,
+            unsigned_safe_json_sha256: build.unsigned_safe_json_sha256,
+            txid_preview: build.txid_preview
+          },
+          signed_summary: Object.assign({}, signed, { signedSafeJson: undefined }),
+          submit_summary: submitOut
+        };
+
+        if (r) r.innerHTML = isKcc20AtomicOpen
+          ? renderKcc20AtomicOpenMakerLockPanel(build, submitOut)
+          : renderKcc20AtomicDirectMakerLockPanel(build, submitOut);
+        const submittedMsg = isKcc20AtomicOpen
+          ? 'KCC20 Atomic Open Swap created. Maker-lock is live and listed; any taker can claim it from Open Swap Offers.'
+          : 'KCC20 Atomic Direct Swap created. Maker-lock is live and tracked; the taker can claim it from the swap listing flow.';
+        showOfferCreateSuccess(submittedMsg);
+        try { cfm.setSuccess(submittedMsg); } catch (_) {}
+        try { cfm.close(); } catch (_) {}
+        $('btnBind')?.setAttribute('disabled','');
+        return submitOut;
+      } catch (e) {
+        const msg = e && (e.reason || e.message) ? String(e.reason || e.message) : (isKcc20AtomicOpen ? 'KCC20 Open atomic maker-lock failed.' : 'KCC20 atomic maker-lock failed.');
+        if (r) r.textContent = 'Make Offer failed: ' + msg;
+        try { cfm.setError('Make Offer failed: ' + msg); } catch (_) {}
+        return;
+      }
+    }
+
+    const isOpenOffer = !takerAddr;
+    let openOfferQuantity = 1;
+    if (isOpenOffer) {
+      try {
+        const requestedQuantity = promptOpenOfferQuantity();
+        if (requestedQuantity === null) {
+          if (r) r.textContent = 'Cancelled.';
+          return;
+        }
+        openOfferQuantity = requestedQuantity;
+      } catch (e) {
+        const msg = e && (e.reason || e.message) ? String(e.reason || e.message) : 'Invalid open offer quantity.';
+        if (r) r.textContent = 'Make Offer failed: ' + msg;
+        return;
+      }
+    }
+
     // This is a signing operation (swap offer); requires unlocked keyfile session
     const cfm = await window.CW_showConfirm({
       to: recv || '—',
       amount: String(payload.buy_amount || '').trim() || '—',
       ticker: String(sellSym || 'Swap'),
       network,
-      confirmLabel: takerAddr ? 'Create Offer' : 'Create Open Offer',
+      confirmLabel: takerAddr ? 'Create Offer' : (openOfferQuantity > 1 ? ('Create ' + openOfferQuantity + ' Open Offers') : 'Create Open Offer'),
       cancelLabel: 'Cancel',
-      sendingText: takerAddr ? 'Creating offer…' : 'Creating open offer…'
+      sendingText: takerAddr ? 'Creating offer…' : (openOfferQuantity > 1 ? ('Creating open offers 1 of ' + openOfferQuantity + '…') : 'Creating open offer…')
     });
 
     if (!cfm || !cfm.ok) {
@@ -1261,8 +2196,9 @@ function collectPayload(){
       expiry: (typeof payload.ttl === 'number' ? payload.ttl : 0) || 0,
     };
 
-    const isOpenOffer = !takerAddr;
-    if (r) r.textContent = isOpenOffer ? 'Creating open offer…' : 'Making swap offer…';
+    if (r) r.textContent = isOpenOffer
+      ? (openOfferQuantity > 1 ? ('Creating open offers 1 of ' + openOfferQuantity + '…') : 'Creating open offer…')
+      : 'Making swap offer…';
 
     try {
       if (isOpenOffer) {
@@ -1275,44 +2211,68 @@ function collectPayload(){
           buy: payload.buy,
           sell_amount: String(payload.sell_amount || '').trim(),
           buy_amount: String(payload.buy_amount || '').trim(),
+          offerDescription: String(payload.offerDescription || '').trim(),
+          offerInfoUrl: String(payload.offerInfoUrl || '').trim(),
           complianceOnly: !!payload.complianceOnly,
           ttl: (typeof payload.ttl === 'number' ? payload.ttl : 0) || 0,
           partial: { enabled: false }
         };
 
-        const openPrep = await window.openSwapV2.prepare(openReq);
-        if (!openPrep || openPrep.ok === false) {
-          const reason = openPrep && openPrep.reason ? String(openPrep.reason) : 'open_swap_prepare_failed';
-          const detail = openPrep && openPrep.error ? String(openPrep.error).trim() : '';
-          const blockerList = Array.isArray(openPrep && openPrep.blockers) ? openPrep.blockers.map(function (x) { return String(x); }) : [];
-          const blockers = blockerList.length ? ' — blockers=' + blockerList.join(',') : '';
+        const openOfferBatchId = openOfferQuantity > 1 ? makeOpenOfferBatchId() : '';
 
-          if (reason === 'missing_keyring_session' || blockerList.indexOf('missing_keyring_session') >= 0) {
-            throw new Error(unlockWalletMsg);
+        let createdOpenCount = 0;
+        for (let openOfferIndex = 0; openOfferIndex < openOfferQuantity; openOfferIndex++) {
+          if (r) r.textContent = openOfferQuantity > 1
+            ? ('Creating open offer ' + (openOfferIndex + 1) + ' of ' + openOfferQuantity + '…')
+            : 'Creating open offer…';
+
+          const openOfferRequest = Object.assign({}, openReq);
+
+          if (openOfferBatchId) {
+            openOfferRequest.openOfferBatchId = openOfferBatchId;
+            openOfferRequest.openOfferBatchIndex = openOfferIndex + 1;
+            openOfferRequest.openOfferBatchTotal = openOfferQuantity;
           }
 
-          if (reason === 'active_wallet_missing' || blockerList.indexOf('active_wallet_missing') >= 0) {
-            throw new Error('Select an active wallet first.');
-          }
+          const openPrep = await window.openSwapV2.prepare(openOfferRequest);
+          if (!openPrep || openPrep.ok === false) {
+            const reason = openPrep && openPrep.reason ? String(openPrep.reason) : 'open_swap_prepare_failed';
+            const detail = openPrep && openPrep.error ? String(openPrep.error).trim() : '';
+            const blockerList = Array.isArray(openPrep && openPrep.blockers) ? openPrep.blockers.map(function (x) { return String(x); }) : [];
+            const blockers = blockerList.length ? ' — blockers=' + blockerList.join(',') : '';
 
-          if (reason === 'open_swap_offer_failed' && detail) {
-            const detailLc = detail.toLowerCase();
-            if (detailLc.indexOf('missing_keyring_session') >= 0 || detailLc.indexOf('unlock') >= 0 || detailLc.indexOf('keyring') >= 0) {
+            if (reason === 'missing_keyring_session' || blockerList.indexOf('missing_keyring_session') >= 0) {
               throw new Error(unlockWalletMsg);
             }
-            throw new Error(detail);
+
+            if (reason === 'active_wallet_missing' || blockerList.indexOf('active_wallet_missing') >= 0) {
+              throw new Error('Select an active wallet first.');
+            }
+
+            if (reason === 'open_swap_offer_failed' && detail) {
+              const detailLc = detail.toLowerCase();
+              if (detailLc.indexOf('missing_keyring_session') >= 0 || detailLc.indexOf('unlock') >= 0 || detailLc.indexOf('keyring') >= 0) {
+                throw new Error(unlockWalletMsg);
+              }
+              throw new Error(detail);
+            }
+
+            throw new Error(reason + blockers);
           }
 
-          throw new Error(reason + blockers);
+          const offerBlob = typeof openPrep.offerBlob === 'string' ? openPrep.offerBlob : '';
+          if (!offerBlob) {
+            throw new Error('open_swap_prepare_invalid');
+          }
+
+          createdOpenCount += 1;
         }
 
-        const offerBlob = typeof openPrep.offerBlob === 'string' ? openPrep.offerBlob : '';
-        if (!offerBlob) {
-          throw new Error('open_swap_prepare_invalid');
-        }
-
-        var createdOpenMsg = 'Open offer draft created.';
+        var createdOpenMsg = createdOpenCount === 1
+          ? 'Open offer draft created.'
+          : ('Created ' + createdOpenCount + ' open offers.');
         if (r) r.textContent = createdOpenMsg;
+        showOfferCreateSuccess(createdOpenMsg);
         try { cfm.setSuccess(createdOpenMsg); } catch (_) {}
         try { cfm.close(); } catch (_) {}
         $('btnBind')?.setAttribute('disabled','');
@@ -1432,6 +2392,7 @@ function collectPayload(){
 
       var createdMsg = takerAddr ? 'Swap offer created.' : 'Open offer created.';
       if (r) r.textContent = createdMsg;
+      showOfferCreateSuccess(createdMsg);
 
       try { cfm.setSuccess(createdMsg); } catch (_) {}
       try { cfm.close(); } catch (_) {}
@@ -1448,47 +2409,81 @@ function collectPayload(){
 
   const css = document.createElement('style');
   css.textContent = `
-  .omodal{ position:fixed; inset:0; background:rgba(2, 6, 23, 0.72); backdrop-filter: blur(6px); display:flex; align-items:center; justify-content:center; z-index:10000 }
-  .omodal .card{ width:min(940px, 92vw); max-height:92vh; overflow:auto; box-shadow: 0 20px 50px rgba(0,0,0,.35) }
+  .omodal{
+    position:fixed;
+    inset:0;
+    padding:1rem;
+    background:rgba(var(--td-skin-black-rgb), 0.42);
+    backdrop-filter: blur(6px);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    z-index:10000;
+    overflow:auto;
+  }
 
-  .omodal .h{ display:flex; align-items:center; justify-content:space-between; font-weight:600; margin-bottom:8px }
+  /* Keep modal CSS layout-only. The actual skin surfaces come from static/css/style.css:
+     .card, input/select/textarea, button, and table[role="grid"]. */
+  .omodal .card{
+    width:min(940px, 92vw);
+    max-height:92vh;
+    overflow:auto;
+  }
+
+  .omodal .h{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    font-weight:600;
+    margin-bottom:8px;
+  }
+
   .omodal .grid{ display:grid; gap:12px }
   .omodal .grid.two{ grid-template-columns: 1fr 1fr }
   .omodal .row{ display:flex; gap:8px; align-items:center }
 
-  .omodal label{ display:block; font-size:12px; opacity:.85; margin-bottom:4px }
-  .omodal .note{ font-size:12px; opacity:.75 }
+  .omodal label{
+    display:block;
+    font-size:12px;
+    margin-bottom:4px;
+  }
 
-  .omodal input,
-  .omodal select,
-  .omodal button{
+  .omodal .note{
+    font-size:12px;
+  }
+
+  .omodal .swap-create-success{
+    margin:.75rem 0 1rem;
+    padding:.75rem .85rem;
+    border:1px solid var(--td-skin-success);
     border-radius:12px;
-    border:1px solid rgba(125, 252, 255, 0.55);
-    font-family: system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background:rgba(var(--td-skin-table-row-rgb), .98);
+    color:var(--td-skin-text-strong);
+    box-shadow:
+      0 0 0 1px rgba(var(--td-skin-border-rgb), .12),
+      0 0 18px rgba(var(--td-skin-primary-glow-rgb), .14);
+    font-weight:850;
+    word-break:break-word;
+    overflow-wrap:anywhere;
+    outline:none;
   }
-
-  .omodal input,
-  .omodal select{
-    width:100%;
-    box-sizing:border-box;
-    background: radial-gradient(circle at top left, rgba(15, 23, 42, 0.95), rgba(15, 23, 42, 1));
-    color:#e5f4ff;
-    box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.55);
-  }
-
-  .omodal button{ cursor:pointer }
-  .omodal button.primary{ background:#111827; color:#fff }
-  .omodal button.contrast{ background:#2563eb; color:#fff }
-  .omodal .secondary{ background:rgba(15, 23, 42, 0.65); border-color:rgba(125, 252, 255, 0.55); color:#e5f4ff }
 
   .omodal .panel{
-    border-radius:12px;
-    border:1px solid rgba(125, 252, 255, 0.35);
+    border-radius:14px;
+    border:1px solid rgba(var(--td-skin-border-rgb), 0.55);
     padding:10px;
-    background: radial-gradient(circle at top left, rgba(56, 189, 248, 0.14), rgba(15, 23, 42, 0.95));
+    background:rgba(var(--td-skin-table-bg-rgb), 0.72);
+    color:var(--td-skin-text);
+    box-shadow:
+      0 0 0 1px rgba(var(--td-skin-panel-rgb), 0.82),
+      0 0 18px rgba(var(--td-skin-primary-glow-rgb), 0.18);
   }
 
-  .omodal hr{ border:none; border-top:1px solid rgba(125, 252, 255, 0.25); margin:12px 0 }
+  .omodal hr{
+    border:none;
+    border-top:1px solid rgba(var(--td-skin-muted-rgb), 0.35);
+    margin:12px 0;
+  }
 
   .omodal .buy-row{ display:flex; gap:8px; align-items:center }
   .omodal .field-block{ margin-top:.5rem }
@@ -1505,17 +2500,17 @@ function collectPayload(){
     height:24px;
     margin:0;
     border-radius:999px;
-    border:1px solid rgba(148, 163, 184, 0.55);
-    background:rgba(71, 85, 105, 0.45);
+    border:1px solid rgba(var(--td-skin-border-rgb), 0.55);
+    background:rgba(var(--td-skin-table-row-rgb), 0.45);
     box-shadow:none;
     pointer-events:none;
     flex:0 0 auto;
   }
 
   .omodal #complianceOnly:checked{
-    background:#fde047;
-    border-color:#facc15;
-    box-shadow:0 0 0 1px rgba(250, 204, 21, 0.45), 0 0 12px rgba(250, 204, 21, 0.35);
+    background:var(--td-skin-primary);
+    border-color:var(--td-skin-primary);
+    box-shadow:0 0 0 1px rgba(var(--td-skin-primary-rgb), 0.45), 0 0 12px rgba(var(--td-skin-primary-glow-rgb), 0.35);
   }
 
   .omodal .suggest{ position:relative }
@@ -1524,16 +2519,20 @@ function collectPayload(){
     top:calc(100% + 6px);
     left:0;
     right:0;
-    background: rgba(2, 6, 23, 0.98);
-    border: 1px solid rgba(125, 252, 255, 0.35);
+    background:
+      radial-gradient(circle at top left, rgba(var(--td-skin-primary-glow-rgb), 0.18), rgba(var(--td-skin-panel-rgb), 0.98));
+    border: 1px solid rgba(var(--td-skin-border-rgb), 0.65);
     border-radius:12px;
     overflow:hidden;
-    box-shadow: 0 18px 40px rgba(0,0,0,.35);
+    color:var(--td-skin-text);
+    box-shadow:
+      0 0 0 1px rgba(var(--td-skin-panel-rgb), 1),
+      0 18px 40px rgba(var(--td-skin-black-rgb), 0.28);
   }
   .omodal .suggest .item{ padding:8px 10px; cursor:pointer }
-  .omodal .suggest .item:hover{ background: rgba(56, 189, 248, 0.12) }
-  .omodal .suggest .t{ font-weight:600 }
-  .omodal .suggest .s{ font-size:12px; opacity:.7 }
+  .omodal .suggest .item:hover{ background: rgba(var(--td-skin-primary-glow-rgb), 0.14) }
+  .omodal .suggest .t{ font-weight:600; color:var(--td-skin-text-strong) }
+  .omodal .suggest .s{ font-size:12px; color:var(--td-skin-text-muted); opacity:1 }
 
   .omodal .trade-row{ display:grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap:8px; align-items:flex-end }
   .omodal .trade-col{ min-width:0 }

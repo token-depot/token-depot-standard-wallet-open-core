@@ -51,7 +51,9 @@
     try { data = await r.json(); } catch (_) { /* non-JSON */ }
     if (!r.ok) {
       const msg = (data && (data.error || data.message || data.reason)) || `${r.status} ${r.statusText}`;
-      throw new Error(`HTTP ${r.status} (POST ${target}): ${msg}`);
+      const err = new Error(`HTTP ${r.status} (POST ${target}): ${msg}`);
+      try { err.status = r.status; err.data = data || null; err.url = target; } catch (_) {}
+      throw err;
     }
     return data || {};
   }
@@ -686,6 +688,74 @@
     lastUpdEl.textContent = base;
   }
 
+  const OMA_L1_SELECT_PREFIX = 'OMA_L1:';
+
+  function omaL1TrackedTokensFromHoldings(h) {
+    const tokens = h && h.oma_l1 && Array.isArray(h.oma_l1.tokens) ? h.oma_l1.tokens : [];
+    return tokens.filter((tok) => {
+      if (!tok || tok.asset_kind !== 'oma_l1_covenant_token') return false;
+      const covenantId = String(tok.asset_covenant_id || '').trim().toLowerCase();
+      const holderOutpoint = String(tok.holder_outpoint || '').trim();
+      const amountRaw = String(tok.amount_raw || '').trim();
+      return /^[0-9a-f]{64}$/.test(covenantId) && !!holderOutpoint && /^\d+$/.test(amountRaw) && BigInt(amountRaw) > 0n;
+    });
+  }
+
+  function omaL1FormatRawAmountHuman(rawText, decimals) {
+    const raw = String(rawText || '0').trim();
+    const dec = Number(decimals || 0);
+    if (!/^\d+$/.test(raw) || !Number.isInteger(dec) || dec <= 0) return raw || '0';
+    const padded = raw.padStart(dec + 1, '0');
+    const whole = padded.slice(0, -dec) || '0';
+    const frac = padded.slice(-dec).replace(/0+$/, '');
+    return frac ? `${whole}.${frac}` : whole;
+  }
+
+  function omaL1AggregateTrackedTokensForSelect(h) {
+    const byAsset = new Map();
+    for (const tok of omaL1TrackedTokensFromHoldings(h)) {
+      const covenantId = String(tok.asset_covenant_id || '').trim().toLowerCase();
+      const amountRaw = String(tok.amount_raw || '0').trim();
+      const decimals = (tok && typeof tok.decimals === 'number') ? tok.decimals : 0;
+      const symbol = String(tok.token_symbol || 'OMA L1').trim() || 'OMA L1';
+      if (!byAsset.has(covenantId)) {
+        byAsset.set(covenantId, {
+          asset_covenant_id: covenantId,
+          token_symbol: symbol,
+          decimals,
+          amount_raw_total: 0n,
+          holder_lot_count: 0
+        });
+      }
+      const row = byAsset.get(covenantId);
+      row.amount_raw_total += BigInt(amountRaw);
+      row.holder_lot_count += 1;
+    }
+    return Array.from(byAsset.values()).map((row) => ({
+      ...row,
+      amount_raw: row.amount_raw_total.toString(),
+      amount_human: omaL1FormatRawAmountHuman(row.amount_raw_total.toString(), row.decimals)
+    })).sort((a, b) => String(a.token_symbol || '').localeCompare(String(b.token_symbol || '')) || String(a.asset_covenant_id || '').localeCompare(String(b.asset_covenant_id || '')));
+  }
+
+  function omaL1SelectValue(tok) {
+    const covenantId = String(tok && tok.asset_covenant_id || '').trim().toLowerCase();
+    return OMA_L1_SELECT_PREFIX + covenantId;
+  }
+
+  function isOmaL1SelectedAsset(token, opt) {
+    if (opt && opt.dataset && opt.dataset.assetKind === 'oma_l1_covenant_token') return true;
+    return String(token || '').startsWith(OMA_L1_SELECT_PREFIX);
+  }
+
+  function omaL1SelectedMetaOrThrow(opt) {
+    if (!opt || !opt.dataset || opt.dataset.assetKind !== 'oma_l1_covenant_token') throw new Error('oma_l1_selection_metadata_missing');
+    const assetCovenantId = String(opt.dataset.assetCovenantId || '').trim().toLowerCase();
+    const tokenSymbol = String(opt.dataset.tokenSymbol || 'OMA L1').trim() || 'OMA L1';
+    if (!/^[0-9a-f]{64}$/.test(assetCovenantId)) throw new Error('oma_l1_asset_covenant_id_missing');
+    return { assetCovenantId, tokenSymbol };
+  }
+
   function renderTokenSelect(h) {
     if (!tokenSel) return;
     const prev = tokenSel.value || 'KAS';
@@ -721,19 +791,52 @@
       tokenSel.appendChild(opt);
     }
 
-    // Restore previous selection if it was a CA value
+    const omaL1Tokens = omaL1AggregateTrackedTokensForSelect(h);
+    const omaL1Values = [];
+    for (const tok of omaL1Tokens) {
+      const symbol = String(tok.token_symbol || 'OMA L1').trim() || 'OMA L1';
+      const covenantId = String(tok.asset_covenant_id || '').trim().toLowerCase();
+      const lotCount = Number(tok.holder_lot_count || 0);
+      const opt = document.createElement('option');
+      opt.value = omaL1SelectValue(tok);
+      opt.textContent = `${symbol} · OMA L1 · ${shortCA(covenantId)}`;
+      opt.dataset.assetKind = 'oma_l1_covenant_token';
+      opt.dataset.assetCovenantId = covenantId;
+      opt.dataset.tokenSymbol = symbol;
+      opt.dataset.dec = String((tok && typeof tok.decimals === 'number') ? tok.decimals : 0);
+      opt.dataset.amountRaw = String(tok.amount_raw || '0');
+      opt.dataset.amountHuman = String(tok.amount_human || tok.amount_raw || '0');
+      opt.dataset.holderLotCount = String(lotCount);
+      opt.dataset.sourceSelection = 'automatic_backend';
+      opt.dataset.normalSendEligible = 'false';
+      opt.dataset.route = 'oma_l1_holder_transfer';
+      omaL1Values.push(opt.value);
+      tokenSel.appendChild(opt);
+    }
+
+    // Restore previous selection if it was a CA or OMA L1 value
     if (!list.includes(prev)) {
       const caValues = issues.map(it => 'CA:' + String(it?.ca || ''));
-      if (caValues.includes(prev)) tokenSel.value = prev;
+      if (caValues.includes(prev) || omaL1Values.includes(prev)) tokenSel.value = prev;
     }
     if (list.includes(prev)) tokenSel.value = prev;
+  }
+
+  function isPositiveAssetAmount(value) {
+    if (typeof value === 'number') return Number.isFinite(value) && value > 0;
+    if (typeof value === 'bigint') return value > 0n;
+    const parsed = Number(String(value ?? '').replace(/,/g, '').trim());
+    return Number.isFinite(parsed) && parsed > 0;
   }
 
   function renderAssets(h) {
     if (!assetsBody) return;
     assetsBody.innerHTML = '';
     const icons = (h && h.icons) || {};
-    const entries = [['KAS', h?.kas ?? 0], ...Object.entries(h?.tokens || {})];
+    const entries = [
+      ['KAS', h?.kas ?? 0],
+      ...Object.entries(h?.tokens || {}).filter(([, val]) => isPositiveAssetAmount(val))
+    ];
 
     for (const [sym, val] of entries) {
       const tr  = document.createElement('tr');
@@ -766,6 +869,7 @@
       if (!ca) continue;
       const nm  = (it.name && String(it.name)) || 'CA';
       const amt = (typeof it.amount === 'number') ? it.amount : (Number(it.amount) || 0);
+      if (!isPositiveAssetAmount(amt)) continue;
       const tr  = document.createElement('tr');
       const td1 = document.createElement('td');
       td1.appendChild(document.createTextNode(`${nm} · `));
@@ -782,6 +886,41 @@
       td1.appendChild(caSpan);
       const td2 = document.createElement('td'); td2.textContent = amt;
       tr.appendChild(td1); tr.appendChild(td2);
+      assetsBody.appendChild(tr);
+    }
+
+    const omaTokens = omaL1AggregateTrackedTokensForSelect(h);
+    for (const tok of omaTokens) {
+      if (!tok || !/^[0-9a-f]{64}$/.test(String(tok.asset_covenant_id || '').trim().toLowerCase())) continue;
+      const symbol = String(tok.token_symbol || 'OMA L1').trim() || 'OMA L1';
+      const covenantId = String(tok.asset_covenant_id || '').trim().toLowerCase();
+      const lotCount = Number(tok.holder_lot_count || 0);
+      const tr = document.createElement('tr');
+      tr.dataset.assetKind = 'oma_l1_covenant_token';
+      tr.dataset.tokenSymbol = symbol;
+      tr.dataset.assetCovenantId = covenantId;
+      tr.dataset.holderLotCount = String(lotCount);
+      tr.dataset.sourceSelection = 'automatic_backend';
+      tr.dataset.normalSendEligible = 'false';
+      tr.dataset.tokenTransferEnabled = 'true';
+
+      const td1 = document.createElement('td');
+      td1.appendChild(document.createTextNode(`${symbol} · covenant `));
+
+      const covSpan = document.createElement('span');
+      covSpan.className = 'mono';
+      covSpan.style.cursor = 'pointer';
+      covSpan.title = lotCount > 1 ? `Click to copy full covenant ID (${lotCount} holder lots summed)` : 'Click to copy full covenant ID';
+      covSpan.dataset.caFull = covenantId;
+      covSpan.dataset.caShort = shortCA(covenantId);
+      covSpan.textContent = shortCA(covenantId);
+      td1.appendChild(covSpan);
+
+      const td2 = document.createElement('td');
+      td2.textContent = String(tok.amount_human || tok.amount_raw || '0');
+
+      tr.appendChild(td1);
+      tr.appendChild(td2);
       assetsBody.appendChild(tr);
     }
   }
@@ -892,6 +1031,7 @@
         });
 
         setKeyfileStatus('Unlocked — Click LOCK to lock');
+
       } catch (_) {
         keyring = null;
         setLiveUnlockState(null);
@@ -935,6 +1075,16 @@
       const token = (tokenSel && typeof tokenSel.value === 'string' && tokenSel.value.trim())
         ? tokenSel.value.trim()
         : 'KAS';
+      const selectedOption = tokenSel && tokenSel.options && tokenSel.selectedIndex >= 0 ? tokenSel.options[tokenSel.selectedIndex] : null;
+
+      if (isOmaL1SelectedAsset(token, selectedOption)) {
+        amtEl.value = String((selectedOption && selectedOption.dataset && (selectedOption.dataset.amountHuman || selectedOption.dataset.amountRaw)) || '');
+        amtEl.dispatchEvent(new Event('input',  { bubbles: true }));
+        amtEl.dispatchEvent(new Event('change', { bubbles: true }));
+        window.__USE_MAX = false;
+        window.__USE_MAX_ASSET = '';
+        return;
+      }
 
       const r = await jget('/api/wallet/max-sendable?token=' + encodeURIComponent(token));
       if (!r || !r.ok) {
@@ -1184,6 +1334,160 @@
     );
   }
 
+  function fillOmaL1SignatureScript(tx, inputIndex, signatureScript, reason) {
+    const inputs = tx && Array.isArray(tx.inputs) ? tx.inputs : [];
+    if (!Number.isInteger(inputIndex) || inputIndex < 0 || !inputs[inputIndex]) {
+      throw new Error(reason || 'oma_l1_holder_transfer_input_missing');
+    }
+    inputs[inputIndex].signatureScript = signatureScript;
+    tx.inputs = inputs;
+  }
+
+  function omaL1SignIndexesOrThrow(build, signCtx) {
+    const signInputIndexes = Array.isArray(build && build.signInputIndexes) ? build.signInputIndexes.map((value) => Number(value)) : [];
+    const signSet = new Set(signInputIndexes);
+    const rawHolderInputs = signCtx && Array.isArray(signCtx.holder_inputs) ? signCtx.holder_inputs : [];
+    const holderInputs = rawHolderInputs.map((input) => ({
+      inputIndex: Number(input && input.input_index),
+      sourceHolderOutpoint: String(input && input.source_holder_outpoint || '').trim(),
+      redeemScriptHex: String(input && input.source_holder_redeem_script_hex || '').trim(),
+      redeemScriptHexSha256: String(input && input.source_holder_redeem_script_hex_sha256 || '').trim()
+    })).filter((input) => Number.isInteger(input.inputIndex) && input.inputIndex >= 0);
+
+    if (holderInputs.length === 0) throw new Error('oma_l1_holder_transfer_holder_inputs_missing');
+    for (const input of holderInputs) {
+      if (!signSet.has(input.inputIndex)) throw new Error('oma_l1_holder_transfer_holder_input_index_not_signable');
+      if (!input.sourceHolderOutpoint) throw new Error('oma_l1_holder_transfer_holder_input_outpoint_missing');
+      if (!/^[0-9a-f]+$/i.test(input.redeemScriptHex) || input.redeemScriptHex.length % 2 !== 0) {
+        throw new Error('oma_l1_holder_transfer_redeem_script_missing');
+      }
+    }
+
+    const duplicateIndexes = new Set();
+    for (const input of holderInputs) {
+      if (duplicateIndexes.has(input.inputIndex)) throw new Error('oma_l1_holder_transfer_duplicate_holder_input_index');
+      duplicateIndexes.add(input.inputIndex);
+    }
+
+    const rawFundingInputIndex = signCtx && Object.prototype.hasOwnProperty.call(signCtx, 'native_kas_funding_input_index')
+      ? Number(signCtx.native_kas_funding_input_index)
+      : null;
+    const fundingInputIndex = Number.isInteger(rawFundingInputIndex) ? rawFundingInputIndex : null;
+    if (fundingInputIndex !== null) {
+      if (!signSet.has(fundingInputIndex)) throw new Error('oma_l1_holder_transfer_native_funding_input_index_not_signable');
+      if (holderInputs.some((input) => input.inputIndex === fundingInputIndex)) throw new Error('oma_l1_holder_transfer_native_funding_overlaps_holder_input');
+    }
+
+    const expectedCount = holderInputs.length + (fundingInputIndex !== null ? 1 : 0);
+    if (signInputIndexes.length !== expectedCount) throw new Error('oma_l1_holder_transfer_unexpected_sign_indexes');
+
+    return {
+      holderInputs: holderInputs.sort((a, b) => a.inputIndex - b.inputIndex),
+      fundingInputIndex,
+      signInputIndexes
+    };
+  }
+
+  async function signOmaL1HolderTransferBuild(build, keyring) {
+    const k = await kaspaReadyOrThrow();
+    const txSafeJson = String(build && build.txToSignSafeJson || '').trim();
+    const signCtx = build && build.signing_context_public && typeof build.signing_context_public === 'object' ? build.signing_context_public : null;
+    const signPlan = omaL1SignIndexesOrThrow(build, signCtx);
+
+    if (!txSafeJson) throw new Error('oma_l1_holder_transfer_unsigned_tx_missing');
+    if (!keyring || !keyring.priv0) throw new Error('wallet_locked');
+
+    const tx = k.Transaction.deserializeFromSafeJSON(txSafeJson);
+    const dummySig = new Uint8Array(65);
+    const holderScripts = signPlan.holderInputs.map((input) => ({
+      input,
+      script: k.ScriptBuilder.fromScript(input.redeemScriptHex)
+    }));
+
+    for (const item of holderScripts) {
+      fillOmaL1SignatureScript(tx, item.input.inputIndex, item.script.encodePayToScriptHashSignatureScript(dummySig), 'oma_l1_holder_transfer_source_holder_input_missing');
+    }
+
+    for (const item of holderScripts) {
+      const holderSignature = k.createInputSignature(tx, item.input.inputIndex, keyring.priv0, null);
+      fillOmaL1SignatureScript(tx, item.input.inputIndex, item.script.encodePayToScriptHashSignatureScript(holderSignature), 'oma_l1_holder_transfer_source_holder_input_missing');
+    }
+
+    if (signPlan.fundingInputIndex !== null) {
+      const fundingSignature = k.createInputSignature(tx, signPlan.fundingInputIndex, keyring.priv0, null);
+      fillOmaL1SignatureScript(tx, signPlan.fundingInputIndex, fundingSignature, 'oma_l1_holder_transfer_native_funding_input_missing');
+    }
+
+    tx.finalize();
+    const signedSafeJson = tx.serializeToSafeJSON();
+    k.Transaction.deserializeFromSafeJSON(signedSafeJson);
+    return signedSafeJson;
+  }
+
+  async function sendOmaL1HolderTransferSW(option, to, amountRaw, keyring) {
+    const meta = omaL1SelectedMetaOrThrow(option);
+    const build = await jpost('/api/covenants/issuer-token/holder-transfer/build', {
+      asset_covenant_id: meta.assetCovenantId,
+      source_selection: 'automatic_backend',
+      recipient_address: to,
+      transfer_amount_raw: amountRaw
+    });
+
+    if (!build || build.ok !== true || build.transfer_build_kind !== 'oma_l1_holder_transfer_build_v1') return build || { ok: false, reason: 'oma_l1_holder_transfer_build_failed' };
+
+    const signedSafeJson = await signOmaL1HolderTransferBuild(build, keyring);
+    const submit = await jpost('/api/covenants/issuer-token/holder-transfer/submit', {
+      submit_intent: 'submit_oma_l1_holder_transfer_v1',
+      submit_token: build.submit_token,
+      signedSafeJson
+    });
+
+    if (submit && submit.ok === true) {
+      return {
+        ...submit,
+        ok: true,
+        txid: submit.submitted_txid || submit.signed_txid || '',
+        token_symbol: meta.tokenSymbol,
+        asset_covenant_id: meta.assetCovenantId
+      };
+    }
+
+    return submit || { ok: false, reason: 'oma_l1_holder_transfer_submit_failed' };
+  }
+
+  function humanSendErrorMessage(value) {
+    const data = value && typeof value === 'object' && value.data && typeof value.data === 'object'
+      ? value.data
+      : (value && typeof value === 'object' ? value : null);
+    const reason = data && typeof data.reason === 'string' ? data.reason : '';
+    const serverMsg = data && (data.error || data.message) ? String(data.error || data.message) : '';
+    const rawMsg = value && typeof value === 'object' && value.message
+      ? String(value.message)
+      : String(value || '');
+    const combined = [reason, serverMsg, rawMsg].join(' ');
+
+    if (
+      reason === 'normal_send_no_buildable_utxo' ||
+      combined.includes('normal_send_no_buildable_utxo') ||
+      combined.includes('No non-covenant UTXO candidate set can build')
+    ) {
+      return [
+        'This wallet has funds, but none of the available non-covenant UTXOs can safely build this KAS send at this amount.',
+        'Try a larger amount or consolidate/fund the wallet with a suitable UTXO.',
+        'Covenant-bearing UTXOs remain blocked from normal sends.'
+      ].join(' ');
+    }
+
+    if (
+      reason === 'normal_send_only_covenant_utxos' ||
+      combined.includes('Only covenant-bearing UTXOs are available')
+    ) {
+      return 'Only covenant-bearing UTXOs are available. Normal KAS send is blocked for those outputs. Use a covenant-aware spend path or choose a wallet with native KAS.';
+    }
+
+    return rawMsg || serverMsg || reason || 'Send failed';
+  }
+
   async function handleSendClick(){
     const token = (tokenSel && tokenSel.value) || 'KAS';
     const to    = (toEl && toEl.value || '').trim();
@@ -1211,6 +1515,7 @@
 
     const hasDec = !!(selOpt && selOpt.dataset && typeof selOpt.dataset.dec === 'string');
     const tokenDec = hasDec ? Number(selOpt.dataset.dec) : 0;
+    const isOmaL1Send = isOmaL1SelectedAsset(token, selOpt);
 
     let amtForSend = amt;
 
@@ -1243,7 +1548,8 @@
     } catch (_) { /* non-fatal */ }
 
     // 1) Show Confirm modal (returns controller); keep it open
-    const modal = await showConfirm({ to, amount: amt, ticker: token, network, confirmLabel: 'SIGN & SEND', sendingText: 'Signing…' });
+    const modalTicker = isOmaL1Send && selOpt ? String(selOpt.textContent || 'OMA L1') : token;
+    const modal = await showConfirm({ to, amount: amt, ticker: modalTicker, network, confirmLabel: 'SIGN & SEND', sendingText: 'Signing…' });
     if (!modal || !modal.ok) return; // user cancelled
 
     // 2) Confirm → send (modal already switched to "Sending…")
@@ -1258,7 +1564,9 @@
 
     const useMax = (typeof window !== 'undefined' && window.__USE_MAX === true && window.__USE_MAX_ASSET === 'KAS');
 
-    const sendPromise = sendSingleTransferSW(token, to, amtForSend, keyring, useMax);
+    const sendPromise = isOmaL1Send
+      ? sendOmaL1HolderTransferSW(selOpt, to, amtForSend, keyring)
+      : sendSingleTransferSW(token, to, amtForSend, keyring, useMax);
 
     sendPromise.then((res) => {
       if (res && res.ok) {
@@ -1272,12 +1580,14 @@
 
         try { refreshAll(); } catch(_) {}
       } else {
-        const msg = (res && (res.error || res.message || res.reason)) || 'Send failed';
+        const msg = humanSendErrorMessage(res);
         try { modal.setError(msg); } catch(_) {}
+        try { if (resultEl) resultEl.textContent = msg; } catch(_) {}
       }
     }).catch((e) => {
-      const msg = (e && e.message) ? e.message : (e ? String(e) : 'Send failed');
+      const msg = humanSendErrorMessage(e);
       try { modal.setError(msg); } catch(_) {}
+      try { if (resultEl) resultEl.textContent = msg; } catch(_) {}
     }).finally(() => {
       if (sendBtn) sendBtn.disabled = false;
       sending = false;
@@ -1317,20 +1627,45 @@
       ? selectedOption.dataset.name.trim()
       : '';
 
-    const isKas    = !rawId || rawId === 'KAS';
-    const assetKind = isKas ? 'KAS' : 'KRC20';
-    const assetId   = isKas ? 'KAS' : rawId;
+    const isKas = !rawId || rawId === 'KAS';
+    const isOmaL1SwapAsset = !isKas && isOmaL1SelectedAsset(rawId, selectedOption);
+    const omaL1SwapMeta = isOmaL1SwapAsset ? omaL1SelectedMetaOrThrow(selectedOption) : null;
+
+    const assetKind = isKas
+      ? 'KAS'
+      : (isOmaL1SwapAsset ? 'oma_l1_covenant_token' : 'KRC20');
+    const assetId = isKas
+      ? 'KAS'
+      : (isOmaL1SwapAsset ? omaL1SwapMeta.assetCovenantId : rawId);
+    const assetDisplayName = isOmaL1SwapAsset
+      ? omaL1SwapMeta.tokenSymbol
+      : assetName;
+
+    const originKind = isKas
+      ? 'KAS'
+      : (isOmaL1SwapAsset ? 'OMA_L1' : 'KRC');
 
     const ctx = {
-      originKind: 'KRC',
+      originKind,
       address: addr,
       wid: activeWalletId || '',
       network: activeWalletNetwork || '',
       assetKind,
       assetId,
-      assetName,
+      assetName: assetDisplayName,
       amount: rawAmt
     };
+
+    if (isOmaL1SwapAsset && omaL1SwapMeta) {
+      ctx.assetSelectValue = rawId;
+      ctx.assetCovenantId = omaL1SwapMeta.assetCovenantId;
+      ctx.tokenSymbol = omaL1SwapMeta.tokenSymbol;
+      ctx.amountRawAvailable = selectedOption && selectedOption.dataset ? String(selectedOption.dataset.amountRaw || '') : '';
+      ctx.amountHumanAvailable = selectedOption && selectedOption.dataset ? String(selectedOption.dataset.amountHuman || '') : '';
+      ctx.sourceSelection = selectedOption && selectedOption.dataset ? String(selectedOption.dataset.sourceSelection || 'automatic_backend') : 'automatic_backend';
+      ctx.route = 'oma_l1_holder_transfer';
+      ctx.swapContextKind = 'kcc20_direct_1e_wallet_preserve_oma_l1_swap_context_v1';
+    }
 
     if (isWalletQrAddress(rawTo)) {
       ctx.takerTokenReceiveAddressSeed = rawTo;

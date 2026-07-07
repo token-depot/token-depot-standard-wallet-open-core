@@ -1,26 +1,47 @@
-# Security Notes
+# Security and Scope Notes
 
-## Standard Wallet security boundary
+## What this package is
 
-The Standard Wallet trust boundary is local key ownership:
+This repository is an open-core/public review package for Standard Wallet, OMA L1/KCC20-compatible token flows, and Direct/Open Atomic KCC20 swap flows as represented by the CW284 reference files.
 
-- key generation happens in the browser;
-- encrypted keyfiles are handled locally by the user;
-- unlock happens in the browser;
-- Standard Wallet send signing happens in the browser;
-- Standard Wallet Direct/Open swap signing happens in the browser;
-- the server stores public wallet descriptors and broadcasts signed artifacts.
+It is intended for source inspection, audit review, compatibility review, and self-custody boundary review.
 
-## Server authority for Standard Wallets
+## What this package is not
 
-The server can provide transaction build data, analyze offers, store offer records, coordinate swap finalization, and broadcast signed transactions. The WTS v2 source-visible reference does not show the server holding Standard Wallet mnemonic or private key fields.
+This repository is not a production deployment bundle and is not a secret-bearing runtime archive.
 
-## User responsibilities
+It does not include:
 
-Standard Wallet users must protect their local keyfile and passphrase. Loss of the keyfile or passphrase may prevent wallet recovery. Anyone with both the encrypted keyfile and passphrase may be able to unlock the wallet.
+```text
+production secrets
+private keys
+passphrases
+mnemonic backups
+hosted infrastructure credentials
+AWS deployment configuration
+customer data
+runtime user ledgers
+Compliance Node private internals
+Oracle Node private internals
+Broker-Custody signer internals
+Fireblocks or bridge automation internals
+commercial administration systems
+```
 
-## Explicit exclusions
+## Security review focus
 
-Broker-Custody Wallets are not Standard Wallet self-custody. They use a different custody model and are outside WTS self-custody claims.
+Reviewers should focus on:
 
-This repository does not include production secrets, customer data, server deployment configuration, Compliance Node custody internals, or operational infrastructure.
+- browser-side Standard Wallet key generation, encryption, unlock, and signing;
+- server watch-only descriptor boundaries;
+- signed-artifact submit and broadcast boundaries;
+- covenant-bearing UTXO exclusion from normal-send paths;
+- KCC20-compatible state/ownership/supply behavior;
+- Direct/Open Atomic KCC20 swap policy and tracking behavior;
+- CW284 canonical Toccata SDK import paths.
+
+## Reporting issues
+
+Security-sensitive reports should not include private keys, passphrases, mnemonics, seed material, auth secrets, custody material, signed transaction material, submit tokens, production URLs with credentials, or customer data.
+
+Provide file paths, line references, public transaction IDs, public testnet identifiers, and minimal reproduction details where possible.

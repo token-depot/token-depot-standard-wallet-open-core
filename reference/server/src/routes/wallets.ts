@@ -434,6 +434,8 @@ setupRouter.post("/wallet", async (req, res) => {
     const broker_id = body.broker_id;
     const user_pubkey = body.user_pubkey;
     const wallet_id = body.wallet_id;
+    const auth_secret = body.auth_secret;
+    const auth_pubkey = body.auth_pubkey;
 
     if (!wallet_type) {
       return res.json({ ok: false, reason: "wallet_type_invalid" });
@@ -448,10 +450,30 @@ setupRouter.post("/wallet", async (req, res) => {
     const recovery_mode = typeof body.recovery_mode === "string" ? body.recovery_mode.trim() : "";
     const isStandardRecovery = wallet_type === "standard" && recovery_mode === "standard_import";
     const isComplianceRecovery = wallet_type === "compliance" && recovery_mode === "compliance_recovery";
+    const authSecret = typeof auth_secret === "string" ? auth_secret.trim() : "";
+    const authPubKey = typeof auth_pubkey === "string" ? auth_pubkey.trim() : "";
+
+    if (wallet_type === "standard" && (authSecret || authPubKey)) {
+      return res.json({ ok: false, reason: "auth_secret_not_allowed_for_standard_wallet" });
+    }
 
     if (wallet_type === "compliance") {
       if (!isComplianceRecovery && (typeof broker_id !== "string" || broker_id.length < 1)) {
         return res.json({ ok: false, reason: "broker_id_required_for_compliance" });
+      }
+      if (!isComplianceRecovery) {
+        if (!authSecret) {
+          return res.json({ ok: false, reason: "auth_secret_required_for_compliance" });
+        }
+        if (!/^(02|03)[0-9a-fA-F]{64}$/.test(authPubKey)) {
+          return res.json({ ok: false, reason: "auth_pubkey_required_for_compliance" });
+        }
+        if (authPubKey.toLowerCase() !== user_pubkey.trim().toLowerCase()) {
+          return res.json({ ok: false, reason: "auth_pubkey_mismatch" });
+        }
+      }
+      if (isComplianceRecovery && (authSecret || authPubKey)) {
+        return res.json({ ok: false, reason: "auth_secret_not_allowed_for_compliance_recovery" });
       }
       if (isComplianceRecovery && (typeof wallet_id !== "string" || wallet_id.trim().length < 1)) {
         return res.json({ ok: false, reason: "wallet_id_required_for_compliance_recovery" });
@@ -537,7 +559,9 @@ setupRouter.post("/wallet", async (req, res) => {
         cnProvision = await cnPostJson("/api/cn/bcw/custody-wallet/create", {
           wallet_id: requestedWalletId,
           network,
-          broker_id: String(broker_id || "").trim()
+          broker_id: String(broker_id || "").trim(),
+          auth_secret: authSecret,
+          auth_pubkey: authPubKey
         });
       } catch (err) {
         return res.json({ ok: false, reason: "cn_unreachable", error: String(err) });

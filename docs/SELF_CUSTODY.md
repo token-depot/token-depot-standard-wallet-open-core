@@ -1,66 +1,35 @@
-# Standard Wallet Self-Custody Proof
+# Standard Wallet Self-Custody Boundary
 
-This document explains the Token Depot Standard Wallet self-custody boundary in plain language.
+This document summarizes the self-custody boundary represented by the CW284 reference files.
 
-## Claim
+## Standard Wallet claim
 
-For Standard Wallets, Token Depot's hosted server stores public wallet metadata and broadcasts signed transactions, but the signing key is created, encrypted, unlocked, and used in the browser.
+For Standard Wallets, private signing material is created, encrypted, stored, unlocked, and used in the browser-side wallet runtime. Server routes store public wallet descriptors, prepare public transaction build data, validate signed artifacts, and broadcast already-signed transactions.
 
-## What the browser does
-
-The browser Standard Wallet flow creates wallet key material locally, encrypts the keyfile locally with the user's passphrase, and downloads that encrypted keyfile to the user.
-
-When the user unlocks the wallet, the browser reads the local keyfile and decrypts it locally. The active signing key is then held in browser runtime memory for that session.
-
-The relevant source-visible files are:
+## Files to inspect
 
 ```text
 reference/wallet.html
 reference/static/js/wallet.js
-```
-
-## What the server stores
-
-For Standard Wallets, the server stores a wallet descriptor: wallet id, wallet type, network, public key, address, readiness state, and similar public metadata.
-
-The server-side wallet storage model does not define mnemonic, private key, keyfile ciphertext, or passphrase fields for the Standard Wallet descriptor.
-
-The relevant source-visible files are:
-
-```text
+reference/static/js/send_engine.js
+reference/server/src/routes/wallets.ts
+reference/server/src/routes/wallet_send.ts
 reference/server/src/storage/walletStore.ts
 reference/server/src/types.ts
-reference/server/src/routes/wallets.ts
 ```
 
-## How sends are signed
+## Proof boundary
 
-For Standard Wallet sends, the server can prepare public transaction build data and can broadcast a signed transaction. The browser performs the signing step with the locally unlocked key.
+The public reference files support these claims:
 
-The relevant source-visible files are:
+- Standard Wallet setup posts public metadata to the server.
+- The encrypted keyfile is created client-side.
+- The passphrase is used in browser runtime for encryption/decryption.
+- KAS/KRC20 signing requires local browser unlock.
+- The server does not need Standard Wallet private keys to broadcast already-signed artifacts.
 
-```text
-reference/static/js/send_engine.js
-reference/server/src/routes/wallet_send.ts
-```
+## Exclusions
 
-## How swaps are signed
+This repository does not prove Broker-Custody Wallet self-custody. Broker-Custody Wallets are custody/broker workflows and must not be described as Standard Wallet self-custody.
 
-For Standard Wallet Direct/Open swap flows, the browser reads the local keyring session and creates required signatures locally. The server coordinates analysis, offer records, transaction preparation, and broadcast.
-
-The relevant source-visible files are:
-
-```text
-reference/static/js/swaps.js
-reference/static/js/offers.js
-reference/static/js/offers_open.js
-reference/server/src/routes/swap_mode_direct.ts
-reference/server/src/routes/swap_mode_open.ts
-reference/server/src/routes/swap_mode_open_v2.ts
-```
-
-## What this does not claim
-
-This proof does not claim that Broker-Custody Wallets are self-custody. Broker-Custody Wallets are a separate broker-custody product path.
-
-This proof does not claim that the full hosted Token Depot platform is open-source or independently runnable from this repository.
+This repository does not include production secrets, private keys, passphrases, custody infrastructure, Compliance Node private internals, Oracle Node private internals, customer data, hosted deployment configuration, or AWS deployment configuration.

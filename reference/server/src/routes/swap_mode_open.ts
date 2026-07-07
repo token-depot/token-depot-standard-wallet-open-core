@@ -1,4 +1,6 @@
 import type { Express } from "express";
+import fs from "node:fs";
+import path from "node:path";
 import type { AppNetworkKey } from "../types";
 import {
   addressPrefixFromAppNetworkKey,
@@ -78,6 +80,144 @@ export type SwapModeOpenCtx = {
     args: { phase: "offer" | "accept" | "finalize"; kind: "tick_to_kas" | "ca_to_kas"; pskb: string }
   ) => Promise<{ ok: boolean; errors: string[]; warnings: string[] }>;
 };
+
+
+const KCC20_ATOMIC_SWAP_LOCKS_FILE_NAME = "programmable-kas-atomic-swap-locks.v1.json";
+
+function kcc20AtomicSompiToKasText(value: unknown): string {
+  const raw = String(value ?? "").trim();
+  if (!/^\d+$/.test(raw)) return "";
+  const sompi = BigInt(raw);
+  const whole = sompi / 100000000n;
+  const frac = sompi % 100000000n;
+  const fracText = frac.toString().padStart(8, "0").replace(/0+$/, "");
+  return fracText ? `${whole.toString()}.${fracText}` : whole.toString();
+}
+
+function kcc20AtomicTokenDecimals(value: unknown): number {
+  const n = Number(value);
+  if (!Number.isInteger(n) || n < 0 || n > 18) return 0;
+  return n;
+}
+
+function kcc20AtomicRawToTokenAmountText(value: unknown, decimalsValue: unknown): string {
+  const raw = String(value ?? "").trim();
+  if (!/^\d+$/.test(raw)) return "";
+
+  const decimals = kcc20AtomicTokenDecimals(decimalsValue);
+  if (decimals === 0) return BigInt(raw).toString();
+
+  let text = BigInt(raw).toString();
+  while (text.length <= decimals) text = `0${text}`;
+
+  const whole = text.slice(0, text.length - decimals) || "0";
+  const frac = text.slice(text.length - decimals).replace(/0+$/, "");
+  return frac ? `${whole}.${frac}` : whole;
+}
+
+function kcc20AtomicSwapRecordIsOpenLike(record: any): boolean {
+  return !!record && String(record.record_status || "").trim() === "locked_live_verified";
+}
+
+function kcc20AtomicSwapOfferIsOpenLike(offer: any): boolean {
+  const atomicKind = String(offer?.atomic_swap_kind || "").trim();
+  const state = String(offer?.state || "").trim().toLowerCase() || "open";
+  if (atomicKind === "kcc20_atomic_direct_maker_lock_v1") return state === "atomic_locked";
+  return state === "open";
+}
+
+function kcc20AtomicSwapOfferId(sourceOutpointKey: string): string {
+  const safe = String(sourceOutpointKey || "").trim().replace(/[^A-Za-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+  return safe ? `KCC20_ATOMIC_${safe}` : `KCC20_ATOMIC_UNKNOWN`;
+}
+
+function readKcc20AtomicSwapOfferItems(repoRoot: string, userId: string): any[] {
+  const locksPath = path.join(repoRoot, "data", "users", userId, KCC20_ATOMIC_SWAP_LOCKS_FILE_NAME);
+  if (!fs.existsSync(locksPath)) return [];
+
+  let parsed: any;
+  try {
+    parsed = JSON.parse(fs.readFileSync(locksPath, "utf8"));
+  } catch {
+    return [];
+  }
+
+  const records = Array.isArray(parsed?.records) ? parsed.records : [];
+  return records
+    .filter((record: any) => record && typeof record === "object")
+    .filter((record: any) => String(record.record_kind || "") === "kcc20_atomic_swap_maker_lock_v1")
+    .filter(kcc20AtomicSwapRecordIsOpenLike)
+    .map((record: any) => {
+      const sourceOutpointKey = String(record.source_outpoint_key || "").trim();
+      const tokenSymbol = String(record.token_symbol || "OMA_L1").trim() || "OMA_L1";
+      const tokenName = String(record.token_name || tokenSymbol).trim() || tokenSymbol;
+      const assetCovenantId = String(record.asset_covenant_id || record.covenant_id || "").trim().toLowerCase();
+      const kasPriceSompi = String(record.kas_price_sompi || "").trim();
+      const kasPriceKas = String(record.kas_price_kas || "").trim() || kcc20AtomicSompiToKasText(kasPriceSompi);
+      const decimals = kcc20AtomicTokenDecimals(record.decimals);
+      const lockAmountRaw = String(record.lock_amount_raw || record.swap_locked_holder_amount_raw || "").trim();
+      const lockAmountHuman = String(record.lock_amount_human || "").trim() || kcc20AtomicRawToTokenAmountText(lockAmountRaw, decimals);
+      const createdAt = String(record.created_at || "").trim() || new Date(0).toISOString();
+      const updatedAt = String(record.updated_at || createdAt).trim() || createdAt;
+      const offerTtlSecondsRaw = Number(record.offer_ttl_seconds ?? 0);
+      const offerTtlSeconds = Number.isFinite(offerTtlSecondsRaw) && offerTtlSecondsRaw > 0
+        ? Math.floor(offerTtlSecondsRaw)
+        : 0;
+      const offerExpiresAtRaw = String(record.offer_expires_at || "").trim();
+      const offerExpiresAt = offerExpiresAtRaw || null;
+
+      return {
+        offerId: kcc20AtomicSwapOfferId(sourceOutpointKey),
+        state: "atomic_locked",
+        atomic_swap_kind: "kcc20_atomic_direct_maker_lock_v1",
+        atomic_swap_mode: "direct_fixed_recipient_atomic_swap_v1",
+        atomic_swap_source_outpoint_key: sourceOutpointKey,
+        atomic_swap_policy_body_redeem_script_sha256: String(record.policy_body_redeem_script_sha256 || "").trim().toLowerCase(),
+        createdAt,
+        updatedAt,
+        ttl: offerTtlSeconds,
+        expiresAt: offerExpiresAt,
+        offer_ttl_seconds: offerTtlSeconds,
+        offer_expires_at: offerExpiresAt,
+        sell: { type: "KAS", symbol: "KAS" },
+        buy: {
+          type: "OMA_L1_COVENANT_TOKEN",
+          symbol: tokenSymbol,
+          name: tokenName,
+          asset_covenant_id: assetCovenantId,
+          decimals,
+          standard: "oma_l1_covenant_token_profile_v0_1",
+          route: "kcc20_atomic_swap_claim"
+        },
+        sellAmount: kasPriceKas,
+        buyAmount: lockAmountHuman,
+        buyAmountRaw: lockAmountRaw,
+        tokenAmount: lockAmountHuman,
+        tokenAmountRaw: lockAmountRaw,
+        price: kasPriceKas,
+        partial: { enabled: false },
+        networkId: String(record.networkId || record.network || "").trim(),
+        makerWalletId: String(record.maker_wallet_id || record.wallet_id || "").trim(),
+        makerReceiveAddress: String(record.maker_kas_receive_address || "").trim(),
+        makerTokenRefundAddress: String(record.maker_token_refund_address || "").trim(),
+        takerTokenReceiveAddress: String(record.taker_token_receive_address || "").trim(),
+        asset_covenant_id: assetCovenantId,
+        tokenSymbol,
+        tokenName,
+        decimals,
+        lock_amount_raw: lockAmountRaw,
+        lock_amount_human: lockAmountHuman,
+        swap_locked_holder_amount_raw: lockAmountRaw,
+        kas_price_sompi: kasPriceSompi,
+        kas_price_kas: kasPriceKas,
+        refund_lock_daa: String(record.refund_lock_daa || "").trim(),
+        source_outpoint_key: sourceOutpointKey,
+        covenant_id: String(record.covenant_id || "").trim().toLowerCase(),
+        submitted_txid: String(record.submitted_txid || "").trim(),
+        source: "kcc20_atomic_swap"
+      };
+    });
+}
 
 function appNetworkKeyFromKaspaAddress(address: string): AppNetworkKey | null {
   const raw = typeof address === "string" ? address.trim().toLowerCase() : "";
@@ -197,7 +337,7 @@ export function registerSwapModeOpenRoutes(app: Express, ctx: SwapModeOpenCtx): 
   
       if (!Number.isFinite(ttlRaw)) {
         blockers.push("ttl_invalid");
-      } else if (ttl < 60 || ttl > 168 * 60 * 60) {
+      } else if (ttl !== 0 && (ttl < 60 || ttl > 168 * 60 * 60)) {
         blockers.push("ttl_out_of_range");
       }
   
@@ -577,7 +717,11 @@ export function registerSwapModeOpenRoutes(app: Express, ctx: SwapModeOpenCtx): 
         }
       };
 
-      const itemsRaw = Array.isArray(store.items) ? store.items : [];
+      const atomicItemsRaw = readKcc20AtomicSwapOfferItems(repoRoot, userId);
+      const itemsRaw = [
+        ...(Array.isArray(store.items) ? store.items : []),
+        ...atomicItemsRaw
+      ];
       const visibleItems = itemsRaw.filter((o: any) => {
         if (!o || typeof o !== "object") return false;
 
@@ -591,7 +735,7 @@ export function registerSwapModeOpenRoutes(app: Express, ctx: SwapModeOpenCtx): 
         const expired = isExpired(o);
 
         if (qState === "open") {
-          return state === "open" && !expired;
+          return kcc20AtomicSwapOfferIsOpenLike(o) && !expired;
         }
 
         if (qState === "filled") return state === "filled";
@@ -620,6 +764,111 @@ export function registerSwapModeOpenRoutes(app: Express, ctx: SwapModeOpenCtx): 
       return res.json({
         ok: false,
         reason: "offers_list_failed",
+        error: String(err)
+      });
+    }
+  });
+
+  app.get("/api/offers/mine", async (req, res) => {
+    try {
+      const historyRaw: any = (req as any).query ? (req as any).query.history : undefined;
+      const includeHistory = historyRaw === "1" || historyRaw === "true" || historyRaw === "yes";
+
+      const userId = String((res.locals as any).td_user_id || "").trim();
+      if (!userId) {
+        return res.status(401).json({ ok: false, reason: "auth_required", login: "/login.html" });
+      }
+
+      const walletStore = readWalletStore(repoRoot, userId);
+      const activeWalletId = typeof walletStore?.active_id === "string" ? walletStore.active_id.trim() : "";
+      if (!activeWalletId) {
+        return res.json({ ok: true, items: [], active_wallet_id: "", history: includeHistory });
+      }
+
+      const store = readOffersStore(repoRoot);
+      const nowMs = Date.now();
+
+      const isExpired = (o: any): boolean => {
+        if (!o || typeof o !== "object") return false;
+
+        if (typeof o.expiresAt === "string" && o.expiresAt.trim()) {
+          const t = Date.parse(o.expiresAt);
+          if (Number.isFinite(t) && t > 0) return t <= nowMs;
+        }
+
+        const ttl = typeof o.ttl === "number" ? o.ttl : 0;
+        if (ttl > 0 && typeof o.createdAt === "string" && o.createdAt.trim()) {
+          const c = Date.parse(o.createdAt);
+          if (Number.isFinite(c) && c > 0) return (c + ttl * 1000) <= nowMs;
+        }
+
+        return false;
+      };
+
+      const resolveBuyCaNameForOffer = async (o: any): Promise<string> => {
+        if (!resolveKrc20TokenMetadata || !o || typeof o !== "object") return "";
+
+        const buy = o.buy && typeof o.buy === "object" ? o.buy : null;
+        const buySymbol = buy && typeof buy.symbol === "string" ? buy.symbol.trim() : "";
+        if (!/^CA:/i.test(buySymbol)) return "";
+
+        const caHex = buySymbol.slice(3).trim().toLowerCase();
+        if (!caHex || !/^[0-9a-f]+$/.test(caHex)) return "";
+
+        const networkKey = normalizeAppNetworkKey(o.networkId);
+        if (!networkKey) return "";
+
+        try {
+          const metadata = await resolveKrc20TokenMetadata({
+            networkId: networkKey,
+            lookup: { kind: "ca", value: caHex }
+          });
+
+          const name = metadata && metadata.ok === true && metadata.data?.identity?.name
+            ? String(metadata.data.identity.name).trim()
+            : "";
+
+          return name && name !== `CA:${caHex}` ? name : "";
+        } catch {
+          return "";
+        }
+      };
+
+      const atomicItemsRaw = readKcc20AtomicSwapOfferItems(repoRoot, userId);
+      const itemsRaw = [
+        ...(Array.isArray(store.items) ? store.items : []),
+        ...atomicItemsRaw
+      ];
+      const mineRaw = itemsRaw.filter((o: any) => {
+        if (!o || typeof o !== "object") return false;
+        if (String(o.makerWalletId || "").trim() !== activeWalletId) return false;
+
+        const state = (typeof o.state === "string" && o.state.trim()) ? o.state.trim().toLowerCase() : "open";
+        const expired = isExpired(o);
+
+        if (includeHistory) return true;
+        return kcc20AtomicSwapOfferIsOpenLike(o) && !expired;
+      });
+
+      const items = await Promise.all(mineRaw.map(async (o: any) => {
+        const buyName = await resolveBuyCaNameForOffer(o);
+        if (!buyName) return o;
+
+        const buy = o.buy && typeof o.buy === "object" ? o.buy : {};
+        return {
+          ...o,
+          buy: {
+            ...buy,
+            name: buyName
+          }
+        };
+      }));
+
+      return res.json({ ok: true, items, active_wallet_id: activeWalletId, history: includeHistory });
+    } catch (err) {
+      return res.json({
+        ok: false,
+        reason: "offers_mine_failed",
         error: String(err)
       });
     }
