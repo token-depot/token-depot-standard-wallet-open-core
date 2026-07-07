@@ -1,16 +1,32 @@
 # Technical Verification Guide
 
-This guide shows how to inspect WTS v2 using the reference files.
+This guide shows how to inspect the CW284 open-core package using the reference files.
 
 ## 1. Verify the source snapshot
 
-The reference files were copied from the verified Token Depot Compliance Wallet 200 source bundle.
+The reference files were copied from the verified Token Depot Compliance Wallet CW284 source bundle.
 
 ```text
-6924f3e0b0b0d0abe046a119675680dc455872e92f95330bfcb616b2e160fcd0  Compliance_Wallet_200.zip
+4086911456ce4110a2e9c939385ba6f911c3d1a1efdcfdb146375d920f7a5bbd  Compliance_Wallet_284_Mac.zip
 ```
 
-## 2. Inspect wallet creation and local keyfile handling
+The supporting SDK/reference bundle was:
+
+```text
+4277504a3d71679e82f7b2143827454005a70f24b7d5cc31b4d9d0e22fd8f7ba  What_the_SDK_Requires_v2-20.zip
+```
+
+## 2. Verify the reference manifest
+
+Run from the repository root:
+
+```bash
+shasum -a 256 $(awk '{print $2}' REFERENCE_MANIFEST.sha256)
+```
+
+Compare the output to `REFERENCE_MANIFEST.sha256`.
+
+## 3. Inspect wallet creation and local keyfile handling
 
 Review:
 
@@ -27,7 +43,7 @@ Proof points:
 - local keyfile read/decrypt on unlock;
 - no server keyfile export fallback.
 
-## 3. Inspect the server wallet descriptor model
+## 4. Inspect the server wallet descriptor model
 
 Review:
 
@@ -44,7 +60,7 @@ Proof points:
 - `/setup/wallet` accepts public setup metadata;
 - legacy server key generation/export is rejected or absent.
 
-## 4. Inspect Standard Wallet send signing
+## 5. Inspect Standard Wallet send signing
 
 Review:
 
@@ -58,9 +74,29 @@ Proof points:
 - browser code signs with the locally unlocked key;
 - server build stages return public transaction data;
 - server submit stages receive signed transaction data;
-- server broadcasts signed artifacts rather than signing Standard Wallet spends.
+- server broadcasts signed artifacts rather than signing Standard Wallet spends;
+- covenant-bearing UTXOs are excluded from ordinary KAS normal-send selection.
 
-## 5. Inspect swap signing
+## 6. Inspect KCC20-compatible token flows
+
+Review:
+
+```text
+reference/kcc20-deploy.html
+reference/kcc20-issue.html
+reference/static/js/kcc20-deploy-ui.js
+reference/static/js/kcc20-issue-ui.js
+reference/server/src/server.ts
+```
+
+Proof points:
+
+- KCC20-compatible deploy/issue/burn/change-owner flows are separated from KRC20 pages;
+- issue/burn/change-owner signing uses local browser wallet state;
+- submit routes validate signed artifacts before accepting/broadcasting;
+- Change Ownership transfers controller/issuer authority according to the implemented profile.
+
+## 7. Inspect Direct/Open Atomic KCC20 swap signing
 
 Review:
 
@@ -68,7 +104,7 @@ Review:
 reference/static/js/swaps.js
 reference/static/js/offers.js
 reference/static/js/offers_open.js
-reference/server/src/routes/swap_mode_direct.ts
+reference/server/src/server.ts
 reference/server/src/routes/swap_mode_open.ts
 reference/server/src/routes/swap_mode_open_v2.ts
 ```
@@ -78,22 +114,22 @@ Proof points:
 - maker-side swap creation requires local browser unlock;
 - taker/finalize swap flows read the local browser keyring session;
 - browser code creates input signatures locally;
-- server routes coordinate preparation, validation, and broadcast;
-- BCW authorization/signing paths are not Standard Wallet self-custody claims.
+- server routes coordinate, validate, and broadcast already-signed artifacts;
+- Direct Atomic KCC20 v4 and Open Atomic KCC20 dynamic-taker paths are represented in the CW284 source.
 
-## 6. Suggested grep checks
+## 8. Inspect CW284 SDK promotion/finalization
 
-From the repository root:
+Review:
 
-```bash
-grep -R -n 'wallet/keyfile/export\|api/offers/bind\|list_send\|_priv0_from_mnemonic\|derivePriv0FromMnemonicOrThrow\|active\.mnemonic\|typeof w\.mnemonic\|mnemonic\?: string' reference || true
-grep -R -n '"mnemonic"' reference/server || true
-grep -R -n 'private_key\|auth_secret\|ciphertext' reference/server || true
-grep -R -n 'priv0_hex\|createInputSignature\|signMessage' reference/static/js reference/server/src/routes || true
+```text
+reference/static/js/kaspa-toccata-bridge.mjs
+reference/server/src/kaspaToccataSdk.ts
+reference/server/src/routes/wallet_send.ts
+reference/server/src/server.ts
 ```
 
-Expected interpretation:
+Proof points:
 
-- Browser-side references to mnemonic/keyfile handling are expected in Standard Wallet local flows.
-- Browser-side `priv0_hex`, `createInputSignature`, and `signMessage` hits are expected in local signing flows.
-- Server-side mnemonic/private-key storage references should not be present for Standard Wallet descriptors.
+- active Toccata imports use `wasm/sdk/kaspa-wasm32-sdk/web/kaspa/`;
+- duplicate `kaspa-wasm32-sdk-toccata-v2` import path is not the active architecture;
+- SDK route guards were proven clean in the CW284 release-candidate line.
