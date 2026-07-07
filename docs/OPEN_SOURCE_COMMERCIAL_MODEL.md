@@ -9,13 +9,13 @@ The repository is dual licensed:
 - GNU Affero General Public License v3.0 or later (`AGPL-3.0-or-later`)
 - Separate paid commercial license available from Token Depot Corp
 
-This model is intended to satisfy open-source transparency expectations while preserving a paid commercial path for hosted, managed, white-label, broker, custody, exchange, marketplace, or enterprise operations.
+This model is intended to satisfy open-source transparency expectations while preserving a paid commercial path for hosted, managed, white-label, broker, custody, exchange, marketplace, tokenization, compliance, or enterprise operations.
 
 ## Open source does not mean no business model
 
 Open source is a licensing model. It grants software freedoms under the selected license.
 
-Open source does not mean Token Depot must provide hosted infrastructure, support, compliance operations, branding, commercial licenses, managed services, custody services, marketplace integrations, or enterprise deployment work for free.
+Open source does not mean Token Depot must provide hosted infrastructure, support, compliance operations, branding, commercial licenses, managed services, custody services, marketplace integrations, AWS deployment work, or enterprise deployment work for free.
 
 Under the AGPL path, users receive the rights and obligations of the AGPL. Operators who do not want to rely on the AGPL path, or who need separate commercial terms, must obtain a commercial license from Token Depot Corp.
 
@@ -52,4 +52,4 @@ The open-source license does not grant rights to Token Depot trademarks, OMA mar
 
 ## Release-scope note
 
-This CW283 update is intended to publish the Standard Wallet and KCC20-compatible implementation for public review while excluding secrets, private keys, passphrases, hosted infrastructure credentials, private tenant systems, broker-custody private systems, and private deployment configuration.
+This CW284 update is intended to publish the Standard Wallet and KCC20-compatible implementation for public review while excluding secrets, private keys, passphrases, hosted infrastructure credentials, private tenant systems, broker-custody private systems, runtime ledgers, customer data, and private deployment configuration.
