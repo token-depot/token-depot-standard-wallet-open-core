@@ -23,13 +23,23 @@ import {
   PSKT,
   SighashType
 } from "../../../wasm/sdk/kaspa-wasm32-sdk/web/kaspa/kaspa.js";
+import { RpcClient as ToccataRpcClient } from "../../../wasm/sdk/kaspa-wasm32-sdk/web/kaspa/kaspa.js";
 
 import { readBridgeQueueStore, updateBridgePurchase } from "../storage/bridgeQueueStore";
 import { readUserProfile } from "../storage/userStore";
 import { sendNotificationEmail } from "../email/smtp";
 import {
+  calculateEntitlementPackageForUserIds,
+  listEntitlementTokenRules,
+  upsertEntitlementTokenSale,
+  type EntitlementPackageStatusV1,
+  type EntitlementTokenRuleV1,
+  type EntitlementTokenSaleV1
+} from "../storage/entitlementTokenStore";
+import {
   addressPrefixFromAppNetworkKey,
   appNetworkKeyFromWalletNetwork,
+  applyKrc20ToccataFeeRateFloor,
   kasplexBaseUrlFromAppNetworkKey,
   normalizeAppNetworkKey,
   rpcNetworkIdFromAppNetworkKey
@@ -38,6 +48,342 @@ import {
   getBridgeFulfillmentResultArtifact,
   upsertBridgeFulfillmentResultArtifact
 } from "../storage/bridgeFulfillmentResultStore";
+
+const TN10_COVENANT_RPC_URL = "ws://tn10.token-depot.co:17210";
+
+type NormalSendCovenantExclusion = {
+  inspection_kind: "oma_normal_send_covenant_exclusion_v1";
+  networkId: string;
+  address: string;
+  total_entries: number;
+  spendable_entries: number;
+  excluded_entries: number;
+  excluded_outpoints: string[];
+  inspection_path: "reference.entry.covenantId";
+  signing_enabled: false;
+  broadcasting_enabled: false;
+  minting_enabled: false;
+};
+
+function normalSendPrintable(value: any): string | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value === "bigint") return value.toString();
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  if (typeof value.toString === "function" && value.toString !== Object.prototype.toString) return value.toString();
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function normalSendReferenceEntry(reference: any): any | null {
+  return reference && typeof reference === "object" && reference.entry ? reference.entry : null;
+}
+
+function normalSendCovenantIdFromReference(reference: any): string | null {
+  const entry = normalSendReferenceEntry(reference);
+  const canonical = entry ? entry.covenantId : undefined;
+  return canonical === null || canonical === undefined ? null : normalSendPrintable(canonical);
+}
+
+function normalSendOutpointKeyFromValue(outpoint: any): string {
+  if (!outpoint) return "";
+  if (typeof outpoint === "string") return outpoint;
+  if (outpoint && typeof outpoint.toJSON === "function") return normalSendOutpointKeyFromValue(outpoint.toJSON());
+  const transactionId = normalSendPrintable(outpoint.transactionId ?? outpoint.transaction_id ?? outpoint.txid);
+  const rawIndex = outpoint.index ?? outpoint.outputIndex ?? outpoint.output_index;
+  const index = rawIndex === null || rawIndex === undefined ? null : Number(rawIndex);
+  return transactionId && Number.isFinite(index) ? `${transactionId}:${index}` : "";
+}
+
+function normalSendOutpointKeyFromReference(reference: any): string {
+  const entry = normalSendReferenceEntry(reference);
+  const candidates = [
+    reference && reference.outpoint,
+    entry && entry.outpoint,
+    reference && reference.utxo && reference.utxo.outpoint,
+    reference && reference.utxoEntry && reference.utxoEntry.outpoint
+  ];
+
+  for (const candidate of candidates) {
+    const key = normalSendOutpointKeyFromValue(candidate);
+    if (key) return key;
+  }
+  return "";
+}
+
+function normalSendEntriesFromResponse(response: any): any[] {
+  if (Array.isArray(response)) return response;
+  if (response && Array.isArray(response.entries)) return response.entries;
+  if (response && Array.isArray(response.utxos)) return response.utxos;
+  if (response && Array.isArray(response.result)) return response.result;
+  return [];
+}
+
+const NORMAL_SEND_SELECTION_FEE_BUFFER_SOMPI = 5000000n;
+const NORMAL_SEND_SELECTION_MAX_CANDIDATE_INPUTS = 8;
+const NORMAL_SEND_SELECTION_MAX_CANDIDATE_ATTEMPTS = 40;
+
+type NormalSendBuildProbeSelection = {
+  selection_kind: "oma_normal_send_build_probe_selection_v1";
+  spendable_entries: number;
+  candidate_sets: number;
+  candidates_tested: number;
+  selected_entries: number;
+  selected_total_sompi: string;
+  selected_outpoints: string[];
+  use_max: boolean;
+  fee_buffer_sompi: string;
+  create_errors: string[];
+  signing_enabled: false;
+  broadcasting_enabled: false;
+  minting_enabled: false;
+};
+
+function normalSendEntryAmount(entry: any): bigint {
+  try {
+    if (!entry || entry.amount === null || entry.amount === undefined) return 0n;
+    if (typeof entry.amount === "bigint") return entry.amount;
+    return BigInt(String(entry.amount));
+  } catch {
+    return 0n;
+  }
+}
+
+function normalSendCandidateError(err: any): string {
+  const raw = String(err && err.message ? err.message : err);
+  return raw.length > 180 ? `${raw.slice(0, 180)}...` : raw;
+}
+
+function normalSendCandidateKey(items: Array<{ entry: any; amount: bigint }>): string {
+  return items.map((item) => normalSendOutpointKeyFromReference(item.entry)).sort().join("|");
+}
+
+function normalSendSelectedOutpoints(entries: any[]): string[] {
+  return entries.map((entry) => normalSendOutpointKeyFromReference(entry)).filter((key) => !!key).sort();
+}
+
+function normalSendBuildCandidateSets(entries: any[], amountSompi: bigint, useMax: boolean): Array<Array<{ entry: any; amount: bigint }>> {
+  const rows = (Array.isArray(entries) ? entries : [])
+    .map((entry) => ({ entry, amount: normalSendEntryAmount(entry) }))
+    .filter((row) => row.amount > 0n)
+    .sort((a, b) => {
+      if (a.amount !== b.amount) return a.amount < b.amount ? -1 : 1;
+      const ak = normalSendOutpointKeyFromReference(a.entry);
+      const bk = normalSendOutpointKeyFromReference(b.entry);
+      return ak < bk ? -1 : ak > bk ? 1 : 0;
+    });
+
+  if (!rows.length) return [];
+
+  if (useMax) return [rows];
+
+  const targetSompi = amountSompi + NORMAL_SEND_SELECTION_FEE_BUFFER_SOMPI;
+  const candidateSets: Array<Array<{ entry: any; amount: bigint }>> = [];
+  const seen = new Set<string>();
+
+  const pushCandidate = (items: Array<{ entry: any; amount: bigint }>) => {
+    if (!items.length || items.length > NORMAL_SEND_SELECTION_MAX_CANDIDATE_INPUTS) return;
+    const total = items.reduce((acc, item) => acc + item.amount, 0n);
+    if (total < targetSompi) return;
+    const key = normalSendCandidateKey(items);
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    candidateSets.push(items.slice());
+  };
+
+  for (const row of rows) {
+    if (row.amount >= targetSompi) pushCandidate([row]);
+  }
+
+  const belowTarget = rows.filter((row) => row.amount < targetSompi);
+  const descendingBelowTarget = belowTarget.slice().reverse();
+
+  let descendingTotal = 0n;
+  const descendingAccum: Array<{ entry: any; amount: bigint }> = [];
+  for (const row of descendingBelowTarget) {
+    if (descendingAccum.length >= NORMAL_SEND_SELECTION_MAX_CANDIDATE_INPUTS) break;
+    descendingAccum.push(row);
+    descendingTotal += row.amount;
+    if (descendingTotal >= targetSompi) pushCandidate(descendingAccum);
+  }
+
+  let ascendingTotal = 0n;
+  const ascendingAccum: Array<{ entry: any; amount: bigint }> = [];
+  for (const row of belowTarget) {
+    if (ascendingAccum.length >= NORMAL_SEND_SELECTION_MAX_CANDIDATE_INPUTS) break;
+    ascendingAccum.push(row);
+    ascendingTotal += row.amount;
+    if (ascendingTotal >= targetSompi) pushCandidate(ascendingAccum);
+  }
+
+  let boostedTotal = 0n;
+  const boostedAccum: Array<{ entry: any; amount: bigint }> = [];
+  for (const row of rows) {
+    if (boostedAccum.length >= NORMAL_SEND_SELECTION_MAX_CANDIDATE_INPUTS) break;
+    boostedAccum.push(row);
+    boostedTotal += row.amount;
+    if (boostedTotal >= targetSompi) pushCandidate(boostedAccum);
+  }
+
+  const comboWindow = rows.slice(0, Math.min(rows.length, 24));
+  for (let i = 0; i < comboWindow.length; i++) {
+    for (let j = i + 1; j < comboWindow.length; j++) {
+      pushCandidate([comboWindow[i], comboWindow[j]]);
+    }
+  }
+
+  if (!candidateSets.length) pushCandidate(rows.slice(0, NORMAL_SEND_SELECTION_MAX_CANDIDATE_INPUTS));
+
+  return candidateSets.sort((a, b) => {
+    const at = a.reduce((acc, item) => acc + item.amount, 0n);
+    const bt = b.reduce((acc, item) => acc + item.amount, 0n);
+    if (a.length !== b.length) return a.length - b.length;
+    if (at !== bt) return at < bt ? -1 : 1;
+    const ak = normalSendCandidateKey(a);
+    const bk = normalSendCandidateKey(b);
+    return ak < bk ? -1 : ak > bk ? 1 : 0;
+  });
+}
+
+async function normalSendSelectBuildableEntries(args: {
+  entries: any[];
+  amountSompi: bigint;
+  useMax: boolean;
+  outputs: Array<{ address: string; amount: bigint }>;
+  changeAddress: string;
+  feeRate: number;
+  priorityFee: any;
+  networkId: string;
+}): Promise<{ ok: true; entries: any[]; created: any; selection: NormalSendBuildProbeSelection } | { ok: false; selection: NormalSendBuildProbeSelection }> {
+  const candidateSets = normalSendBuildCandidateSets(args.entries, args.amountSompi, args.useMax);
+  const attempts = candidateSets.slice(0, NORMAL_SEND_SELECTION_MAX_CANDIDATE_ATTEMPTS);
+  const createErrors: string[] = [];
+  let candidatesTested = 0;
+
+  for (const candidate of attempts) {
+    candidatesTested += 1;
+    const entries = candidate.map((item) => item.entry);
+    const selectedTotalSompi = candidate.reduce((acc, item) => acc + item.amount, 0n);
+    try {
+      const created = await createTransactions({
+        outputs: args.outputs,
+        changeAddress: args.changeAddress,
+        feeRate: args.feeRate,
+        priorityFee: args.priorityFee,
+        entries,
+        networkId: args.networkId
+      });
+      const txs = created && Array.isArray((created as any).transactions) ? (created as any).transactions : [];
+      if (!txs.length) {
+        createErrors.push(`candidate_${candidatesTested}:candidate_unexpected_empty_batch`);
+        continue;
+      }
+      return {
+        ok: true,
+        entries,
+        created,
+        selection: {
+          selection_kind: "oma_normal_send_build_probe_selection_v1",
+          spendable_entries: args.entries.length,
+          candidate_sets: candidateSets.length,
+          candidates_tested: candidatesTested,
+          selected_entries: entries.length,
+          selected_total_sompi: selectedTotalSompi.toString(),
+          selected_outpoints: normalSendSelectedOutpoints(entries),
+          use_max: args.useMax,
+          fee_buffer_sompi: NORMAL_SEND_SELECTION_FEE_BUFFER_SOMPI.toString(),
+          create_errors: createErrors.slice(-8),
+          signing_enabled: false,
+          broadcasting_enabled: false,
+          minting_enabled: false
+        }
+      };
+    } catch (err) {
+      createErrors.push(`candidate_${candidatesTested}:${normalSendCandidateError(err)}`);
+    }
+  }
+
+  return {
+    ok: false,
+    selection: {
+      selection_kind: "oma_normal_send_build_probe_selection_v1",
+      spendable_entries: args.entries.length,
+      candidate_sets: candidateSets.length,
+      candidates_tested: candidatesTested,
+      selected_entries: 0,
+      selected_total_sompi: "0",
+      selected_outpoints: [],
+      use_max: args.useMax,
+      fee_buffer_sompi: NORMAL_SEND_SELECTION_FEE_BUFFER_SOMPI.toString(),
+      create_errors: createErrors.slice(-8),
+      signing_enabled: false,
+      broadcasting_enabled: false,
+      minting_enabled: false
+    }
+  };
+}
+
+async function applyNormalSendCovenantExclusion(args: {
+  networkId: string;
+  address: string;
+  entries: any[];
+}): Promise<{ entries: any[]; exclusion: NormalSendCovenantExclusion }> {
+  const totalEntries = Array.isArray(args.entries) ? args.entries.length : 0;
+  const covenantOutpoints = new Set<string>();
+
+  for (const entry of args.entries) {
+    const covenantId = normalSendCovenantIdFromReference(entry);
+    const key = covenantId ? normalSendOutpointKeyFromReference(entry) : "";
+    if (key) covenantOutpoints.add(key);
+  }
+
+  if (args.networkId === "testnet-10") {
+    let rpc: InstanceType<typeof ToccataRpcClient> | null = null;
+    try {
+      rpc = new ToccataRpcClient({ url: TN10_COVENANT_RPC_URL, networkId: args.networkId });
+      await rpc.connect();
+      const response = await rpc.getUtxosByAddresses({ addresses: [args.address] });
+      const toccataEntries = normalSendEntriesFromResponse(response);
+      for (const entry of toccataEntries) {
+        const covenantId = normalSendCovenantIdFromReference(entry);
+        const key = covenantId ? normalSendOutpointKeyFromReference(entry) : "";
+        if (key) covenantOutpoints.add(key);
+      }
+    } finally {
+      if (rpc) {
+        try {
+          await rpc.disconnect();
+        } catch {}
+      }
+    }
+  }
+
+  const spendableEntries = args.entries.filter((entry) => {
+    const key = normalSendOutpointKeyFromReference(entry);
+    return !key || !covenantOutpoints.has(key);
+  });
+  const excludedOutpoints = Array.from(covenantOutpoints).sort();
+
+  return {
+    entries: spendableEntries,
+    exclusion: {
+      inspection_kind: "oma_normal_send_covenant_exclusion_v1",
+      networkId: args.networkId,
+      address: args.address,
+      total_entries: totalEntries,
+      spendable_entries: spendableEntries.length,
+      excluded_entries: totalEntries - spendableEntries.length,
+      excluded_outpoints: excludedOutpoints,
+      inspection_path: "reference.entry.covenantId",
+      signing_enabled: false,
+      broadcasting_enabled: false,
+      minting_enabled: false
+    }
+  };
+}
 
 function normalizeExecutionGuardHex(raw: unknown): string {
   const s = String(raw || "").trim().toLowerCase();
@@ -189,6 +535,7 @@ type BcwKasSendIntentV1 = {
   from_address: string;
   to_address: string;
   amount_sompi: string;
+  use_max: boolean;
   user_auth_pubkey: string;
   created_at: string;
   expires_at: string;
@@ -226,6 +573,7 @@ function normalizeBcwKasSendIntent(raw: unknown): BcwKasSendIntentV1 | null {
     from_address: normalizeBcwRouteString(input.from_address),
     to_address: normalizeBcwRouteString(input.to_address),
     amount_sompi: normalizeBcwRouteString(input.amount_sompi),
+    use_max: input.use_max === true,
     user_auth_pubkey: normalizeBcwRouteString(input.user_auth_pubkey),
     created_at: normalizeBcwRouteIso(input.created_at),
     expires_at: normalizeBcwRouteIso(input.expires_at),
@@ -256,6 +604,7 @@ function canonicalBcwKasSendIntentMessage(intent: BcwKasSendIntentV1): string {
     from_address: intent.from_address,
     to_address: intent.to_address,
     amount_sompi: intent.amount_sompi,
+    use_max: intent.use_max,
     user_auth_pubkey: intent.user_auth_pubkey,
     created_at: intent.created_at,
     expires_at: intent.expires_at,
@@ -579,6 +928,206 @@ function queueFundsSentNotification(params: {
   } catch {
     return;
   }
+}
+
+type DirectEntitlementRecorderResult = {
+  warning: string;
+  rule: EntitlementTokenRuleV1 | null;
+  sale: EntitlementTokenSaleV1 | null;
+  status: EntitlementPackageStatusV1 | null;
+};
+
+function directEntitlementRecorderResult(
+  warning = "",
+  rule: EntitlementTokenRuleV1 | null = null,
+  sale: EntitlementTokenSaleV1 | null = null,
+  status: EntitlementPackageStatusV1 | null = null
+): DirectEntitlementRecorderResult {
+  return { warning, rule, sale, status };
+}
+
+function directEntitlementString(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function directEntitlementHex64(value: unknown): string {
+  const raw = directEntitlementString(value);
+  const hex = /^CA:/i.test(raw) ? raw.slice(3).trim() : raw;
+  return /^[0-9a-fA-F]{64}$/.test(hex) ? hex.toLowerCase() : "";
+}
+
+function recordDirectEntitlementTokenSaleFromOffer(params: {
+  repoRoot: string;
+  offer: any;
+  txid: string;
+  userId: string;
+  acceptedAt: string;
+}): DirectEntitlementRecorderResult {
+  const offer = params.offer && typeof params.offer === "object" ? params.offer : null;
+  if (!offer) return directEntitlementRecorderResult("direct_entitlement_offer_missing");
+
+  const kind = directEntitlementString(offer.swapKind);
+  const network = directEntitlementString(offer.networkId);
+  if (kind !== "ca_to_kas") return directEntitlementRecorderResult();
+  if (network !== "mainnet") return directEntitlementRecorderResult();
+
+  try {
+    const tokenCa = directEntitlementHex64(offer.ca);
+    const sellerAddress = directEntitlementString(offer.makerReceiveAddress).toLowerCase();
+    const recipientAddress = directEntitlementString(offer.takerTokenReceiveAddress).toLowerCase();
+    const amountUnits = directEntitlementString(offer.tokenAmount);
+    const saleUserId = directEntitlementString(params.userId);
+    const saleTxid = directEntitlementString(params.txid);
+
+    if (!tokenCa) return directEntitlementRecorderResult("direct_entitlement_missing_ca");
+    if (!sellerAddress) return directEntitlementRecorderResult("direct_entitlement_missing_seller_address");
+    if (!recipientAddress.startsWith("kaspa:")) return directEntitlementRecorderResult("direct_entitlement_missing_recipient_address");
+    if (!amountUnits) return directEntitlementRecorderResult("direct_entitlement_missing_amount");
+    if (!saleUserId) return directEntitlementRecorderResult("direct_entitlement_missing_user_id");
+    if (!saleTxid) return directEntitlementRecorderResult("direct_entitlement_missing_txid");
+
+    const matchingRules = listEntitlementTokenRules(params.repoRoot).filter((rule) => {
+      if (rule.status !== "active") return false;
+      if (rule.network !== "mainnet") return false;
+      if (directEntitlementHex64(rule.trigger_ca) !== tokenCa) return false;
+      if (directEntitlementString(rule.seller_address).toLowerCase() !== sellerAddress) return false;
+      return true;
+    });
+
+    if (matchingRules.length === 0) return directEntitlementRecorderResult();
+    if (matchingRules.length > 1) return directEntitlementRecorderResult("direct_entitlement_multiple_matching_rules");
+
+    const rule = matchingRules[0];
+    const sale = upsertEntitlementTokenSale(params.repoRoot, {
+      sale_txid: saleTxid,
+      rule_id: rule.id,
+      package_type: rule.package_type,
+      network: "mainnet",
+      trigger_ca: rule.trigger_ca,
+      trigger_label: rule.trigger_label,
+      seller_address: rule.seller_address,
+      recipient_address: recipientAddress,
+      user_id: saleUserId,
+      amount_units: amountUnits,
+      accepted_at: params.acceptedAt,
+      status: "verified",
+      verified_at: params.acceptedAt,
+      notes: "Recorded from configured entitlement-token direct-swap fill."
+    });
+
+    const status = calculateEntitlementPackageForUserIds(params.repoRoot, sale.package_type, [saleUserId], params.acceptedAt);
+    return directEntitlementRecorderResult("", rule, sale, status);
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    return directEntitlementRecorderResult(`direct_entitlement_recorder_failed: ${message}`);
+  }
+}
+
+function warnDirectEntitlementRecorder(reason: string): void {
+  if (!reason) return;
+  console.warn(`[direct-entitlement-recorder] ${reason}`);
+}
+
+function directEntitlementDateText(value: string | null): string {
+  return value ? value : "Not available";
+}
+
+function formatDirectEntitlementPurchaseNotificationText(result: DirectEntitlementRecorderResult): string {
+  const sale = result.sale;
+  if (!sale) return "";
+
+  return [
+    `Package: ${sale.package_type}`,
+    `Token: ${sale.trigger_label}`,
+    `Sale txid: ${sale.sale_txid}`,
+    `Recipient address: ${sale.recipient_address}`,
+    `Accepted at: ${sale.accepted_at}`,
+    `Active until: ${directEntitlementDateText(result.status?.active_until || null)}`,
+    `Grace until: ${directEntitlementDateText(result.status?.grace_until || null)}`
+  ].join("\n");
+}
+
+function queueDirectEntitlementPurchaseNotification(repoRoot: string, userId: string, result: DirectEntitlementRecorderResult): void {
+  if (!result.sale) return;
+  const text = formatDirectEntitlementPurchaseNotificationText(result);
+  if (!text) return;
+
+  try {
+    const profile = readUserProfile(repoRoot, userId);
+    const destination =
+      typeof profile.notification_destination === "string"
+        ? profile.notification_destination.trim()
+        : "";
+
+    if (!destination) return;
+    if (!profile.notifications || profile.notifications.entitlement_purchase !== true) return;
+
+    void sendNotificationEmail({
+      to: destination,
+      subject: `Token Depot — ${result.sale.package_type} entitlement purchase recorded`,
+      text
+    }).catch(() => {});
+  } catch {
+    return;
+  }
+}
+
+function formatDirectOperatorEntitlementPurchaseNotificationText(
+  repoRoot: string,
+  userId: string,
+  result: DirectEntitlementRecorderResult
+): string {
+  const rule = result.rule;
+  const sale = result.sale;
+  if (!rule || !sale) return "";
+
+  let purchaserEmail = "";
+  let purchaserPhone = "";
+  let purchaserName = "";
+  try {
+    const profile = readUserProfile(repoRoot, userId);
+    purchaserEmail = typeof profile.email === "string" ? profile.email.trim() : "";
+    purchaserPhone = typeof profile.phone === "string" ? profile.phone.trim() : "";
+    const firstName = typeof profile.first_name === "string" ? profile.first_name.trim() : "";
+    const lastName = typeof profile.last_name === "string" ? profile.last_name.trim() : "";
+    purchaserName = `${firstName} ${lastName}`.trim();
+  } catch {
+    purchaserEmail = "";
+    purchaserPhone = "";
+    purchaserName = "";
+  }
+
+  return [
+    rule.operator_email_body,
+    "",
+    `Package: ${sale.package_type}`,
+    `Token: ${sale.trigger_label}`,
+    `Sale txid: ${sale.sale_txid}`,
+    `Purchaser user_id: ${sale.user_id || userId}`,
+    `Purchaser name: ${purchaserName || "Not available"}`,
+    `Purchaser email: ${purchaserEmail || "Not available"}`,
+    `Purchaser phone: ${purchaserPhone || "Not available"}`,
+    `Recipient address: ${sale.recipient_address}`,
+    `Accepted at: ${sale.accepted_at}`,
+    `Active until: ${directEntitlementDateText(result.status?.active_until || null)}`,
+    `Grace until: ${directEntitlementDateText(result.status?.grace_until || null)}`
+  ].join("\n");
+}
+
+function queueDirectOperatorEntitlementPurchaseNotification(repoRoot: string, userId: string, result: DirectEntitlementRecorderResult): void {
+  const rule = result.rule;
+  if (!rule || !result.sale) return;
+  if (rule.operator_email_enabled !== true) return;
+  if (!rule.operator_email_to) return;
+
+  const text = formatDirectOperatorEntitlementPurchaseNotificationText(repoRoot, userId, result);
+  if (!text) return;
+
+  void sendNotificationEmail({
+    to: rule.operator_email_to,
+    subject: rule.operator_email_subject || `${result.sale.package_type} entitlement purchase recorded`,
+    text
+  }).catch(() => {});
 }
 
 function persistPreparedBridgePurchaseExecutionResult(params: {
@@ -973,6 +1522,17 @@ export async function handleWalletSend(req: Request, res: Response, ctx: WalletS
           }
         }
 
+        const directEntitlementRecorderResult = recordDirectEntitlementTokenSaleFromOffer({
+          repoRoot,
+          offer,
+          txid,
+          userId,
+          acceptedAt: new Date().toISOString()
+        });
+        warnDirectEntitlementRecorder(directEntitlementRecorderResult.warning);
+        queueDirectEntitlementPurchaseNotification(repoRoot, userId, directEntitlementRecorderResult);
+        queueDirectOperatorEntitlementPurchaseNotification(repoRoot, userId, directEntitlementRecorderResult);
+
         stage = "swap_mode_krc20_verify_op";
         const finalNet = typeof jFinal.network === "string" ? jFinal.network : "";
         const finalAppNetworkKey = normalizeAppNetworkKey(finalNet) ?? "tn10";
@@ -1061,12 +1621,6 @@ export async function handleWalletSend(req: Request, res: Response, ctx: WalletS
               op: opRow
             }
           });
-        }
-
-        stage = "swap_mode_model_b_load_wallet";
-        const fillUserId = String((res.locals as any).td_user_id || "").trim();
-        if (!fillUserId) {
-          return res.status(401).json({ ok: false, reason: "auth_required", login: "/login.html", stage });
         }
 
         console.log(`[swap_mode] direct offer verified after submitted txid offerId=${offerId} txid=${txid}`);
@@ -1352,13 +1906,29 @@ export async function handleWalletSend(req: Request, res: Response, ctx: WalletS
       }
 
       const utxos = await rpc.getUtxosByAddresses({ addresses: [active.address0] });
-      const entries = utxos.entries;
+      const rawEntries = utxos.entries;
 
-      if (!entries || entries.length === 0) {
+      if (!rawEntries || rawEntries.length === 0) {
         return res.json({
           ok: false,
           reason: "no_utxos",
           error: "No UTXOs available (fund the wallet first)"
+        });
+      }
+
+      const normalSendExclusion = await applyNormalSendCovenantExclusion({
+        networkId,
+        address: active.address0,
+        entries: rawEntries
+      });
+      const entries = normalSendExclusion.entries;
+
+      if (!entries || entries.length === 0) {
+        return res.status(409).json({
+          ok: false,
+          reason: "normal_send_only_covenant_utxos",
+          error: "Only covenant-bearing UTXOs are available. Normal KAS send is blocked for those outputs.",
+          covenant_exclusion: normalSendExclusion.exclusion
         });
       }
 
@@ -1370,14 +1940,6 @@ export async function handleWalletSend(req: Request, res: Response, ctx: WalletS
             ok: false,
             reason: "send_stage_required",
             error: "Send stage required (build | submit)"
-          });
-        }
-
-        if (useMax) {
-          return res.status(400).json({
-            ok: false,
-            reason: "bcw_kas_send_use_max_not_supported",
-            error: "BCW KAS send does not support MAX yet."
           });
         }
 
@@ -1422,6 +1984,7 @@ export async function handleWalletSend(req: Request, res: Response, ctx: WalletS
             from_address: fromAddress,
             to_address: to,
             amount_sompi: amountSompi.toString(),
+            use_max: useMax,
             user_auth_pubkey: userAuthPubkey,
             created_at: createdAt.toISOString(),
             expires_at: expiresAt.toISOString(),
@@ -1457,6 +2020,7 @@ export async function handleWalletSend(req: Request, res: Response, ctx: WalletS
           intent.from_address !== fromAddress ||
           intent.to_address !== to ||
           intent.amount_sompi !== amountSompi.toString() ||
+          intent.use_max !== useMax ||
           intent.user_auth_pubkey !== userAuthPubkey
         ) {
           return res.status(409).json({ ok: false, reason: "bcw_kas_send_intent_mismatch", error: "BCW KAS send intent does not match active wallet request" });
@@ -1514,7 +2078,30 @@ export async function handleWalletSend(req: Request, res: Response, ctx: WalletS
       }
 
       if (stage === "build") {
-        const safeEntries = entries.map((e: any) => ({
+        const outputs: Array<{ address: string; amount: bigint }> = [{ address: to, amount: amountSompi }];
+        const normalSendSelection = await normalSendSelectBuildableEntries({
+          entries,
+          amountSompi,
+          useMax,
+          outputs,
+          changeAddress: active.address0,
+          feeRate,
+          priorityFee,
+          networkId
+        });
+
+        if (!normalSendSelection.ok) {
+          return res.status(409).json({
+            ok: false,
+            reason: "normal_send_no_buildable_utxo",
+            error: "No non-covenant UTXO candidate set can build a standard KAS transaction within SDK/mass limits.",
+            covenant_exclusion: normalSendExclusion.exclusion,
+            normal_send_selection: normalSendSelection.selection
+          });
+        }
+
+        const normalSendCandidateEntries = normalSendSelection.entries;
+        const safeEntries = normalSendCandidateEntries.map((e: any) => ({
           outpoint: e && e.outpoint && typeof e.outpoint.toJSON === "function" ? e.outpoint.toJSON() : (e ? e.outpoint : null),
           amount: e && typeof e.amount === "bigint" ? e.amount.toString() : String(e && e.amount !== undefined ? e.amount : ""),
           scriptPublicKey:
@@ -1535,6 +2122,8 @@ export async function handleWalletSend(req: Request, res: Response, ctx: WalletS
           to,
           amountSompi: amountSompi.toString(),
           entries: safeEntries,
+          covenant_exclusion: normalSendExclusion.exclusion,
+          normal_send_selection: normalSendSelection.selection,
         });
       }
 
@@ -1777,12 +2366,13 @@ export async function handleWalletSend(req: Request, res: Response, ctx: WalletS
       }));
 
       const commitAmountSompi = 30000000n; // 0.3 KAS
+      const effectiveFeeRate = applyKrc20ToccataFeeRateFloor(appNetworkKey, feeRate);
 
       return res.json({
         ok: true,
         stage: "krc_commit_build",
         networkId,
-        feeRate,
+        feeRate: effectiveFeeRate,
         fromAddress: active.address0,
         commitAmountSompi: commitAmountSompi.toString(),
         payloadJson: JSON.stringify(payload),
@@ -2059,9 +2649,25 @@ export async function handleWalletEstimate(req: Request, res: Response, ctx: Wal
     }
 
     const utxos = await rpc.getUtxosByAddresses({ addresses: [active.address0] });
-    const entries = utxos.entries;
-    if (!entries || entries.length === 0) {
+    const rawEntries = utxos.entries;
+    if (!rawEntries || rawEntries.length === 0) {
       return res.json({ ok: false, reason: "no_utxos", error: "No UTXOs available (fund the wallet first)" });
+    }
+
+    const normalSendExclusion = await applyNormalSendCovenantExclusion({
+      networkId,
+      address: active.address0,
+      entries: rawEntries
+    });
+    const entries = normalSendExclusion.entries;
+
+    if (!entries || entries.length === 0) {
+      return res.status(409).json({
+        ok: false,
+        reason: "normal_send_only_covenant_utxos",
+        error: "Only covenant-bearing UTXOs are available. Normal KAS send estimate is blocked for those outputs.",
+        covenant_exclusion: normalSendExclusion.exclusion
+      });
     }
 
     if (active.wallet_type === "compliance" && active.custody_model !== "broker_1of1") {
@@ -2074,48 +2680,72 @@ export async function handleWalletEstimate(req: Request, res: Response, ctx: Wal
 
     const policyFeeSompi = 0n;
     const outputs: Array<{ address: string; amount: bigint }> = [{ address: to, amount: amountSompi }];
-    const txOpts: any = {
+
+    const normalSendSelection = await normalSendSelectBuildableEntries({
+      entries,
+      amountSompi,
+      useMax: false,
       outputs,
       changeAddress: active.address0,
       feeRate,
       priorityFee: 0n,
-      entries,
       networkId
-    };
+    });
 
-    let built: any = null;
-    try {
-      built = await createTransactions(txOpts);
-    } catch (_) {
-      const availableSompi = entries.reduce((sum: bigint, e: any) => {
-        try {
-          const amt = typeof e.amount === "bigint" ? e.amount : BigInt(String(e.amount ?? 0));
-          return sum + amt;
-        } catch {
-          return sum;
-        }
-      }, 0n);
-      const probeReservesSompi = [1n, 10000n, 1000000n, 10000000n, 100000000n];
-      for (const reserveSompi of probeReservesSompi) {
-        let probeAmountSompi = availableSompi - reserveSompi;
-        if (probeAmountSompi <= 0n) continue;
-        if (probeAmountSompi > amountSompi) probeAmountSompi = amountSompi;
-        const probeOutputs = outputs.map((o: any, idx: number) =>
-          idx === 0 ? { address: o.address, amount: probeAmountSompi } : o
-        );
-        try {
-          built = await createTransactions({ ...txOpts, outputs: probeOutputs });
-          const probeTx0 = built && Array.isArray(built.transactions) ? built.transactions[0] : null;
-          const probeTx = probeTx0 && probeTx0.transaction ? probeTx0.transaction : null;
-          if (probeTx) break;
-        } catch (_) {}
-      }
+    if (!normalSendSelection.ok) {
+      const availableSompi = entries.reduce((sum: bigint, e: any) => sum + normalSendEntryAmount(e), 0n);
+      return res.status(409).json({
+        ok: false,
+        reason: "normal_send_no_buildable_utxo",
+        error: "No non-covenant UTXO candidate set can build a standard KAS estimate within SDK/mass limits.",
+        estimate_diagnostics: {
+          diagnostic_kind: "oma_normal_send_estimate_create_transactions_diagnostic_v1",
+          entries_count: entries.length,
+          selected_entries: 0,
+          selection_kind: normalSendSelection.selection.selection_kind,
+          fee_buffer_sompi: NORMAL_SEND_SELECTION_FEE_BUFFER_SOMPI.toString(),
+          available_sompi: availableSompi.toString(),
+          requested_amount_sompi: amountSompi.toString(),
+          outputs_count: outputs.length,
+          feeRate,
+          create_errors: normalSendSelection.selection.create_errors,
+          signing_enabled: false,
+          broadcasting_enabled: false,
+          minting_enabled: false
+        },
+        covenant_exclusion: normalSendExclusion.exclusion,
+        normal_send_selection: normalSendSelection.selection
+      });
     }
+
+    const estimateEntries = normalSendSelection.entries;
+    const built: any = normalSendSelection.created;
 
     const tx0 = built && Array.isArray(built.transactions) ? built.transactions[0] : null;
     const tx = tx0 && tx0.transaction ? tx0.transaction : null;
     if (!tx) {
-      return res.status(500).json({ ok: false, reason: "estimate_tx_missing", error: "Estimated transaction not created" });
+      return res.status(500).json({
+        ok: false,
+        reason: "estimate_tx_missing",
+        error: "Estimated transaction not created after a build-proven candidate set was selected.",
+        estimate_diagnostics: {
+          diagnostic_kind: "oma_normal_send_estimate_create_transactions_diagnostic_v1",
+          entries_count: entries.length,
+          selected_entries: estimateEntries.length,
+          selection_kind: normalSendSelection.selection.selection_kind,
+          fee_buffer_sompi: NORMAL_SEND_SELECTION_FEE_BUFFER_SOMPI.toString(),
+          available_sompi: normalSendSelection.selection.selected_total_sompi,
+          requested_amount_sompi: amountSompi.toString(),
+          outputs_count: outputs.length,
+          feeRate,
+          create_errors: normalSendSelection.selection.create_errors,
+          signing_enabled: false,
+          broadcasting_enabled: false,
+          minting_enabled: false
+        },
+        covenant_exclusion: normalSendExclusion.exclusion,
+        normal_send_selection: normalSendSelection.selection
+      });
     }
 
     const feeAny = calculateTransactionFee(networkId, tx);
@@ -2137,7 +2767,9 @@ export async function handleWalletEstimate(req: Request, res: Response, ctx: Wal
       policyFeeKas: formatKas(policyFeeSompi),
       estimatedTotalSompi: estimatedTotalSompi.toString(),
       estimatedTotalKas: formatKas(estimatedTotalSompi),
-      feeRate
+      feeRate,
+      covenant_exclusion: normalSendExclusion.exclusion,
+      normal_send_selection: normalSendSelection.selection
     });
   } catch (err) {
     return res.status(500).json({

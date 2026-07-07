@@ -1,112 +1,35 @@
-# Swap Self-Custody Proof
+# Swap Self-Custody Boundary
 
-This document extends WTS from normal Standard Wallet sends into Direct/Open swap signing.
+This document summarizes the swap signing boundary represented by the CW284 reference files.
 
-## Claim
+## Direct/Open swap claim
 
-For Standard Wallet swap flows, Token Depot's hosted server coordinates analysis, offer storage, transaction preparation, and broadcast, but Standard Wallet signing remains browser-local. The browser uses the locally unlocked key from `cw_keyring_session` and does not send the Standard Wallet private key to the server.
+For Standard Wallet users, swap actions that require wallet authorization use the browser-side unlocked wallet session to produce signatures. Server routes coordinate, validate, store offer metadata, and broadcast signed artifacts; they are not a substitute for Standard Wallet private-key custody.
 
-## Direct swap maker path
-
-Review:
+## Files to inspect
 
 ```text
 reference/static/js/swaps.js
-reference/server/src/routes/swap_mode_direct.ts
-```
-
-Proof anchors from the source snapshot:
-
-```text
-static/js/swaps.js:1219-1250
-static/js/swaps.js:1371-1416
-server/src/routes/swap_mode_direct.ts:456
-server/src/routes/swap_mode_direct.ts:1130-1150
-server/src/routes/swap_mode_direct.ts:1558-1585
-```
-
-The browser requires the wallet to be unlocked in the same browser tab, validates the active wallet id/address against the session keyring, constructs a local `PrivateKey`, and signs maker-side commit/reveal artifacts locally.
-
-## Direct swap taker/finalize path
-
-Review:
-
-```text
 reference/static/js/offers.js
-reference/server/src/routes/swap_mode_direct.ts
-```
-
-Proof anchors from the source snapshot:
-
-```text
-static/js/offers.js:76-132
-static/js/offers.js:828-854
-server/src/routes/swap_mode_direct.ts:1877
-server/src/routes/swap_mode_direct.ts:3663-3715
-```
-
-The offer page reads the local browser keyring session, creates local signatures for requested input indexes, and submits signatures/artifacts to the server for finalization/broadcast.
-
-## Open swap maker path
-
-Review:
-
-```text
-reference/static/js/swaps.js
-reference/server/src/routes/swap_mode_open_v2.ts
-```
-
-Proof anchors from the source snapshot:
-
-```text
-static/js/swaps.js:1219-1250
-static/js/swaps.js:1371-1416
-server/src/routes/swap_mode_open_v2.ts:862
-server/src/routes/swap_mode_open_v2.ts:1195-1215
-server/src/routes/swap_mode_open_v2.ts:1748-1770
-server/src/routes/swap_mode_open_v2.ts:1988-2008
-```
-
-Open V2 uses staged server preparation and browser-local maker signing. The server prepares SafeJSON transaction artifacts and the browser returns signatures/artifacts rather than private keys.
-
-## Open swap taker/finalize path
-
-Review:
-
-```text
 reference/static/js/offers_open.js
+reference/static/js/swap_analyzer_shared.js
+reference/server/src/server.ts
+reference/server/src/routes/swap_mode_direct.ts
 reference/server/src/routes/swap_mode_open.ts
 reference/server/src/routes/swap_mode_open_v2.ts
 ```
 
-Proof anchors from the source snapshot:
+## KRC20 / legacy swap boundary
 
-```text
-static/js/offers_open.js:76-132
-static/js/offers_open.js:570-760
-static/js/offers_open.js:832-858
-server/src/routes/swap_mode_open.ts:115
-server/src/routes/swap_mode_open.ts:510
-server/src/routes/swap_mode_open.ts:628
-server/src/routes/swap_mode_open_v2.ts:742
-server/src/routes/swap_mode_open_v2.ts:837
-server/src/routes/swap_mode_open_v2.ts:862
-```
+The legacy KRC20 Direct/Open swap reference files show browser-side signing for Standard Wallet swap steps and server-side coordination/broadcast of already-signed artifacts.
 
-The Open offer page uses the local browser keyring session and local input signatures for Standard Wallet acceptance/finalization paths.
+## KCC20 Atomic swap boundary
 
-## Analyzer/display files
+The CW284 reference files also include the KCC20-compatible Atomic swap implementation surfaces:
 
-Review:
+- Direct Atomic KCC20 v4 maker lock, taker claim, and maker cancel/refund.
+- Open Atomic KCC20 dynamic-taker maker lock, taker fill, maker cancel/refund, and expired recovery handling.
 
-```text
-reference/static/js/swap_analyzer_shared.js
-```
+## Exclusions
 
-This file renders analyzer results and does not perform custody or signing.
-
-## Explicit exclusions
-
-This document does not claim Broker-Custody Wallets are self-custody. BCW paths use local authorization signatures for broker-custody flows and must remain separate from Standard Wallet self-custody claims.
-
-This document does not claim the full hosted product is open-source or independently runnable from this reference repository.
+This repository does not include private market-maker systems, hosted swap service credentials, broker/custody private systems, production deployment secrets, or AWS deployment configuration.

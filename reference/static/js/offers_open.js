@@ -30,6 +30,212 @@
     return 'KAS';
   }
 
+  var sponsoredOpenOfferCatalog = [];
+  var OPEN_HIDE_MY_LIVE_OFFERS_KEY = 'td_hide_my_open_swap_offers_v1';
+  var openMineOpenOfferIds = Object.create(null);
+  var openMineActiveWalletId = '';
+
+  function readOpenHideMyLiveOffers() {
+    try { return localStorage.getItem(OPEN_HIDE_MY_LIVE_OFFERS_KEY) === '1'; } catch (_) { return false; }
+  }
+
+  function writeOpenHideMyLiveOffers(value) {
+    try { localStorage.setItem(OPEN_HIDE_MY_LIVE_OFFERS_KEY, value ? '1' : '0'); } catch (_) {}
+  }
+
+  function buildOpenOfferIdMap(items) {
+    var map = Object.create(null);
+    (Array.isArray(items) ? items : []).forEach(function (item) {
+      var offerId = normalizeOfferText(item && item.offerId);
+      if (offerId) map[offerId] = true;
+    });
+    return map;
+  }
+
+  function isOpenMineOffer(offer) {
+    if (!offer || typeof offer !== 'object') return false;
+    var offerId = normalizeOfferText(offer.offerId);
+    if (offerId && openMineOpenOfferIds[offerId]) return true;
+    var makerWalletId = normalizeOfferText(offer.makerWalletId);
+    return !!(openMineActiveWalletId && makerWalletId && makerWalletId === openMineActiveWalletId);
+  }
+
+  function ensureOpenLiveOfferFilterControl() {
+    var listEl = document.getElementById('openOffersList');
+    if (!listEl || !listEl.parentNode) return;
+
+    var existing = document.getElementById('hideMyOpenSwapOffers');
+    if (existing) return;
+
+    var wrap = document.createElement('div');
+    wrap.className = 'offer-sub';
+    wrap.style.margin = '.35rem 0 .65rem';
+
+    var label = document.createElement('label');
+    label.className = 'td-switch-row';
+    label.setAttribute('for', 'hideMyOpenSwapOffers');
+
+    var input = document.createElement('input');
+    input.id = 'hideMyOpenSwapOffers';
+    input.type = 'checkbox';
+    input.checked = readOpenHideMyLiveOffers();
+    input.addEventListener('change', function () {
+      writeOpenHideMyLiveOffers(!!input.checked);
+      window.location.reload();
+    });
+
+    var track = document.createElement('span');
+    track.className = 'td-switch-track';
+    track.setAttribute('aria-hidden', 'true');
+
+    var text = document.createElement('span');
+    text.textContent = 'Hide My Open Swap Offers (others can still see them)';
+
+    label.appendChild(input);
+    label.appendChild(track);
+    label.appendChild(text);
+    wrap.appendChild(label);
+    listEl.parentNode.insertBefore(wrap, listEl);
+  }
+
+  function normalizeOfferText(raw) {
+    return String(raw == null ? '' : raw).trim();
+  }
+
+  function normalizeOfferLower(raw) {
+    return normalizeOfferText(raw).toLowerCase();
+  }
+
+  function normalizeOfferCa(raw) {
+    var value = normalizeOfferLower(raw);
+    if (value.indexOf('ca:') === 0) return value.slice(3);
+    return value;
+  }
+
+  function normalizeOfferNumber(raw) {
+    var value = normalizeOfferText(raw).replace(/,/g, '');
+    var num = Number(value);
+    if (!Number.isFinite(num)) return '';
+    return String(num);
+  }
+
+  function getOfferDescription(offer) {
+    return normalizeOfferText(offer && (offer.offerDescription || offer.offer_description || offer.description));
+  }
+
+  function getOfferInfoUrl(offer) {
+    var value = normalizeOfferText(offer && (offer.offerInfoUrl || offer.offer_info_url || offer.info_url));
+    if (!value) return '';
+
+    try {
+      var parsed = new URL(value);
+      if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return '';
+      return parsed.toString();
+    } catch (_) {
+      return '';
+    }
+  }
+
+  function normalizeSponsoredCatalogItem(raw) {
+    if (!raw || typeof raw !== 'object') return null;
+
+    var packageType = normalizeOfferText(raw.package_type).toUpperCase();
+    if (packageType !== 'PLUS' && packageType !== 'PRO' && packageType !== 'TENANT') return null;
+
+    var ca = normalizeOfferCa(raw.trigger_ca);
+    var seller = normalizeOfferLower(raw.seller_address);
+    var networkId = normalizeOfferLower(raw.network || 'mainnet');
+    if (!/^[0-9a-f]{64}$/.test(ca)) return null;
+    if (networkId !== 'mainnet') return null;
+    if (seller.indexOf('kaspa:') !== 0) return null;
+
+    var label = normalizeOfferText(raw.trigger_label) || packageType;
+    var id = normalizeOfferText(raw.id) || (packageType.toLowerCase() + ':' + ca + ':' + seller);
+
+    return {
+      id: id,
+      label: label,
+      purpose: packageType + ' entitlement purchase',
+      networkId: networkId,
+      kind: 'ca_to_kas',
+      ca: ca,
+      seller: seller,
+      packageType: packageType,
+      ownerScope: normalizeOfferText(raw.owner_scope)
+    };
+  }
+
+  function setSponsoredOpenOfferCatalog(items) {
+    sponsoredOpenOfferCatalog = (Array.isArray(items) ? items : [])
+      .map(normalizeSponsoredCatalogItem)
+      .filter(function (item) { return !!item; });
+  }
+
+  function findSponsoredOpenOfferCatalog(offer) {
+    var networkId = normalizeOfferLower(offer && offer.networkId);
+    var kind = normalizeOfferLower(offer && offer.kind);
+    var sellCa = normalizeOfferCa(offer && offer.sellSymbol);
+    var seller = normalizeOfferLower(offer && offer.makerKasReceiveAddress);
+    var state = normalizeOfferLower(offer && offer.state);
+
+    for (var i = 0; i < sponsoredOpenOfferCatalog.length; i++) {
+      var item = sponsoredOpenOfferCatalog[i];
+      if (networkId !== item.networkId) continue;
+      if (kind !== item.kind) continue;
+      if (sellCa !== item.ca) continue;
+      if (seller !== item.seller) continue;
+      if (state && state !== 'open') continue;
+      return item;
+    }
+
+    return null;
+  }
+
+  function buildOpenOfferGroupKey(offer, catalog) {
+    var sellSymbol = catalog ? catalog.ca : normalizeOfferCa(offer && offer.sellSymbol);
+    return [
+      normalizeOfferLower(offer && offer.networkId),
+      normalizeOfferLower(offer && offer.kind),
+      sellSymbol,
+      normalizeOfferNumber(offer && offer.sellAmount),
+      normalizeOfferNumber(offer && offer.buyAmountKas),
+      normalizeOfferLower(offer && offer.makerKasReceiveAddress),
+      getOfferDescription(offer),
+      getOfferInfoUrl(offer),
+      catalog ? catalog.id : ''
+    ].join('|');
+  }
+
+  function buildOpenOfferGroups(items) {
+    var sponsored = [];
+    var normal = [];
+    var byKey = Object.create(null);
+
+    (items || []).forEach(function (offer) {
+      var catalog = findSponsoredOpenOfferCatalog(offer);
+      var key = buildOpenOfferGroupKey(offer, catalog);
+      var group = byKey[key];
+
+      if (!group) {
+        group = { key: key, catalog: catalog, offers: [] };
+        byKey[key] = group;
+        if (catalog) sponsored.push(group);
+        else normal.push(group);
+      }
+
+      group.offers.push(offer);
+    });
+
+    return { sponsored: sponsored, normal: normal };
+  }
+
+  function chooseOpenOfferFromGroup(group) {
+    var offers = group && Array.isArray(group.offers) ? group.offers : [];
+    if (!offers.length) return null;
+    var idx = Math.floor(Math.random() * offers.length);
+    return offers[idx] || offers[0];
+  }
+
   function parseOfferBlobText(rawText) {
     var raw = String(rawText || '').trim();
     if (!raw) throw new Error('offer_blob_required');
@@ -136,6 +342,181 @@
     });
   }
 
+
+  function kcc20OpenHexToBytes(hex, reason) {
+    var s = String(hex || '').trim().toLowerCase();
+    if (!/^[0-9a-f]*$/i.test(s) || s.length % 2 !== 0) throw new Error(reason || 'invalid_hex');
+    var out = new Uint8Array(s.length / 2);
+    for (var i = 0; i < out.length; i++) out[i] = parseInt(s.slice(i * 2, i * 2 + 2), 16);
+    return out;
+  }
+
+  function kcc20OpenBytesFromSignature(sig, reason) {
+    if (sig instanceof Uint8Array) return sig;
+    if (Array.isArray(sig)) return new Uint8Array(sig);
+    if (typeof sig === 'string') return kcc20OpenHexToBytes(sig, reason || 'signature_hex_invalid');
+    if (sig && typeof sig.toString === 'function') {
+      var text = String(sig.toString()).trim();
+      if (/^[0-9a-f]+$/i.test(text) && text.length % 2 === 0) return kcc20OpenHexToBytes(text, reason || 'signature_to_string_hex_invalid');
+    }
+    throw new Error(reason || 'signature_bytes_unavailable');
+  }
+
+  function kcc20OpenNormalizeKaspaInputSignature(sig) {
+    var raw = kcc20OpenBytesFromSignature(sig, 'kcc20_open_signature_bytes_unavailable');
+    if (raw.length === 66 && raw[0] === 0x41) return raw.slice(1);
+    return raw;
+  }
+
+  function kcc20OpenSha256HexText(text) {
+    var bytes = new TextEncoder().encode(String(text || ''));
+    return crypto.subtle.digest('SHA-256', bytes).then(function (digest) {
+      return Array.from(new Uint8Array(digest)).map(function (b) { return b.toString(16).padStart(2, '0'); }).join('');
+    });
+  }
+
+  function kcc20OpenSpkBytesHexFromSummary(spk) {
+    var version = Number(spk && spk.version !== undefined ? spk.version : 0);
+    var script = String(spk && spk.script ? spk.script : '').trim().toLowerCase();
+    if (!Number.isInteger(version) || version < 0 || version > 0xffff) throw new Error('kcc20_open_spk_version_invalid');
+    if (!/^[0-9a-f]*$/i.test(script) || script.length % 2 !== 0) throw new Error('kcc20_open_spk_script_invalid');
+    return version.toString(16).padStart(4, '0') + script;
+  }
+
+  function kcc20OpenSetInputSignatureScript(tx, inputIndex, signatureScript, reason) {
+    if (!tx || !Array.isArray(tx.inputs) || !tx.inputs[inputIndex]) throw new Error(reason || 'kcc20_open_input_missing');
+    tx.inputs[inputIndex].signatureScript = signatureScript;
+    tx.inputs = tx.inputs;
+  }
+
+  function kcc20OpenRefundSelectorBytes(selectorHex) {
+    var normalized = String(selectorHex || '').trim().toLowerCase();
+    if (normalized === '' || normalized === '00') return new Uint8Array();
+    return kcc20OpenHexToBytes(normalized, 'kcc20_open_refund_selector_hex_invalid');
+  }
+
+  function kcc20OpenAddressMustMatch(kaspa, priv0, networkId, expectedAddress) {
+    var expected = String(expectedAddress || '').trim();
+    var network = String(networkId || '').trim();
+    if (!expected || !network) return;
+    var derived = String(priv0.toAddress(network).toString());
+    if (derived !== expected) throw new Error('kcc20_open_active_key_does_not_match_build_fromAddress');
+  }
+
+  function signKcc20AtomicOpenTakerClaimBuild(build, priv0Hex) {
+    return kaspaReadyOrThrow().then(function (kaspa) {
+      var privHex = String(priv0Hex || '').trim();
+      if (!privHex) throw new Error('wallet_locked');
+      if (!build || build.ok !== true) throw new Error('kcc20_open_taker_claim_build_not_ready');
+
+      var priv0 = new kaspa.PrivateKey(privHex);
+      kcc20OpenAddressMustMatch(kaspa, priv0, build.networkId, build.fromAddress);
+
+      var ctx = build.signing_context_public && typeof build.signing_context_public === 'object' ? build.signing_context_public : {};
+      var signIndexes = Array.isArray(build.signInputIndexes) ? build.signInputIndexes.map(function (n) { return Number(n); }) : [];
+      var signSet = new Set(signIndexes);
+      var holderInputIndex = Number(ctx.holder_input_index);
+      var fundingInputIndex = Number(ctx.native_kas_funding_input_index);
+      var redeemScriptHex = String(ctx.source_swap_locked_holder_redeem_script_hex || '').trim().toLowerCase();
+      var selectorHex = String(ctx.claim_selector_hex || build.claim_selector_hex || '01').trim().toLowerCase();
+
+      if (!Number.isInteger(holderInputIndex) || holderInputIndex < 0 || !signSet.has(holderInputIndex)) throw new Error('kcc20_open_taker_claim_holder_input_not_signable');
+      if (!Number.isInteger(fundingInputIndex) || fundingInputIndex < 0 || !signSet.has(fundingInputIndex)) throw new Error('kcc20_open_taker_claim_funding_input_not_signable');
+      if (!/^[0-9a-f]+$/i.test(redeemScriptHex) || redeemScriptHex.length % 2 !== 0) throw new Error('kcc20_open_taker_claim_redeem_script_missing');
+      if (!/^[0-9a-f]+$/i.test(selectorHex) || selectorHex.length % 2 !== 0) throw new Error('kcc20_open_taker_claim_selector_invalid');
+
+      var tx = kaspa.Transaction.deserializeFromSafeJSON(build.txToSignSafeJson);
+      var output1SpkBytesHex = kcc20OpenSpkBytesHexFromSummary(build.outputs[1].scriptPublicKey);
+      return kcc20OpenSha256HexText(output1SpkBytesHex).then(function (output1SpkTextHash) {
+        var expectedOutput1SpkTextHash = String(ctx.claim_dynamic_taker_spk_hex_sha256 || '').trim().toLowerCase();
+        if (ctx.claim_dynamic_taker_spk_required !== true) throw new Error('kcc20_open_dynamic_taker_spk_not_required');
+        if (output1SpkTextHash !== expectedOutput1SpkTextHash) throw new Error('kcc20_open_dynamic_taker_spk_text_hash_mismatch');
+
+        var selectorSignatureScript = new kaspa.ScriptBuilder()
+          .addData(kcc20OpenHexToBytes(output1SpkBytesHex, 'kcc20_open_output1_spk_bytes_invalid'))
+          .addData(kcc20OpenHexToBytes(selectorHex, 'kcc20_open_selector_hex_invalid'))
+          .addData(kcc20OpenHexToBytes(redeemScriptHex, 'kcc20_open_redeem_script_hex_invalid'))
+          .drain();
+
+        kcc20OpenSetInputSignatureScript(tx, holderInputIndex, selectorSignatureScript, 'kcc20_open_holder_selector_signature_script_missing');
+        kcc20OpenSetInputSignatureScript(tx, fundingInputIndex, kaspa.createInputSignature(tx, fundingInputIndex, priv0, null), 'kcc20_open_funding_signature_missing');
+        tx.finalize();
+
+        var signedSafeJson = tx.serializeToSafeJSON();
+        kaspa.Transaction.deserializeFromSafeJSON(signedSafeJson);
+        return kcc20OpenSha256HexText(signedSafeJson).then(function (sha) {
+          return {
+            signed_safe_json: signedSafeJson,
+            signed_safe_json_sha256: sha,
+            holder_input_index: holderInputIndex,
+            native_kas_funding_input_index: fundingInputIndex,
+            output1_spk_text_hash_matches_context: true
+          };
+        });
+      });
+    });
+  }
+
+  function signKcc20AtomicOpenMakerRefundBuild(build, priv0Hex) {
+    return kaspaReadyOrThrow().then(function (kaspa) {
+      var privHex = String(priv0Hex || '').trim();
+      if (!privHex) throw new Error('wallet_locked');
+      if (!build || build.ok !== true) throw new Error('kcc20_open_maker_refund_build_not_ready');
+
+      var priv0 = new kaspa.PrivateKey(privHex);
+      kcc20OpenAddressMustMatch(kaspa, priv0, build.networkId, build.fromAddress);
+
+      var ctx = build.signing_context_public && typeof build.signing_context_public === 'object' ? build.signing_context_public : {};
+      var signIndexes = Array.isArray(build.signInputIndexes) ? build.signInputIndexes.map(function (n) { return Number(n); }) : [];
+      var signSet = new Set(signIndexes);
+      var holderInputIndex = Number(ctx.holder_input_index);
+      var redeemScriptHex = String(ctx.source_swap_locked_holder_redeem_script_hex || '').trim().toLowerCase();
+      var selectorHex = String(ctx.refund_selector_hex || build.refund_selector_hex || '00').trim().toLowerCase();
+
+      if (!Number.isInteger(holderInputIndex) || holderInputIndex < 0 || !signSet.has(holderInputIndex)) throw new Error('kcc20_open_maker_refund_holder_input_not_signable');
+      if (!/^[0-9a-f]+$/i.test(redeemScriptHex) || redeemScriptHex.length % 2 !== 0) throw new Error('kcc20_open_maker_refund_redeem_script_missing');
+
+      var tx = kaspa.Transaction.deserializeFromSafeJSON(build.txToSignSafeJson);
+      var selectorBytes = kcc20OpenRefundSelectorBytes(selectorHex);
+      var redeemScriptBytes = kcc20OpenHexToBytes(redeemScriptHex, 'kcc20_open_maker_refund_redeem_script_hex_invalid');
+      var dummySig = new Uint8Array(65);
+
+      var dummySignatureScript = new kaspa.ScriptBuilder()
+        .addData(dummySig)
+        .addData(selectorBytes)
+        .addData(redeemScriptBytes)
+        .drain();
+      kcc20OpenSetInputSignatureScript(tx, holderInputIndex, dummySignatureScript, 'kcc20_open_maker_refund_dummy_signature_script_missing');
+
+      var rawSig = kaspa.createInputSignature(tx, holderInputIndex, priv0, null);
+      var rawSigBytes = kcc20OpenBytesFromSignature(rawSig, 'kcc20_open_maker_refund_raw_signature_unavailable');
+      var finalSig = kcc20OpenNormalizeKaspaInputSignature(rawSig);
+      if (rawSigBytes.length !== 66 || rawSigBytes[0] !== 0x41) throw new Error('kcc20_open_maker_refund_signature_shape_unexpected');
+      if (finalSig.length !== 65) throw new Error('kcc20_open_maker_refund_unwrapped_signature_length_not_65');
+
+      var finalSignatureScript = new kaspa.ScriptBuilder()
+        .addData(finalSig)
+        .addData(selectorBytes)
+        .addData(redeemScriptBytes)
+        .drain();
+      kcc20OpenSetInputSignatureScript(tx, holderInputIndex, finalSignatureScript, 'kcc20_open_maker_refund_final_signature_script_missing');
+
+      tx.finalize();
+      var signedSafeJson = tx.serializeToSafeJSON();
+      kaspa.Transaction.deserializeFromSafeJSON(signedSafeJson);
+      return kcc20OpenSha256HexText(signedSafeJson).then(function (sha) {
+        return {
+          signed_safe_json: signedSafeJson,
+          signed_safe_json_sha256: sha,
+          holder_input_index: holderInputIndex,
+          raw_signature_byte_len: rawSigBytes.length,
+          raw_signature_first_byte: rawSigBytes[0],
+          unwrapped_signature_byte_len: finalSig.length
+        };
+      });
+    });
+  }
+
   function validateImportedOffer(offer) {
     var errors = [];
     var warnings = [];
@@ -205,9 +586,12 @@
       if (!buy.amount) errors.push('offer_buy_amount_missing');
     }
 
-    if (!offer.ttl) errors.push('offer_ttl_missing');
+    var hasOfferTtl = offer.ttl === 0 || !!offer.ttl;
+    var offerTtlSeconds = Number(offer.ttl);
+    var isGtcOffer = hasOfferTtl && isFinite(offerTtlSeconds) && offerTtlSeconds === 0;
+    if (!hasOfferTtl) errors.push('offer_ttl_missing');
     if (!offer.createdAt) errors.push('offer_created_at_missing');
-    if (!offer.expiresAt) errors.push('offer_expires_at_missing');
+    if (!isGtcOffer && !offer.expiresAt) errors.push('offer_expires_at_missing');
 
     if (!offer.makerListPayload || typeof offer.makerListPayload !== 'object') errors.push('offer_maker_list_payload_missing');
     if (!offer.makerSendPayload || typeof offer.makerSendPayload !== 'object') errors.push('offer_maker_send_payload_missing');
@@ -228,15 +612,17 @@
     if (!offer.sendRedeemScriptHex) errors.push('offer_send_redeem_script_hex_missing');
     if (!offer.termsCommitment) errors.push('offer_terms_commitment_missing');
 
-    var expiresAtMs = Date.parse(String(offer.expiresAt || ''));
-    if (!isFinite(expiresAtMs)) {
-      errors.push('offer_expires_at_invalid');
-    } else {
-      var now = Date.now();
-      if (expiresAtMs <= now) {
-        errors.push('offer_expired');
-      } else if ((expiresAtMs - now) < (10 * 60 * 1000)) {
-        warnings.push('offer_expires_soon');
+    if (!isGtcOffer) {
+      var expiresAtMs = Date.parse(String(offer.expiresAt || ''));
+      if (!isFinite(expiresAtMs)) {
+        errors.push('offer_expires_at_invalid');
+      } else {
+        var now = Date.now();
+        if (expiresAtMs <= now) {
+          errors.push('offer_expired');
+        } else if ((expiresAtMs - now) < (10 * 60 * 1000)) {
+          warnings.push('offer_expires_soon');
+        }
       }
     }
 
@@ -426,6 +812,7 @@
       var sendEl = document.getElementById('openFillSendCtx');
       var statusEl = document.getElementById('openFillStatus');
       var btn = document.getElementById('openFillConfirmBtn');
+      var closeBtn = document.getElementById('openFillCloseBtn');
       if (!sectionEl || !summaryEl || !offerEl || !sendEl || !statusEl) return;
 
       var shared = getSwapAnalyzerSharedOrNull();
@@ -438,9 +825,13 @@
         offerEl.textContent = '';
         sendEl.textContent = '';
         statusEl.textContent = '';
+        statusEl.classList.remove('open-fill-success');
         if (btn) {
           btn.disabled = true;
           btn.textContent = 'Confirm & Sign Swap';
+        }
+        if (closeBtn) {
+          closeBtn.textContent = 'Close';
         }
         if (analyzerRefs.panel) analyzerRefs.panel.style.display = 'none';
         if (shared) shared.clearAnalyzer(analyzerRefs);
@@ -452,10 +843,14 @@
       offerEl.textContent = state.offerText || '';
       sendEl.textContent = state.sendText || '';
       statusEl.textContent = state.status || '';
+      statusEl.classList.toggle('open-fill-success', state.statusKind === 'success');
 
       if (btn) {
         btn.disabled = !state.canConfirm;
         btn.textContent = state.buttonLabel || 'Confirm & Sign Swap';
+      }
+      if (closeBtn) {
+        closeBtn.textContent = state.closeLabel || 'Close';
       }
 
       var analyzerState = Object.prototype.hasOwnProperty.call(state, 'analyzerState')
@@ -489,6 +884,8 @@
     }
 
     function closeOpenFillModal() {
+      var shouldReloadOffers = !!mount.__openSwapV2ReloadAfterClose;
+      mount.__openSwapV2ReloadAfterClose = false;
       mount.__openSwapV2ImportedOffer = null;
       mount.__openSwapV2ImportedRawText = '';
       mount.__openSwapV2OfferId = '';
@@ -496,7 +893,9 @@
       mount.__openSwapV2AcceptPreview = null;
       mount.__openSwapV2Finalize = null;
       mount.__openSwapV2AnalyzerState = null;
+      mount.__openSwapV2Kcc20AtomicAction = null;
       updateOpenFillPanel(null);
+      if (shouldReloadOffers) loadOpenOffers();
     }
 
     function offerBlobTextFor(offer, rawText) {
@@ -630,16 +1029,19 @@
           });
 
           mount.__openSwapV2Finalize = bcwFinalized;
+          if (bcwFinalized && bcwFinalized.txid) mount.__openSwapV2ReloadAfterClose = true;
 
           updateOpenFillPanel({
             summary: buildOpenFillSummary(imported, prepared, mount.__openSwapV2OfferId),
             status: bcwFinalized && bcwFinalized.txid
-              ? ('Swap submitted. Txid: ' + bcwFinalized.txid)
-              : 'Swap submitted.',
+              ? ('Success — swap submitted. Txid: ' + bcwFinalized.txid)
+              : 'Success — swap submitted.',
+            statusKind: 'success',
             offerText: offerText,
             sendText: sendText,
             canConfirm: false,
-            buttonLabel: 'Confirm & Sign Swap'
+            buttonLabel: 'Swap Submitted',
+            closeLabel: bcwFinalized && bcwFinalized.txid ? 'Close & Refresh Offers' : 'Close'
           });
           return;
         }
@@ -695,16 +1097,19 @@
         });
 
         mount.__openSwapV2Finalize = finalized;
+        if (finalized && finalized.txid) mount.__openSwapV2ReloadAfterClose = true;
 
         updateOpenFillPanel({
           summary: buildOpenFillSummary(imported, prepared, mount.__openSwapV2OfferId),
           status: finalized && finalized.txid
-            ? ('Swap submitted. Txid: ' + finalized.txid)
-            : 'Swap submitted.',
+            ? ('Success — swap submitted. Txid: ' + finalized.txid)
+            : 'Success — swap submitted.',
+          statusKind: 'success',
           offerText: offerText,
           sendText: sendText,
           canConfirm: false,
-          buttonLabel: 'Confirm & Sign Swap'
+          buttonLabel: 'Swap Submitted',
+          closeLabel: finalized && finalized.txid ? 'Close & Refresh Offers' : 'Close'
         });
       } catch (err) {
         var response = err && err.response ? err.response : null;
@@ -719,6 +1124,241 @@
           sendText: sendText,
           canConfirm: true,
           buttonLabel: 'Confirm & Sign Swap'
+        });
+      }
+    }
+
+
+    function getKcc20AtomicOpenDraftFromOffer(offer) {
+      if (!offer || typeof offer !== 'object') return null;
+      var draft = offer.offerDraft && typeof offer.offerDraft === 'object' ? offer.offerDraft : null;
+      if (!draft && typeof offer.offerBlob === 'string' && offer.offerBlob.trim()) {
+        try { draft = parseOfferBlobText(offer.offerBlob); } catch (_) { draft = null; }
+      }
+      if (!draft || typeof draft !== 'object') return null;
+      var atomic = draft.atomicSwap && typeof draft.atomicSwap === 'object' ? draft.atomicSwap : null;
+      var protocol = draft.protocol && typeof draft.protocol === 'object' ? draft.protocol : null;
+      var sell = draft.sell && typeof draft.sell === 'object' ? draft.sell : null;
+      var isAtomicOpen = !!(
+        atomic && atomic.kind === 'kcc20_atomic_open_maker_lock_v1' &&
+        protocol && protocol.makerOp === 'kcc20_atomic_open_maker_lock' &&
+        protocol.takerOp === 'kcc20_atomic_open_claim' &&
+        sell && sell.type === 'OMA_L1_COVENANT_TOKEN'
+      );
+      return isAtomicOpen ? draft : null;
+    }
+
+    function isKcc20AtomicOpenOffer(offer) {
+      return !!getKcc20AtomicOpenDraftFromOffer(offer);
+    }
+
+    function getKcc20AtomicOpenSourceOutpoint(offer) {
+      var draft = getKcc20AtomicOpenDraftFromOffer(offer);
+      var atomic = draft && draft.atomicSwap && typeof draft.atomicSwap === 'object' ? draft.atomicSwap : null;
+      return normalizeOfferText(atomic && atomic.source_outpoint_key);
+    }
+
+    function buildKcc20AtomicOpenSummary(offer, actionKind) {
+      var draft = getKcc20AtomicOpenDraftFromOffer(offer) || {};
+      var sell = draft.sell && typeof draft.sell === 'object' ? draft.sell : {};
+      var buy = draft.buy && typeof draft.buy === 'object' ? draft.buy : {};
+      var symbol = normalizeOfferText(sell.symbol || sell.ticker || offer.sellSymbol || 'KCC20');
+      var amount = normalizeOfferText(sell.amount || offer.sellAmount || '?');
+      var kas = normalizeOfferText(buy.amount || offer.buyAmountKas || '?');
+      var offerId = normalizeOfferText(offer && offer.offerId);
+      if (actionKind === 'maker_refund') {
+        return 'Cancel Open KCC20 offer ' + offerId + ' and refund ' + amount + ' ' + symbol + ' to the maker wallet.';
+      }
+      return 'Buy Open KCC20 offer ' + offerId + ': pay ' + kas + ' KAS and receive ' + amount + ' ' + symbol + '.';
+    }
+
+    function buildKcc20AtomicOpenDisplay(build, actionKind) {
+      if (!build || typeof build !== 'object') return {};
+      return {
+        action: actionKind,
+        build_kind: build.build_kind,
+        application_status: build.application_status,
+        atomic_swap_mode: build.atomic_swap_mode,
+        networkId: build.networkId,
+        offer_id: build.open_swap_offer_id || build.offer_id || mount.__openSwapV2OfferId,
+        source_outpoint_key: build.source_outpoint_key,
+        token_symbol: build.token_symbol,
+        lock_amount_raw: build.lock_amount_raw,
+        kas_price_sompi: build.kas_price_sompi,
+        kas_price_kas: build.kas_price_kas,
+        maker_kas_receive_address: build.maker_kas_receive_address,
+        maker_token_refund_address: build.maker_token_refund_address,
+        taker_token_receive_address: build.taker_token_receive_address,
+        output_count: build.output_count,
+        signInputIndexes: build.signInputIndexes,
+        submit_route_enabled: build.submit_route_enabled,
+        submit_intent_required: build.submit_intent_required,
+        safety: build.safety || null
+      };
+    }
+
+    async function prepareKcc20AtomicOpenAction(offer, actionKind) {
+      var offerId = normalizeOfferText(offer && offer.offerId);
+      var sourceOutpoint = getKcc20AtomicOpenSourceOutpoint(offer);
+      var offerText = JSON.stringify(offer || {}, null, 2);
+      var summary = buildKcc20AtomicOpenSummary(offer, actionKind);
+      var buildUrl = actionKind === 'maker_refund'
+        ? '/api/covenants/issuer-token/atomic-swap/open/maker-refund/build'
+        : '/api/covenants/issuer-token/atomic-swap/open/taker-claim/build';
+
+      mount.__openSwapV2Kcc20AtomicAction = null;
+      mount.__openSwapV2OfferId = offerId;
+      mount.__openSwapV2ReloadAfterClose = false;
+
+      if (!offerId || !sourceOutpoint) {
+        updateOpenFillPanel({
+          summary: 'Open KCC20 offer is missing required data.',
+          status: 'Missing offer id or source outpoint.',
+          offerText: offerText,
+          sendText: '',
+          canConfirm: false,
+          buttonLabel: actionKind === 'maker_refund' ? 'Cancel Open Swap' : 'Confirm & Buy KCC20 Open Swap'
+        });
+        return;
+      }
+
+      updateOpenFillPanel({
+        summary: summary,
+        status: actionKind === 'maker_refund' ? 'Building Open KCC20 cancel/refund preview…' : 'Building Open KCC20 buy preview…',
+        offerText: offerText,
+        sendText: '',
+        canConfirm: false,
+        buttonLabel: actionKind === 'maker_refund' ? 'Cancel Open Swap' : 'Confirm & Buy KCC20 Open Swap'
+      });
+
+      try {
+        var build = await postJSON(buildUrl, {
+          offer_id: offerId,
+          open_swap_offer_id: offerId,
+          source_outpoint_key: sourceOutpoint
+        });
+
+        mount.__openSwapV2Kcc20AtomicAction = {
+          actionKind: actionKind,
+          offer: offer,
+          build: build
+        };
+
+        updateOpenFillPanel({
+          summary: summary,
+          status: actionKind === 'maker_refund'
+            ? 'Ready to sign. Review details, then click "Cancel Open Swap".'
+            : 'Ready to sign. Review details, then click "Confirm & Buy KCC20 Open Swap".',
+          offerText: offerText,
+          sendText: JSON.stringify(buildKcc20AtomicOpenDisplay(build, actionKind), null, 2),
+          canConfirm: true,
+          buttonLabel: actionKind === 'maker_refund' ? 'Cancel Open Swap' : 'Confirm & Buy KCC20 Open Swap'
+        });
+      } catch (err) {
+        var response = err && err.response ? err.response : null;
+        var reason = response && response.reason ? response.reason : (err && err.message ? err.message : String(err));
+        updateOpenFillPanel({
+          summary: summary,
+          status: 'Open KCC20 preview failed: ' + reason,
+          offerText: offerText,
+          sendText: response ? JSON.stringify(response, null, 2) : '',
+          canConfirm: false,
+          buttonLabel: actionKind === 'maker_refund' ? 'Cancel Open Swap' : 'Confirm & Buy KCC20 Open Swap'
+        });
+      }
+    }
+
+    async function handleConfirmKcc20AtomicOpenAction() {
+      var state = mount.__openSwapV2Kcc20AtomicAction || null;
+      if (!state || !state.build) {
+        updateOpenFillPanel({
+          summary: 'No Open KCC20 action is ready.',
+          status: 'Click Buy or Cancel on an Open KCC20 offer first.',
+          offerText: '',
+          sendText: '',
+          canConfirm: false,
+          buttonLabel: 'Confirm & Sign Swap'
+        });
+        return;
+      }
+
+      var actionKind = state.actionKind;
+      var offer = state.offer || {};
+      var build = state.build || {};
+      var offerText = JSON.stringify(offer || {}, null, 2);
+      var summary = buildKcc20AtomicOpenSummary(offer, actionKind);
+      var priv0Hex = getKeyringPriv0Hex();
+
+      if (!priv0Hex) {
+        updateOpenFillPanel({
+          summary: summary,
+          status: 'Keyfile unlock required. Unlock your wallet in the Wallet tab, then retry.',
+          offerText: offerText,
+          sendText: JSON.stringify(buildKcc20AtomicOpenDisplay(build, actionKind), null, 2),
+          canConfirm: true,
+          buttonLabel: actionKind === 'maker_refund' ? 'Cancel Open Swap' : 'Confirm & Buy KCC20 Open Swap'
+        });
+        return;
+      }
+
+      updateOpenFillPanel({
+        summary: summary,
+        status: actionKind === 'maker_refund' ? 'Signing and submitting Open KCC20 cancel/refund…' : 'Signing and submitting Open KCC20 buy…',
+        offerText: offerText,
+        sendText: JSON.stringify(buildKcc20AtomicOpenDisplay(build, actionKind), null, 2),
+        canConfirm: false,
+        buttonLabel: 'Submitting…'
+      });
+
+      try {
+        var signed = actionKind === 'maker_refund'
+          ? await signKcc20AtomicOpenMakerRefundBuild(build, priv0Hex)
+          : await signKcc20AtomicOpenTakerClaimBuild(build, priv0Hex);
+
+        var submitted = await postJSON(build.submit_route, {
+          submit_intent: build.submit_intent_required,
+          submit_token: build.submit_token,
+          signed_safe_json: signed.signed_safe_json,
+          signed_safe_json_sha256: signed.signed_safe_json_sha256
+        });
+
+        mount.__openSwapV2Finalize = submitted;
+        mount.__openSwapV2ReloadAfterClose = true;
+        mount.__openSwapV2Kcc20AtomicAction = null;
+
+        var txid = normalizeOfferText(submitted.submitted_txid || submitted.txid);
+        var statusText = actionKind === 'maker_refund'
+          ? 'Success — Open KCC20 swap cancelled/refunded.'
+          : 'Success — Open KCC20 swap filled.';
+        if (txid) statusText += ' Txid: ' + txid;
+
+        updateOpenFillPanel({
+          summary: summary,
+          status: statusText,
+          statusKind: 'success',
+          offerText: offerText,
+          sendText: JSON.stringify({
+            submit_kind: submitted.submit_kind,
+            application_status: submitted.application_status,
+            post_submit_status: submitted.post_submit_status,
+            tracking: submitted.tracking || null,
+            open_swap_offer_listing: submitted.open_swap_offer_listing || null,
+            safety: submitted.safety || null
+          }, null, 2),
+          canConfirm: false,
+          buttonLabel: actionKind === 'maker_refund' ? 'Open Swap Cancelled' : 'Open Swap Filled',
+          closeLabel: 'Close & Refresh Offers'
+        });
+      } catch (err) {
+        var response = err && err.response ? err.response : null;
+        var reason = response && response.reason ? response.reason : (err && err.message ? err.message : String(err));
+        updateOpenFillPanel({
+          summary: summary,
+          status: 'Open KCC20 submit failed: ' + reason,
+          offerText: offerText,
+          sendText: response ? JSON.stringify(response, null, 2) : JSON.stringify(buildKcc20AtomicOpenDisplay(build, actionKind), null, 2),
+          canConfirm: true,
+          buttonLabel: actionKind === 'maker_refund' ? 'Cancel Open Swap' : 'Confirm & Buy KCC20 Open Swap'
         });
       }
     }
@@ -903,128 +1543,222 @@
       return offer;
     }
 
+    function renderGroupedOpenOfferTable(target, groups, emptyText, options) {
+      if (!target) return;
+
+      target.innerHTML = '';
+
+      if (!groups || !groups.length) {
+        target.style.display = '';
+        var empty = document.createElement('div');
+        empty.className = 'grouped-offer-empty';
+        empty.textContent = emptyText || 'No grouped open offers.';
+        target.appendChild(empty);
+        return;
+      }
+
+      var table = document.createElement('div');
+      table.className = 'grouped-offers-table';
+
+      var header = document.createElement('div');
+      header.className = 'grouped-offers-header';
+      ['Token', 'Description / Terms', 'Price', 'Available', 'Action'].forEach(function (label) {
+        var cell = document.createElement('div');
+        cell.textContent = label;
+        header.appendChild(cell);
+      });
+      table.appendChild(header);
+
+      groups.forEach(function (group) {
+        var offer = group.offers[0] || {};
+        var catalog = group.catalog || null;
+        var sellAmount = String(offer && offer.sellAmount != null ? offer.sellAmount : '?');
+        var sellSymbol = String(offer && offer.sellSymbol ? offer.sellSymbol : '?');
+        var sellName = offer && typeof offer.sellName === 'string' ? offer.sellName.trim() : '';
+        var kcc20OpenDraft = getKcc20AtomicOpenDraftFromOffer(offer);
+        var kcc20OpenSell = kcc20OpenDraft && kcc20OpenDraft.sell && typeof kcc20OpenDraft.sell === 'object' ? kcc20OpenDraft.sell : null;
+        var kcc20OpenTokenLabel = kcc20OpenSell ? normalizeOfferText(kcc20OpenSell.symbol || kcc20OpenSell.ticker || kcc20OpenSell.name) : '';
+        var normalizedSellCa = normalizeOfferCa(sellSymbol);
+        var sellSymbolLooksCa = /^[0-9a-f]{64}$/i.test(normalizedSellCa);
+        var sellLabel = catalog
+          ? catalog.label
+          : (kcc20OpenTokenLabel || sellName || (sellSymbolLooksCa ? 'CA token' : sellSymbol));
+        var buyAmountKas = String(offer && offer.buyAmountKas != null ? offer.buyAmountKas : '?');
+        var description = getOfferDescription(offer);
+        var infoUrl = getOfferInfoUrl(offer);
+        var purpose = catalog ? catalog.purpose : '';
+        var summaryText = description || purpose || ('Receive ' + sellAmount + ' ' + sellLabel + ' per purchase.');
+        var expiresAt = String(offer && offer.expiresAt ? offer.expiresAt : '');
+
+        var row = document.createElement('div');
+        row.className = 'grouped-offer-row';
+
+        var tokenCell = document.createElement('div');
+        tokenCell.innerHTML = '';
+        var tokenTitle = document.createElement('div');
+        tokenTitle.className = 'offer-title';
+        tokenTitle.textContent = sellLabel + ' · ' + sellAmount + ' each';
+        tokenCell.appendChild(tokenTitle);
+        row.appendChild(tokenCell);
+
+        var descCell = document.createElement('div');
+        var details = document.createElement('details');
+        details.className = 'grouped-offer-inline-details';
+
+        var summary = document.createElement('summary');
+        summary.textContent = summaryText;
+        details.appendChild(summary);
+
+        var terms = document.createElement('p');
+        terms.className = 'offer-sub';
+        terms.textContent = summaryText;
+        details.appendChild(terms);
+
+        if (sellSymbolLooksCa) {
+          var caLine = document.createElement('p');
+          caLine.className = 'offer-sub';
+          caLine.textContent = 'CA: ' + normalizedSellCa;
+          details.appendChild(caLine);
+        }
+
+        if (infoUrl) {
+          var linkWrap = document.createElement('p');
+          var link = document.createElement('a');
+          link.href = infoUrl;
+          link.target = '_blank';
+          link.rel = 'noopener noreferrer';
+          link.textContent = 'More information';
+          linkWrap.appendChild(link);
+          details.appendChild(linkWrap);
+        }
+
+        var finePrint = document.createElement('p');
+        finePrint.className = 'offer-sub';
+        finePrint.textContent = 'Each purchase uses one live open offer. ' +
+          'Seller receives ' + buyAmountKas + ' KAS and buyer receives ' + sellAmount + ' ' + sellLabel +
+          (expiresAt ? ('. Earliest displayed expiration: ' + expiresAt + '.') : '.');
+        details.appendChild(finePrint);
+
+        descCell.appendChild(details);
+        row.appendChild(descCell);
+
+        var priceCell = document.createElement('div');
+        priceCell.textContent = buyAmountKas + ' KAS';
+        row.appendChild(priceCell);
+
+        var availableCell = document.createElement('div');
+        availableCell.textContent = String(group.offers.length) + ' live';
+        row.appendChild(availableCell);
+
+        var actionCell = document.createElement('div');
+        var offersForAction = group && Array.isArray(group.offers) ? group.offers : [];
+        var buyCandidate = offersForAction.find(function (it) { return !isOpenMineOffer(it); }) || chooseOpenOfferFromGroup(group);
+        var ownKcc20Candidate = offersForAction.find(function (it) { return isOpenMineOffer(it) && isKcc20AtomicOpenOffer(it); }) || null;
+
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'secondary';
+        btn.textContent = 'Buy';
+        if (buyCandidate && isOpenMineOffer(buyCandidate) && isKcc20AtomicOpenOffer(buyCandidate)) {
+          btn.disabled = true;
+          btn.title = 'This is your own Open KCC20 offer. Use My Swaps to cancel/refund it.';
+        }
+        btn.addEventListener('click', function () {
+          var selected = buyCandidate || chooseOpenOfferFromGroup(group);
+          var rawText = selected && typeof selected.offerBlob === 'string' ? selected.offerBlob : '';
+          if (!selected || !rawText) {
+            if (status) status.textContent = 'Stored open offer is missing its offer blob.';
+            return;
+          }
+
+          if (isKcc20AtomicOpenOffer(selected)) {
+            prepareKcc20AtomicOpenAction(selected, 'claim');
+            return;
+          }
+
+          try {
+            var imported = parseOfferBlobText(rawText);
+            showImportedOffer(imported, rawText, String(selected && selected.offerId ? selected.offerId : ''));
+            prepareImportedOffer(rawText, String(selected && selected.offerId ? selected.offerId : ''));
+          } catch (err) {
+            if (status) status.textContent = String(err && err.message ? err.message : err);
+            closeOpenFillModal();
+          }
+        });
+        actionCell.appendChild(btn);
+
+
+        row.appendChild(actionCell);
+
+        table.appendChild(row);
+      });
+
+      target.appendChild(table);
+    }
+
     function renderOpenOffers(items) {
       if (!list || !status) return;
 
+      ensureOpenLiveOfferFilterControl();
+
+      var rawItems = Array.isArray(items) ? items.slice() : [];
+      var hideMine = readOpenHideMyLiveOffers();
+      var visibleItems = hideMine
+        ? rawItems.filter(function (offer) { return !isOpenMineOffer(offer); })
+        : rawItems;
+
       list.innerHTML = '';
 
-      if (!items || !items.length) {
-        status.textContent = 'No open swap offers.';
+      var sponsoredList = document.getElementById('sponsoredOffersList');
+      var sponsoredStatus = document.getElementById('sponsoredOffersStatus');
+      var groups = buildOpenOfferGroups(visibleItems || []);
+      var sponsoredCount = groups.sponsored.reduce(function (sum, group) { return sum + group.offers.length; }, 0);
+      var normalCount = groups.normal.reduce(function (sum, group) { return sum + group.offers.length; }, 0);
+
+      renderGroupedOpenOfferTable(
+        sponsoredList,
+        groups.sponsored,
+        'No sponsored upgrade inventory is available right now.'
+      );
+      if (sponsoredStatus) {
+        sponsoredStatus.textContent = sponsoredCount
+          ? (groups.sponsored.length + ' sponsored row' + (groups.sponsored.length === 1 ? '' : 's') + ' / ' + sponsoredCount + ' live offer' + (sponsoredCount === 1 ? '' : 's') + '.')
+          : 'No sponsored upgrade inventory is available right now.';
+      }
+
+      if (!visibleItems.length) {
+        status.textContent = hideMine && rawItems.length
+          ? 'No open swap offers shown. Your live Open Swap offers are hidden by the switch.'
+          : 'No open swap offers.';
         list.style.display = 'none';
         closeOpenFillModal();
         if (section) section.setAttribute('data-empty', '1');
         return;
       }
 
+      if (!normalCount) {
+        status.textContent = sponsoredCount
+          ? 'All live open swap offers are grouped in Sponsored / Upgrade Offers.'
+          : 'No open swap offers.';
+        list.style.display = 'none';
+        if (section) section.setAttribute('data-empty', '1');
+        return;
+      }
+
       list.style.display = '';
       if (section) section.removeAttribute('data-empty');
-      status.textContent = items.length + ' open swap offer' + (items.length === 1 ? '' : 's') + '.';
+      status.textContent = groups.normal.length + ' grouped open swap row' + (groups.normal.length === 1 ? '' : 's') +
+        ' / ' + normalCount + ' live offer' + (normalCount === 1 ? '' : 's') + '.';
 
-      items.forEach(function (offer) {
-        var sellAmount = String(offer && offer.sellAmount != null ? offer.sellAmount : '?');
-        var sellSymbol = String(offer && offer.sellSymbol ? offer.sellSymbol : '?');
-        var sellName = offer && typeof offer.sellName === 'string' ? offer.sellName.trim() : '';
-        var sellLabel = sellName && /^CA:/i.test(sellSymbol) ? sellName + ' ' + sellSymbol : sellSymbol;
-        var buyAmountKas = String(offer && offer.buyAmountKas != null ? offer.buyAmountKas : '?');
-        var expiresAt = String(offer && offer.expiresAt ? offer.expiresAt : '');
-        var rawText = typeof offer.offerBlob === 'string' ? offer.offerBlob : '';
-        var isComplianceOnly = !!offer.complianceOnly;
-
-        var card = document.createElement('article');
-        card.className = 'offer-card card';
-        if (isComplianceOnly) {
-          card.style.borderColor = 'rgba(255,214,102,.45)';
-          card.style.boxShadow = '0 0 0 1px rgba(255,214,102,.14), 0 0 18px rgba(255,214,102,.12)';
-          card.style.background = 'linear-gradient(180deg, rgba(255,214,102,.08), rgba(255,214,102,.03))';
-        }
-
-        var main = document.createElement('div');
-        main.className = 'offer-main';
-
-        var left = document.createElement('div');
-
-        var title = document.createElement('div');
-        title.className = 'offer-title';
-        title.textContent = buyAmountKas + ' KAS → ' + sellAmount + ' ' + sellLabel;
-
-        left.appendChild(title);
-
-        var right = document.createElement('div');
-        right.className = 'offer-sub';
-        right.style.display = 'flex';
-        right.style.flexDirection = 'column';
-        right.style.alignItems = 'flex-end';
-        right.style.gap = '.35rem';
-
-        var stateText = document.createElement('div');
-        stateText.textContent = String(offer && offer.state ? offer.state : 'open');
-        right.appendChild(stateText);
-
-        if (isComplianceOnly) {
-          var badge = document.createElement('div');
-          badge.textContent = 'Compliance Only';
-          badge.style.padding = '.18rem .5rem';
-          badge.style.borderRadius = '999px';
-          badge.style.border = '1px solid rgba(255,214,102,.45)';
-          badge.style.background = 'rgba(255,214,102,.14)';
-          badge.style.color = 'rgba(255,244,214,1)';
-          badge.style.fontSize = '.78rem';
-          badge.style.fontWeight = '700';
-          badge.style.letterSpacing = '.02em';
-          right.appendChild(badge);
-        }
-
-        main.appendChild(left);
-        main.appendChild(right);
-
-        var meta = document.createElement('div');
-        meta.className = 'offer-meta';
-
-        var expiresSpan = document.createElement('span');
-        expiresSpan.textContent = expiresAt ? ('Expires: ' + expiresAt) : 'Expires: (n/a)';
-        meta.appendChild(expiresSpan);
-
-        var modeSpan = document.createElement('span');
-        modeSpan.textContent = 'Open';
-        meta.appendChild(modeSpan);
-
-        var actions = document.createElement('div');
-        actions.className = 'offer-actions';
-
-        var btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'secondary';
-        btn.textContent = 'Buy';
-        btn.addEventListener('click', function () {
-          if (!rawText) {
-            if (status) status.textContent = 'Stored open offer is missing its offer blob.';
-            return;
-          }
-
-          try {
-            var imported = parseOfferBlobText(rawText);
-            showImportedOffer(imported, rawText, String(offer && offer.offerId ? offer.offerId : ''));
-            prepareImportedOffer(rawText, String(offer && offer.offerId ? offer.offerId : ''));
-          } catch (err) {
-            if (status) status.textContent = String(err && err.message ? err.message : err);
-            closeOpenFillModal();
-          }
-        });
-
-        actions.appendChild(btn);
-
-        card.appendChild(main);
-        card.appendChild(meta);
-        card.appendChild(actions);
-
-        list.appendChild(card);
-      });
+      renderGroupedOpenOfferTable(
+        list,
+        groups.normal,
+        'No normal open swap offers. Sponsored inventory is grouped above.'
+      );
     }
 
-    function loadOpenOffers() {
-      if (status) status.textContent = 'Loading open swap offers…';
-
-      fetch('/api/open-swaps/list?state=open', {
+    function loadSponsoredOpenOfferCatalog() {
+      return fetch('/api/v1/entitlement-token-settings/upgrade-catalog', {
         method: 'GET',
         credentials: 'same-origin',
         headers: { 'Accept': 'application/json' }
@@ -1034,6 +1768,55 @@
           return res.json();
         })
         .then(function (data) {
+          if (!data || data.ok === false || !Array.isArray(data.catalog)) return [];
+          return data.catalog;
+        })
+        .catch(function (err) {
+          console.error('upgrade-catalog fetch error', err);
+          return [];
+        });
+    }
+
+    function loadOpenOffers() {
+      if (status) status.textContent = 'Loading open swap offers…';
+
+      var offersRequest = fetch('/api/open-swaps/list?state=open', {
+        method: 'GET',
+        credentials: 'same-origin',
+        headers: { 'Accept': 'application/json' }
+      })
+        .then(function (res) {
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          return res.json();
+        });
+
+      var myOffersRequest = fetch('/api/open-swaps/mine?history=0', {
+        method: 'GET',
+        credentials: 'same-origin',
+        headers: { 'Accept': 'application/json' }
+      })
+        .then(function (res) {
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          return res.json();
+        })
+        .catch(function (err) {
+          console.warn('open my-swaps filter fetch error', err);
+          return { ok: true, items: [] };
+        });
+
+      Promise.all([
+        offersRequest,
+        loadSponsoredOpenOfferCatalog(),
+        myOffersRequest
+      ])
+        .then(function (results) {
+          var data = results[0];
+          var catalog = results[1];
+          var mine = results[2] || {};
+          setSponsoredOpenOfferCatalog(catalog);
+          openMineOpenOfferIds = buildOpenOfferIdMap(mine.items || []);
+          openMineActiveWalletId = normalizeOfferText(mine.active_wallet_id);
+
           if (!data || data.ok === false) {
             if (status) status.textContent = 'Failed to load open swap offers.';
             closeOpenFillModal();
@@ -1042,6 +1825,7 @@
           renderOpenOffers(data.items || []);
         })
         .catch(function (err) {
+          setSponsoredOpenOfferCatalog([]);
           if (status) status.textContent = 'Error loading open swap offers.';
           closeOpenFillModal();
           console.error('openSwaps.list fetch error', err);
@@ -1055,11 +1839,16 @@
     mount.__openSwapV2ImportWarnings = [];
     mount.__openSwapV2AcceptPreview = null;
     mount.__openSwapV2Finalize = null;
+    mount.__openSwapV2Kcc20AtomicAction = null;
 
     var confirmBtn = document.getElementById('openFillConfirmBtn');
     if (confirmBtn) {
       confirmBtn.addEventListener('click', function (ev) {
         ev.preventDefault();
+        if (mount.__openSwapV2Kcc20AtomicAction) {
+          handleConfirmKcc20AtomicOpenAction();
+          return;
+        }
         handleConfirmOpenFill();
       });
       confirmBtn.disabled = true;

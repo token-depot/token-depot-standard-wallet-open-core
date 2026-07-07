@@ -1,13 +1,15 @@
 import type { Express } from "express";
 import crypto from "node:crypto";
-import type { RpcNetworkId, WalletNetworkType } from "../types";
+import type { AppNetworkKey, RpcNetworkId, WalletNetworkType } from "../types";
 import { readWalletStore as readWalletStoreByUser } from "../storage/walletStore";
 import { listUsers, readUserProfile, type UserNotificationSettings } from "../storage/userStore";
 import { sendNotificationEmail } from "../email/smtp";
 import {
   addressPrefixFromAppNetworkKey,
   appNetworkKeyFromWalletNetwork,
+  applyKrc20ToccataFeeRateFloor,
   kasplexNetworkIdFromAppNetworkKey,
+  krc20ToccataFeeRateFloorFromAppNetworkKey,
   rpcNetworkIdFromAppNetworkKey,
   walletNetworkTypeFromAppNetworkKey
 } from "../networks";
@@ -120,6 +122,67 @@ type BcwDirectSwapFinalizePrepCacheEntry = {
 };
 
 const bcwDirectSwapFinalizePrepCache = new Map<string, BcwDirectSwapFinalizePrepCacheEntry>();
+
+function appNetworkKeyFromDirectSwapRpcNetworkId(networkId: RpcNetworkId): AppNetworkKey {
+  return networkId === "testnet-10" ? "tn10" : "mainnet";
+}
+
+function directSwapToccataFeeRateFloor(networkId: RpcNetworkId): number {
+  return krc20ToccataFeeRateFloorFromAppNetworkKey(appNetworkKeyFromDirectSwapRpcNetworkId(networkId));
+}
+
+function directSwapHexByteLength(hex: unknown, errorReason: string): bigint {
+  if (typeof hex !== "string" || hex.length % 2 !== 0 || !/^[0-9a-fA-F]*$/.test(hex)) {
+    throw new Error(errorReason);
+  }
+  return BigInt(hex.length / 2);
+}
+
+function directSwapSerializableTransaction(tx: any, errorReason: string): any {
+  if (tx && typeof tx === "object" && Array.isArray(tx.inputs)) return tx;
+
+  const inner = tx && typeof tx === "object" ? tx.transaction : null;
+  if (inner && typeof inner === "object" && Array.isArray(inner.inputs)) return inner;
+
+  if (tx && typeof tx.serializeToSafeJSON === "function") {
+    const raw = tx.serializeToSafeJSON();
+    if (typeof raw === "string" && raw.trim()) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === "object" && Array.isArray(parsed.inputs)) return parsed;
+    }
+  }
+
+  throw new Error(errorReason);
+}
+
+function directSwapTransactionMassWithSignatureScripts(tx: any, errorReason: string): bigint {
+  const txObj = directSwapSerializableTransaction(tx, errorReason);
+  const rawMass = txObj && typeof txObj === "object" ? txObj.mass : null;
+
+  let baseMass: bigint;
+  if (typeof rawMass === "bigint") {
+    baseMass = rawMass;
+  } else if (typeof rawMass === "number" && Number.isSafeInteger(rawMass) && rawMass >= 0) {
+    baseMass = BigInt(rawMass);
+  } else if (typeof rawMass === "string" && /^\d+$/.test(rawMass)) {
+    baseMass = BigInt(rawMass);
+  } else {
+    throw new Error(errorReason);
+  }
+
+  const inputs = Array.isArray(txObj.inputs) ? txObj.inputs : [];
+  const signatureScriptBytes = inputs.reduce((sum: bigint, input: any) => {
+    const script = input && typeof input === "object" ? input.signatureScript : "";
+    if (script === undefined || script === null || script === "") return sum;
+    return sum + directSwapHexByteLength(script, errorReason);
+  }, 0n);
+
+  return baseMass + signatureScriptBytes;
+}
+
+function directSwapToccataRequiredFee(networkId: RpcNetworkId, tx: any, errorReason: string): bigint {
+  return directSwapTransactionMassWithSignatureScripts(tx, errorReason) * BigInt(directSwapToccataFeeRateFloor(networkId));
+}
 
 type BcwDirectSwapFinalizeIntentV1 = {
   v: 1;
@@ -452,6 +515,63 @@ export function registerSwapModeDirectRoutes(app: Express, ctx: SwapModeDirectCt
       return res.status(500).json({ ok: false, reason: "swap_validate_failed", error: String(err) });
     }
   });
+
+  app.post("/api/swaps/offer/expire", async (req, res) => {
+    try {
+      const userId = String((res.locals as any).td_user_id || "").trim();
+      if (!userId) {
+        return res.status(401).json({ ok: false, reason: "auth_required", login: "/login.html" });
+      }
+
+      const body: any = (req as any).body ?? null;
+      if (!body || typeof body !== "object") {
+        return res.status(400).json({ ok: false, reason: "invalid_json" });
+      }
+
+      const offerId = typeof body.offerId === "string" ? body.offerId.trim() : "";
+      if (!offerId) {
+        return res.status(400).json({ ok: false, reason: "missing_offer_id" });
+      }
+
+      const walletStore = readWalletStore(repoRoot, userId);
+      const activeWalletId = typeof walletStore.active_id === "string" ? walletStore.active_id.trim() : "";
+      const active = activeWalletId ? (walletStore.items.find((w: any) => w && w.id === activeWalletId) ?? null) : null;
+      if (!active) {
+        return res.status(409).json({ ok: false, reason: "no_active_wallet" });
+      }
+
+      const storeO = readOffersStore(repoRoot);
+      const offer = storeO.items.find((o: any) => o && o.offerId === offerId) ?? null;
+      if (!offer) {
+        return res.status(404).json({ ok: false, reason: "offer_not_found" });
+      }
+
+      const makerWalletId = typeof offer.makerWalletId === "string" ? offer.makerWalletId.trim() : "";
+      if (makerWalletId !== active.id) {
+        return res.status(403).json({ ok: false, reason: "offer_not_owned_by_active_wallet" });
+      }
+
+      if (String(offer.state || "").trim() !== "open") {
+        return res.status(409).json({ ok: false, reason: "offer_not_open" });
+      }
+
+      const nowIso = new Date().toISOString();
+      offer.state = "expired";
+      offer.expiresAt = nowIso;
+
+      writeOffersStore(repoRoot, storeO);
+
+      return res.json({
+        ok: true,
+        offerId,
+        state: offer.state,
+        expiresAt: offer.expiresAt,
+        active_wallet_id: active.id
+      });
+    } catch (err) {
+      return res.status(500).json({ ok: false, reason: "swap_offer_expire_failed", error: String(err) });
+    }
+  });
   
   app.post("/api/swaps/offer", async (req, res) => {
     let rpc: RpcClient | null = null;
@@ -661,7 +781,7 @@ export function registerSwapModeDirectRoutes(app: Express, ctx: SwapModeDirectCt
   
       stage = "fee_estimate";
       const fee = await rpc.getFeeEstimate();
-      const feeRate =
+      const rawFeeRate =
         fee &&
         fee.estimate &&
         Array.isArray(fee.estimate.normalBuckets) &&
@@ -670,9 +790,11 @@ export function registerSwapModeDirectRoutes(app: Express, ctx: SwapModeDirectCt
           ? fee.estimate.normalBuckets[0].feerate
           : 0;
   
-      if (!feeRate || feeRate <= 0) {
+      if (!rawFeeRate || rawFeeRate <= 0) {
         return res.status(502).json({ ok: false, reason: "fee_rate_unavailable" });
       }
+
+      const feeRate = applyKrc20ToccataFeeRateFloor(appNetworkKey, rawFeeRate);
   
       // Build kasplex redeem script with KRC-20 transfer payload.
       // If takerTokenReceiveAddress is present, this becomes a directed offer (transfer.to is fixed).
@@ -3394,7 +3516,7 @@ export function registerSwapModeDirectRoutes(app: Express, ctx: SwapModeDirectCt
             }
           }
 
-          requiredFee = calculateTransactionFee(sdkNet, txSigned);
+          requiredFee = directSwapToccataRequiredFee(sdkNet, txSigned, "tx_mass_exceeds_standard");
         } catch (e) {
           console.log(`[swap_accept] fee_calc_error`, e);
           throw e;

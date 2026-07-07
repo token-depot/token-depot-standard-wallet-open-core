@@ -1,0 +1,724 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Token Depot — Cov Tools</title>
+  <!-- Match existing pages exactly -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+  <link rel="stylesheet" href="/static/css/style.css">
+  <script defer src="/static/js/skin_shared.js"></script>
+  <style>
+    .two-col { display:grid; grid-template-columns: 1fr 1fr; gap:16px; align-items:start; }
+    .cc-tool-list { display:grid; grid-template-columns:1fr; gap:10px; }
+    @media (max-width: 720px) { .two-col { grid-template-columns: 1fr; } }
+
+    .stack > label { display:block; margin-bottom:12px; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .muted { opacity:0.92; color:var(--td-skin-text-soft); }
+    .hidden { display:none; }
+
+    .cc-hero {
+      border:1px solid rgba(var(--td-skin-border-rgb), .74);
+      border-radius:18px;
+      padding:16px;
+      background:
+        radial-gradient(circle at top left, rgba(var(--td-skin-primary-glow-rgb), .22), rgba(var(--td-skin-panel-rgb), .94));
+      box-shadow:0 0 24px rgba(var(--td-skin-primary-glow-rgb), .16);
+    }
+
+    .cc-status-grid {
+      display:grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap:10px;
+      margin-top:12px;
+    }
+    @media (max-width: 720px) { .cc-status-grid { grid-template-columns: 1fr; } }
+
+    .cc-pill {
+      display:inline-flex;
+      align-items:center;
+      gap:.35rem;
+      border-radius:999px;
+      border:1px solid rgba(var(--td-skin-border-rgb), .42);
+      background:rgba(var(--td-skin-table-bg-rgb), .50);
+      color:var(--td-skin-text-strong);
+      padding:.25rem .7rem;
+      font-size:.88rem;
+      line-height:1.2;
+      white-space:nowrap;
+    }
+
+    .cc-tool-card {
+      border:1px solid rgba(var(--td-skin-border-rgb), .42);
+      border-radius:16px;
+      padding:10px 12px;
+      background:rgba(var(--td-skin-table-bg-rgb), .36);
+      min-height:auto;
+    }
+    .cc-tool-card h5 { margin:.1rem 0 .25rem; }
+    .cc-tool-card p { margin:0; }
+    .cc-tool-group { margin-top:1rem; }
+    .cc-tool-group h4 { margin:.35rem 0 .75rem; }
+    .cc-tool-shell { min-height:auto; }
+    .cc-tool-shell summary {
+      cursor:pointer;
+      list-style:none;
+      display:grid;
+      grid-template-columns:minmax(0, 1fr) auto;
+      column-gap:1rem;
+      row-gap:.15rem;
+      align-items:center;
+      min-height:58px;
+    }
+    .cc-tool-shell summary::-webkit-details-marker { display:none; }
+    .cc-tool-shell summary h5 { grid-column:1; margin:.1rem 0 .2rem; }
+    .cc-tool-shell summary p { grid-column:1; margin:0; }
+    .cc-tool-shell summary::after {
+      content:"OPEN";
+      grid-column:2;
+      grid-row:1 / span 2;
+      align-self:center;
+      display:inline-block;
+      width:auto;
+      max-width:none;
+      margin-top:0;
+      border:1px solid rgba(var(--td-skin-primary-rgb), .78);
+      border-radius:999px;
+      padding:.28rem .78rem;
+      color:var(--td-skin-primary);
+      font-weight:800;
+      font-size:.72rem;
+      line-height:1.1;
+      letter-spacing:.06em;
+      text-transform:uppercase;
+      white-space:nowrap;
+      word-break:normal;
+      overflow-wrap:normal;
+      writing-mode:horizontal-tb !important;
+      text-orientation:mixed !important;
+      transform:none !important;
+    }
+    .cc-tool-shell[open] summary::after { content:"CLOSE"; }
+    .cc-tool-detail {
+      margin-top:.75rem;
+      padding-top:.75rem;
+      border-top:1px solid rgba(var(--td-skin-border-rgb), .24);
+      color:var(--td-skin-text-muted);
+    }
+    .cc-tool-detail ul { margin:.35rem 0 .1rem 1.1rem; }
+    .cc-tool-detail li { margin:.2rem 0; }
+    .cc-tool-detail .two-col button { width:100%; min-height:3rem; border-radius:14px; white-space:normal; }
+    .cc-tool-card button.cc-tool-open {
+      width:100%;
+      min-height:100%;
+      display:flex;
+      flex-direction:column;
+      gap:.45rem;
+      text-align:left;
+      border:0;
+      border-radius:14px;
+      padding:0;
+      margin:0;
+      background:transparent;
+      color:inherit;
+      box-shadow:none;
+      cursor:pointer;
+    }
+    .cc-tool-card button.cc-tool-open:hover,
+    .cc-tool-card button.cc-tool-open:focus {
+      background:transparent;
+      box-shadow:none;
+    }
+    .cc-tool-card button.cc-tool-open:focus-visible {
+      outline:2px solid rgba(var(--td-skin-primary-rgb), .72);
+      outline-offset:4px;
+    }
+    .cc-tool-action {
+      margin-top:auto;
+      color:var(--td-skin-primary);
+      font-weight:700;
+      font-size:.9rem;
+    }
+    .cc-tool-modal-backdrop {
+      position:fixed;
+      inset:0;
+      z-index:10000;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:1rem;
+      background:rgba(var(--td-skin-black-rgb), .72);
+      backdrop-filter:blur(8px);
+    }
+    .cc-tool-modal-backdrop.hidden {
+      display:none;
+    }
+    .cc-tool-modal-card {
+      width:min(860px, 96vw);
+      max-height:88vh;
+      overflow:auto;
+      border:1px solid rgba(var(--td-skin-border-rgb), .70);
+      border-radius:20px;
+      padding:18px;
+      background:
+        radial-gradient(circle at top left, rgba(var(--td-skin-primary-glow-rgb), .18), rgba(var(--td-skin-panel-rgb), .98));
+      color:var(--td-skin-text-strong);
+      box-shadow:0 0 42px rgba(var(--td-skin-primary-glow-rgb), .28);
+    }
+    .cc-tool-modal-title-row {
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-start;
+      gap:1rem;
+      border-bottom:1px solid rgba(var(--td-skin-border-rgb), .24);
+      padding-bottom:.75rem;
+      margin-bottom:.85rem;
+    }
+    .cc-tool-modal-close {
+      width:auto;
+      padding:.45rem .7rem;
+      margin:0;
+    }
+    .cc-tool-modal-body ol,
+    .cc-tool-modal-body ul { margin:.4rem 0 .8rem 1.2rem; }
+    .cc-tool-modal-body li { margin:.25rem 0; }
+    .cc-tool-modal-body code {
+      border:1px solid rgba(var(--td-skin-border-rgb), .34);
+      border-radius:8px;
+      background:rgba(var(--td-skin-table-bg-rgb), .50);
+      color:var(--td-skin-text-strong);
+      padding:.08rem .32rem;
+      white-space:normal;
+    }
+    .cc-tool-modal-grid {
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:.75rem;
+      margin:.8rem 0;
+    }
+    @media (max-width: 760px) { .cc-tool-modal-grid { grid-template-columns:1fr; } }
+    .cc-tool-modal-note {
+      border:1px solid rgba(var(--td-skin-border-rgb), .32);
+      border-radius:14px;
+      padding:.75rem;
+      background:rgba(var(--td-skin-table-bg-rgb), .32);
+    }
+
+    .cc-proof-row {
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      border-bottom:1px solid rgba(var(--td-skin-border-rgb), .18);
+      padding:.35rem 0;
+      color:var(--td-skin-text-muted);
+    }
+    .cc-proof-row strong {
+      color:var(--td-skin-text-strong);
+      overflow-wrap:anywhere;
+      text-align:right;
+    }
+
+    .cc-logbox {
+      background:
+        radial-gradient(circle at top left, rgba(var(--td-skin-primary-rgb), .18), rgba(var(--td-skin-panel-rgb), .98));
+      border:1px solid rgba(var(--td-skin-teal-border-rgb), .7);
+      border-radius:16px;
+      padding:12px;
+      white-space:pre-wrap;
+      overflow:auto;
+      max-height:360px;
+      color:var(--td-skin-text-field);
+      box-shadow:
+        0 0 0 1px rgba(var(--td-skin-panel-rgb), 1),
+        0 0 18px rgba(var(--td-skin-primary-rgb), .40);
+    }
+
+    .cc-warning {
+      border:1px solid rgba(var(--td-skin-warning-rgb), .36);
+      border-radius:14px;
+      padding:10px 12px;
+      background:rgba(var(--td-skin-warning-rgb), .08);
+      color:var(--td-skin-text-muted);
+    }
+
+    /* Cov Tools nav mobile fix: keep logo visible above wrapped links */
+    @media (max-width: 760px){
+      nav.container-fluid{
+        display:flex !important;
+        flex-wrap:wrap !important;
+        justify-content:flex-start !important;
+        align-items:stretch !important;
+        gap:.75rem 1rem !important;
+      }
+      nav.container-fluid > ul:first-child{
+        width:100% !important;
+        display:flex !important;
+        justify-content:center !important;
+      }
+      nav.container-fluid > ul:first-child img{
+        height:52px !important;
+      }
+      nav.container-fluid > ul:nth-of-type(2){
+        width:100% !important;
+        display:flex !important;
+        flex-wrap:wrap !important;
+        justify-content:center !important;
+        gap:.35rem .9rem !important;
+      }
+      nav.container-fluid > ul:nth-of-type(2) li{
+        flex:0 0 auto !important;
+      }
+    }
+  </style>
+</head>
+
+<body data-skin="classic_teal">
+<script>
+(function () {
+  var key = 'td_active_skin_id';
+  var allowed = { classic_teal: true, pink: true, pink_black: true, gold: true, gold_black: true, blue: true, blue_black: true, green: true, green_black: true, red: true, red_black: true, yellow: true, yellow_black: true, cyan: true, cyan_black: true, orange: true, orange_black: true };
+  try {
+    var skinId = String(sessionStorage.getItem(key) || '').trim();
+    if (allowed[skinId]) document.body.setAttribute('data-skin', skinId);
+  } catch (_) {}
+})();
+</script>
+
+  <main class="container">
+    <nav class="container-fluid">
+      <ul>
+        <li>
+          <a href="/wallet.html">
+            <img src="static/icon/logo.png" alt="Token Depot logo" style="height:60px; display:block;">
+          </a>
+        </li>
+      </ul>
+      <ul>
+        <li><a href="/deploy.html">Deploy</a></li>
+        <li><a href="/issue.html">Issue</a></li>
+        <li><a href="/covenants.html" aria-current="page">Cov Tools</a></li>
+        <li><a href="/redeem.html">Redeem</a></li>
+        <li><a href="/energy.html">Energy</a></li>
+        <li><a href="/manage.html">Settings</a></li>
+        <li><a href="#" id="btnLogout">Logout</a></li>
+      </ul>
+    </nav>
+    <script type="module" src="/static/js/nav_choice_modal.js"></script>
+
+    <script>
+      (function () {
+        var a = document.getElementById('btnLogout');
+        if (!a) return;
+        a.addEventListener('click', async function (e) {
+          e.preventDefault();
+          await window.CwLogoutShared.logoutNow({ redirectTo: '/login.html' });
+        });
+      })();
+    </script>
+
+    <article class="card">
+      <header>
+        <h3>Cov Tools</h3>
+        <p class="muted">Programmable KAS control center for creating, inspecting, releasing, and proving the covenant policies already verified on testnet.</p>
+      </header>
+
+      <section class="cc-hero" aria-label="Cov Tools status">
+        <div style="display:flex; gap:.5rem; flex-wrap:wrap; align-items:center; justify-content:space-between;">
+          <div>
+            <h4 style="margin:.1rem 0 .25rem;">Programmable KAS</h4>
+            <p class="muted">This page uses the proven Rusty Kaspa v2.0.1 Toccata bridge path. Each live action remains gated by build, sign, submit, Inspector, and release proof checks.</p>
+          </div>
+          <span class="cc-pill" id="ccExecutionMode">proof gated</span>
+        </div>
+
+        <div class="cc-status-grid">
+          <div class="cc-proof-row"><span>SDK bridge</span><strong id="ccSdkStatus">checking</strong></div>
+          <div class="cc-proof-row"><span>SDK version</span><strong id="ccSdkVersion">—</strong></div>
+          <div class="cc-proof-row"><span>TransactionOutput.covenant</span><strong id="ccSurfaceOutput">—</strong></div>
+          <div class="cc-proof-row"><span>covenantId()</span><strong id="ccSurfaceCovenantId">—</strong></div>
+        </div>
+      </section>
+    </article>
+
+    <div id="ccInspectionMount"></div>
+
+    <article class="card" id="ccToolMatrix">
+      <header>
+        <h3>Programmable KAS Apps</h3>
+        <p class="muted">Create, inspect, release, and prove the KAS covenant policies that have already passed the local testnet proof ladder. Each app keeps Inspector metadata readable: what the covenant does, who controls it, DAA conditions, destinations, outpoints, covenant IDs, and release status.</p>
+      </header>
+
+      <section class="cc-tool-group" aria-label="Base KAS protection apps">
+        <h4>Base KAS Protection</h4>
+        <div class="cc-tool-list">
+          <details class="cc-tool-card cc-tool-shell" id="ccProtectKasCard">
+            <summary>
+              <h5>Protect KAS</h5>
+              <p class="muted">Transfer KAS into a covenant-bearing output so normal KAS send cannot accidentally spend it.</p>
+            </summary>
+            <div class="cc-tool-detail" id="ccProtectKasPanel">
+              <p><strong>Policy:</strong> The selected holder wallet receives protected KAS. The active holder can release it back to native KAS.</p>
+              <ul>
+                <li>Metadata saved: holder address, amount, source outpoint, covenant ID, submit txid, release txid, release output.</li>
+                <li>Normal KAS send remains blocked while the output is covenanted.</li>
+              </ul>
+
+              <div class="stack" aria-label="Protect KAS workflow">
+                <label>
+                  KAS amount
+                  <input id="ccProtectKasAmountKas" type="text" inputmode="decimal" value="5" autocomplete="off">
+                </label>
+                <label>
+                  Protect to address (optional)
+                  <input id="ccProtectKasDestinationAddress" type="text" autocomplete="off" placeholder="Leave blank to protect to active wallet">
+                  <small class="muted">Use this to assign protected KAS to another wallet address. Change still returns to the active wallet.</small>
+                </label>
+                <div class="two-col">
+                  <button id="ccProtectKasBuildButton" type="button">Build protected KAS</button>
+                  <button id="ccProtectKasSubmitButton" type="button" disabled>Sign and transfer protected KAS</button>
+                </div>
+                <hr>
+                <label>
+                  Protected outpoint to release
+                  <input id="ccProtectKasReleaseOutpoint" type="text" autocomplete="off" placeholder="txid:index from Inspect Covenant UTXOs">
+                </label>
+                <label>
+                  Expected covenant ID
+                  <input id="ccProtectKasReleaseCovenantId" type="text" autocomplete="off" placeholder="64 hex characters">
+                </label>
+                <div class="two-col">
+                  <button id="ccProtectKasReleaseBuildButton" type="button">Build release</button>
+                  <button id="ccProtectKasReleaseSubmitButton" type="button" disabled>Sign and release KAS</button>
+                </div>
+                <p class="muted" id="ccProtectKasStatus">Protect KAS is ready.</p>
+                <pre class="cc-logbox hidden" id="ccProtectKasProof" aria-live="polite"></pre>
+              </div>
+            </div>
+          </details>
+
+          <details class="cc-tool-card cc-tool-shell" id="ccOwnerReleaseKasCard">
+            <summary>
+              <h5>P2SH Owner-Release KAS</h5>
+              <p class="muted">Lock KAS to a P2SH policy that requires the owner/holder signature to release.</p>
+            </summary>
+            <div class="cc-tool-detail" id="ccOwnerReleaseKasPanel">
+              <p><strong>Policy:</strong> Owner signature releases the P2SH covenanted KAS back to native KAS.</p>
+              <ul>
+                <li>Use this as the simplest true P2SH Programmable KAS foundation.</li>
+                <li>Inspector metadata shows owner/holder address, P2SH address, source outpoint, covenant ID, and release status.</li>
+              </ul>
+              <div class="stack" aria-label="P2SH Owner-Release KAS workflow">
+                <label>KAS amount <input id="ccOwnerReleaseAmountKas" type="text" inputmode="decimal" value="1" autocomplete="off"></label>
+                <label>Owner / holder address (optional) <input id="ccOwnerReleaseOwnerAddress" type="text" autocomplete="off" placeholder="Leave blank to use active wallet"></label>
+                <div class="two-col">
+                  <button id="ccOwnerReleaseBuildButton" type="button">Build owner-release KAS</button>
+                  <button id="ccOwnerReleaseSubmitButton" type="button" disabled>Sign and lock KAS</button>
+                </div>
+                <hr>
+                <label>Source outpoint <input id="ccOwnerReleaseSourceOutpoint" type="text" autocomplete="off" placeholder="txid:index from Inspector"></label>
+                <label>Expected covenant ID <input id="ccOwnerReleaseCovenantId" type="text" autocomplete="off" placeholder="64 hex characters"></label>
+                <div class="two-col">
+                  <button id="ccOwnerReleaseBuildReleaseButton" type="button">Build owner release</button>
+                  <button id="ccOwnerReleaseSubmitReleaseButton" type="button" disabled>Sign and release</button>
+                </div>
+                <p class="muted" id="ccOwnerReleaseStatus">P2SH Owner-Release UI is ready for wiring.</p>
+                <pre class="cc-logbox hidden" id="ccOwnerReleaseProof" aria-live="polite"></pre>
+              </div>
+            </div>
+          </details>
+        </div>
+      </section>
+
+      <section class="cc-tool-group" aria-label="Policy lock apps">
+        <h4>Policy Locks</h4>
+        <div class="cc-tool-list">
+          <details class="cc-tool-card cc-tool-shell" id="ccAbsoluteTimeLockCard">
+            <summary>
+              <h5>Absolute Time Lock KAS</h5>
+              <p class="muted">Lock KAS until a DAA target is satisfied, then release by owner signature.</p>
+            </summary>
+            <div class="cc-tool-detail" id="ccAbsoluteTimeLockPanel">
+              <p><strong>Policy:</strong> Release is blocked until the configured absolute DAA target is reached.</p>
+              <ul><li>Metadata saved: owner address, start/current DAA, lock target DAA, target satisfied flag, source outpoint, covenant ID.</li></ul>
+              <div class="stack" aria-label="Absolute Time Lock KAS workflow">
+                <label>KAS amount <input id="ccAbsoluteTimeLockAmountKas" type="text" inputmode="decimal" value="1" autocomplete="off"></label>
+                <label>Lock DAA delta <input id="ccAbsoluteTimeLockDaaDelta" type="number" inputmode="numeric" value="120" autocomplete="off"></label>
+                <div class="two-col">
+                  <button id="ccAbsoluteTimeLockBuildButton" type="button">Build time-locked KAS</button>
+                  <button id="ccAbsoluteTimeLockSubmitButton" type="button" disabled>Sign and lock KAS</button>
+                </div>
+                <hr>
+                <label>Source outpoint <input id="ccAbsoluteTimeLockSourceOutpoint" type="text" autocomplete="off" placeholder="txid:index from Inspector"></label>
+                <label>Expected covenant ID <input id="ccAbsoluteTimeLockCovenantId" type="text" autocomplete="off" placeholder="64 hex characters"></label>
+                <label>Lock target DAA <input id="ccAbsoluteTimeLockTargetDaa" type="text" inputmode="numeric" autocomplete="off" placeholder="from build proof or Inspector metadata"></label>
+                <div class="two-col">
+                  <button id="ccAbsoluteTimeLockBuildReleaseButton" type="button">Build release after DAA</button>
+                  <button id="ccAbsoluteTimeLockSubmitReleaseButton" type="button" disabled>Sign and release</button>
+                </div>
+                <p class="muted" id="ccAbsoluteTimeLockStatus">Absolute Time Lock UI is ready for wiring.</p>
+                <pre class="cc-logbox hidden" id="ccAbsoluteTimeLockProof" aria-live="polite"></pre>
+              </div>
+            </div>
+          </details>
+
+          <details class="cc-tool-card cc-tool-shell" id="ccRelativeSequenceLockCard">
+            <summary>
+              <h5>Relative Sequence Lock KAS</h5>
+              <p class="muted">Lock KAS until the source output ages by the configured relative DAA amount.</p>
+            </summary>
+            <div class="cc-tool-detail" id="ccRelativeSequenceLockPanel">
+              <p><strong>Policy:</strong> Release input must carry the required sequence and the source UTXO must be old enough.</p>
+              <ul><li>Metadata saved: relative DAA delta, source block DAA, unlock DAA, current DAA, target satisfied flag.</li></ul>
+              <div class="stack" aria-label="Relative Sequence Lock KAS workflow">
+                <label>KAS amount <input id="ccRelativeSequenceAmountKas" type="text" inputmode="decimal" value="1" autocomplete="off"></label>
+                <label>Relative DAA delta <input id="ccRelativeSequenceDaaDelta" type="number" inputmode="numeric" value="60" autocomplete="off"></label>
+                <div class="two-col">
+                  <button id="ccRelativeSequenceBuildButton" type="button">Build sequence-locked KAS</button>
+                  <button id="ccRelativeSequenceSubmitButton" type="button" disabled>Sign and lock KAS</button>
+                </div>
+                <hr>
+                <label>Source outpoint <input id="ccRelativeSequenceSourceOutpoint" type="text" autocomplete="off" placeholder="txid:index from Inspector"></label>
+                <label>Expected covenant ID <input id="ccRelativeSequenceCovenantId" type="text" autocomplete="off" placeholder="64 hex characters"></label>
+                <div class="two-col">
+                  <button id="ccRelativeSequenceBuildReleaseButton" type="button">Build sequence release</button>
+                  <button id="ccRelativeSequenceSubmitReleaseButton" type="button" disabled>Sign and release</button>
+                </div>
+                <p class="muted" id="ccRelativeSequenceStatus">Relative Sequence Lock UI is ready for wiring.</p>
+                <pre class="cc-logbox hidden" id="ccRelativeSequenceProof" aria-live="polite"></pre>
+              </div>
+            </div>
+          </details>
+
+          <details class="cc-tool-card cc-tool-shell" id="ccAllowedDestinationCard">
+            <summary>
+              <h5>Allowed Destination KAS</h5>
+              <p class="muted">Lock KAS so release can pay only the configured destination address.</p>
+            </summary>
+            <div class="cc-tool-detail" id="ccAllowedDestinationPanel">
+              <p><strong>Policy:</strong> Release transaction must have one output and output 0 must use the allowed destination scriptPublicKey.</p>
+              <ul><li>Metadata saved: owner address, allowed destination, source outpoint, covenant ID, release txid.</li></ul>
+              <div class="stack" aria-label="Allowed Destination KAS workflow">
+                <label>KAS amount <input id="ccAllowedDestinationAmountKas" type="text" inputmode="decimal" value="1" autocomplete="off"></label>
+                <label>Allowed destination address <input id="ccAllowedDestinationAddress" type="text" autocomplete="off" placeholder="kaspatest:..."></label>
+                <div class="two-col">
+                  <button id="ccAllowedDestinationBuildButton" type="button">Build destination-locked KAS</button>
+                  <button id="ccAllowedDestinationSubmitButton" type="button" disabled>Sign and lock KAS</button>
+                </div>
+                <hr>
+                <label>Source outpoint <input id="ccAllowedDestinationSourceOutpoint" type="text" autocomplete="off" placeholder="txid:index from Inspector"></label>
+                <label>Expected covenant ID <input id="ccAllowedDestinationCovenantId" type="text" autocomplete="off" placeholder="64 hex characters"></label>
+                <div class="two-col">
+                  <button id="ccAllowedDestinationBuildReleaseButton" type="button">Build allowed release</button>
+                  <button id="ccAllowedDestinationSubmitReleaseButton" type="button" disabled>Sign and release</button>
+                </div>
+                <p class="muted" id="ccAllowedDestinationStatus">Allowed Destination UI is ready for wiring.</p>
+                <pre class="cc-logbox hidden" id="ccAllowedDestinationProof" aria-live="polite"></pre>
+              </div>
+            </div>
+          </details>
+        </div>
+      </section>
+
+      <section class="cc-tool-group" aria-label="Recovery and commerce apps">
+        <h4>Recovery / Commerce</h4>
+        <div class="cc-tool-list">
+          <details class="cc-tool-card cc-tool-shell" id="ccImmediateRecoveryCard">
+            <summary>
+              <h5>Immediate Recovery KAS</h5>
+              <p class="muted">Lock KAS so either the owner wallet or recovery wallet can release immediately.</p>
+            </summary>
+            <div class="cc-tool-detail" id="ccImmediateRecoveryPanel">
+              <p><strong>Policy:</strong> Owner signature OR recovery signature can release the protected KAS.</p>
+              <ul><li>Metadata saved: owner address, recovery address, viewer role, source outpoint, covenant ID, release path.</li></ul>
+              <div class="stack" aria-label="Immediate Recovery KAS workflow">
+                <label>KAS amount <input id="ccImmediateRecoveryAmountKas" type="text" inputmode="decimal" value="1" autocomplete="off"></label>
+                <label>Recovery address <input id="ccImmediateRecoveryAddress" type="text" autocomplete="off" placeholder="kaspatest:..."></label>
+                <div class="two-col">
+                  <button id="ccImmediateRecoveryBuildButton" type="button">Build recovery KAS</button>
+                  <button id="ccImmediateRecoverySubmitButton" type="button" disabled>Sign and lock KAS</button>
+                </div>
+                <hr>
+                <label>Source outpoint <input id="ccImmediateRecoverySourceOutpoint" type="text" autocomplete="off" placeholder="txid:index from Inspector"></label>
+                <label>Expected covenant ID <input id="ccImmediateRecoveryCovenantId" type="text" autocomplete="off" placeholder="64 hex characters"></label>
+                <div class="two-col">
+                  <button id="ccImmediateRecoveryBuildReleaseButton" type="button">Build release</button>
+                  <button id="ccImmediateRecoverySubmitReleaseButton" type="button" disabled>Sign and release</button>
+                </div>
+                <p class="muted" id="ccImmediateRecoveryStatus">Immediate Recovery UI is ready for wiring.</p>
+                <pre class="cc-logbox hidden" id="ccImmediateRecoveryProof" aria-live="polite"></pre>
+              </div>
+            </div>
+          </details>
+
+          <details class="cc-tool-card cc-tool-shell" id="ccEscrowRefundCard">
+            <summary>
+              <h5>Escrow / Refund KAS</h5>
+              <p class="muted">Buyer-funded KAS can release to seller, or refund to buyer after the timeout DAA.</p>
+            </summary>
+            <div class="cc-tool-detail" id="ccEscrowRefundPanel">
+              <p><strong>Policy:</strong> Seller release pays the configured seller address. Buyer refund pays the buyer/refund address after the configured DAA timeout.</p>
+              <ul><li>Metadata saved: buyer/refund address, seller address, refund target DAA, source outpoint, covenant ID, release/refund path.</li></ul>
+              <div class="stack" aria-label="Escrow Refund KAS workflow">
+                <label>KAS amount <input id="ccEscrowRefundAmountKas" type="text" inputmode="decimal" value="1" autocomplete="off"></label>
+                <label>Seller release address <input id="ccEscrowSellerAddress" type="text" autocomplete="off" placeholder="kaspatest:..."></label>
+                <label>Refund lock DAA target <input id="ccEscrowRefundLockDaa" type="text" inputmode="numeric" autocomplete="off" placeholder="absolute DAA target"></label>
+                <div class="two-col">
+                  <button id="ccEscrowRefundBuildButton" type="button">Build escrow KAS</button>
+                  <button id="ccEscrowRefundSubmitButton" type="button" disabled>Sign and lock escrow</button>
+                </div>
+                <hr>
+                <label>Source outpoint <input id="ccEscrowRefundSourceOutpoint" type="text" autocomplete="off" placeholder="txid:index from Inspector"></label>
+                <label>Expected covenant ID <input id="ccEscrowRefundCovenantId" type="text" autocomplete="off" placeholder="64 hex characters"></label>
+                <div class="two-col">
+                  <button id="ccEscrowSellerReleaseBuildButton" type="button">Build seller release</button>
+                  <button id="ccEscrowSellerReleaseSubmitButton" type="button" disabled>Sign seller release</button>
+                  <button id="ccEscrowBuyerRefundBuildButton" type="button">Build buyer refund</button>
+                  <button id="ccEscrowBuyerRefundSubmitButton" type="button" disabled>Sign buyer refund</button>
+                </div>
+                <p class="muted" id="ccEscrowRefundStatus">Escrow / Refund UI is ready for wiring.</p>
+                <pre class="cc-logbox hidden" id="ccEscrowRefundProof" aria-live="polite"></pre>
+              </div>
+            </div>
+          </details>
+        </div>
+      </section>
+
+      <section class="cc-tool-group" aria-label="Combination policy apps">
+        <h4>Combination Policies</h4>
+        <div class="cc-tool-list">
+          <details class="cc-tool-card cc-tool-shell" id="ccTimeLockAllowedDestinationCard">
+            <summary>
+              <h5>Time Lock + Allowed Destination KAS</h5>
+              <p class="muted">Release is allowed only after the DAA target and only to the configured destination.</p>
+            </summary>
+            <div class="cc-tool-detail" id="ccTimeLockAllowedDestinationPanel">
+              <p><strong>Policy:</strong> Owner signature plus absolute DAA lock plus output 0 destination constraint.</p>
+              <ul><li>Metadata saved: owner, allowed destination, lock target DAA, current DAA, source outpoint, covenant ID.</li></ul>
+              <div class="stack" aria-label="Time Lock Allowed Destination KAS workflow">
+                <label>KAS amount <input id="ccC5AmountKas" type="text" inputmode="decimal" value="1" autocomplete="off"></label>
+                <label>Allowed destination address <input id="ccC5AllowedDestinationAddress" type="text" autocomplete="off" placeholder="kaspatest:..."></label>
+                <label>Lock DAA delta <input id="ccC5LockDaaDelta" type="number" inputmode="numeric" value="120" autocomplete="off"></label>
+                <div class="two-col">
+                  <button id="ccC5BuildButton" type="button">Build Time Lock + Destination KAS</button>
+                  <button id="ccC5SubmitButton" type="button" disabled>Sign and lock KAS</button>
+                </div>
+                <hr>
+                <label>Source outpoint <input id="ccC5SourceOutpoint" type="text" autocomplete="off" placeholder="txid:index from Inspector"></label>
+                <label>Expected covenant ID <input id="ccC5CovenantId" type="text" autocomplete="off" placeholder="64 hex characters"></label>
+                <label>Lock target DAA <input id="ccC5LockTargetDaa" type="text" inputmode="numeric" autocomplete="off" placeholder="from build proof or Inspector metadata"></label>
+                <div class="two-col">
+                  <button id="ccC5BuildReleaseButton" type="button">Build Time Lock + Destination Release</button>
+                  <button id="ccC5SubmitReleaseButton" type="button" disabled>Sign and release</button>
+                </div>
+                <p class="muted" id="ccC5Status">Time Lock + Allowed Destination KAS UI is ready for wiring.</p>
+                <pre class="cc-logbox hidden" id="ccC5Proof" aria-live="polite"></pre>
+              </div>
+            </div>
+          </details>
+
+          <details class="cc-tool-card cc-tool-shell" id="ccOwnerReleaseDelayedRecoveryCard">
+            <summary>
+              <h5>Owner Release + Delayed Recovery KAS</h5>
+              <p class="muted">Owner can release immediately; recovery wallet can release only after the configured DAA target.</p>
+            </summary>
+            <div class="cc-tool-detail" id="ccOwnerReleaseDelayedRecoveryPanel">
+              <p><strong>Policy:</strong> Owner signature releases immediately. Recovery signature releases only after the configured absolute DAA target.</p>
+              <ul><li>Metadata saved: owner address, recovery address, recovery target DAA, current DAA, source outpoint, covenant ID, release path.</li></ul>
+              <div class="stack" aria-label="Owner Release Delayed Recovery KAS workflow">
+                <label>KAS amount <input id="ccC6AmountKas" type="text" inputmode="decimal" value="1" autocomplete="off"></label>
+                <label>Recovery address <input id="ccC6RecoveryAddress" type="text" autocomplete="off" placeholder="kaspatest:..."></label>
+                <label>Recovery DAA delta <input id="ccC6RecoveryDaaDelta" type="number" inputmode="numeric" value="120" autocomplete="off"></label>
+                <div class="two-col">
+                  <button id="ccC6BuildButton" type="button">Build Owner Release + Delayed Recovery KAS</button>
+                  <button id="ccC6SubmitButton" type="button" disabled>Sign and lock KAS</button>
+                </div>
+                <hr>
+                <label>Source outpoint <input id="ccC6SourceOutpoint" type="text" autocomplete="off" placeholder="txid:index from Inspector"></label>
+                <label>Expected covenant ID <input id="ccC6CovenantId" type="text" autocomplete="off" placeholder="64 hex characters"></label>
+                <div class="two-col">
+                  <button id="ccC6OwnerReleaseBuildButton" type="button">Build owner release</button>
+                  <button id="ccC6OwnerReleaseSubmitButton" type="button" disabled>Sign owner release</button>
+                  <button id="ccC6RecoveryReleaseBuildButton" type="button">Build recovery release</button>
+                  <button id="ccC6RecoveryReleaseSubmitButton" type="button" disabled>Sign recovery release</button>
+                </div>
+                <p class="muted" id="ccC6Status">Owner Release + Delayed Recovery KAS UI is ready for wiring.</p>
+                <pre class="cc-logbox hidden" id="ccC6Proof" aria-live="polite"></pre>
+              </div>
+            </div>
+          </details>
+        </div>
+      </section>
+
+      <div class="cc-warning" style="margin-top:1rem;">
+        Token protection, subscription tokens, burn/redeem receipts, regulated controls, freeze, seize, pause, and lawful-order actions remain separate modules until their own proof ladders are approved.
+      </div>
+    </article>
+
+    <article class="card hidden" hidden aria-hidden="true">
+      <header>
+        <h3>Template Registry</h3>
+        <p class="muted">Loading the local template registry...</p>
+      </header>
+
+      <div class="cc-proof-row"><span>Registry source</span><strong>/static/covenants/template-registry.v1.json</strong></div>
+    </article>
+
+    <footer style="
+      margin-top: 48px;
+      background: var(--td-skin-black);
+      color: var(--td-skin-white);
+      padding: 22px 16px;
+      border-top: 1px solid rgba(var(--td-skin-white-rgb), 0.12);
+    ">
+      <div style="
+        max-width: 1100px;
+        margin: 0 auto;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 18px 28px;
+        align-items: center;
+        justify-content: space-between;
+      ">
+        <div style="line-height: 1.35;">
+          <div style="font-weight: 700; letter-spacing: 0.06em;">
+            TOKEN DEPOT CORP.
+          </div>
+          <div style="opacity: 0.9;">
+            Statesville, NC 28625
+          </div>
+          <div style="opacity: 0.9;">
+            Contact Us: <a href="tel:+17046037347" style="color:var(--td-skin-white); text-decoration: underline;">(704) 603-7347</a>
+          </div>
+        </div>
+
+        <div style="text-align: right; line-height: 1.35;">
+          <div style="opacity: 0.9;">
+            © <span id="td-footer-year">2026</span> Token Depot Corp. All rights reserved.
+          </div>
+          <div style="opacity: 0.75; font-size: 0.92em;">
+            Secure digital asset operations • Compliance-first workflows
+          </div>
+        </div>
+      </div>
+
+      <script>
+        (function () {
+          var el = document.getElementById("td-footer-year");
+          if (el) el.textContent = String(new Date().getFullYear());
+        })();
+      </script>
+    </footer>
+  </main>
+
+  <script src="/static/js/network_shared.js"></script>
+  <script src="/static/js/logout_shared.js"></script>
+  <script>
+    window.TD_SPONSORED_OFFERS_PAGE_PLACEMENT = 'covenant_controls_page';
+  </script>
+  <script src="/static/js/sponsored_offers_shared.js" defer></script>
+  <script type="module" src="/static/js/kaspa-toccata-bridge.mjs"></script>
+  <script type="module" src="/static/js/covenants-ui.js"></script>
+
+</body>
+</html>

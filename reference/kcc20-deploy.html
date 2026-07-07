@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>OMA KCC20 Deploy</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+  <link rel="stylesheet" href="/static/css/style.css">
+  <script defer src="/static/js/skin_shared.js"></script>
+  <style>
+    .two-col { display:grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items:start; }
+    @media (max-width: 720px) { .two-col { grid-template-columns: 1fr; } }
+    .stack > label { display:block; margin-bottom:12px; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .muted { opacity: 0.92; color: var(--td-skin-text-soft); }
+    .hidden { display:none; }
+    .logbox {
+      background:
+        radial-gradient(circle at top left, rgba(var(--td-skin-primary-rgb), 0.20), rgba(var(--td-skin-panel-rgb), 0.98));
+      border: 1px solid rgba(var(--td-skin-teal-border-rgb), 0.7);
+      border-radius: 16px;
+      padding: 12px;
+      white-space: pre-wrap;
+      overflow: auto;
+      max-height: 280px;
+      color: var(--td-skin-text-field);
+      box-shadow:
+        0 0 0 1px rgba(var(--td-skin-panel-rgb), 1),
+        0 0 18px rgba(var(--td-skin-primary-rgb), 0.65);
+    }
+    .dot-list dt { font-weight:600; }
+    .dot-list dd { margin:0 0 .5rem 0; }
+    .card { overflow-wrap:anywhere; word-break:break-word; }
+    .kcc20-pill-row { display:flex; flex-wrap:wrap; gap:.5rem; margin:.75rem 0; }
+    .kcc20-pill {
+      border:1px solid rgba(var(--td-skin-teal-border-rgb), .65);
+      border-radius:999px;
+      padding:.25rem .6rem;
+      background:rgba(var(--td-skin-panel-rgb), .82);
+      color:var(--td-skin-text-soft);
+      font-size:.88rem;
+    }
+    .kcc20-proof-grid { display:grid; grid-template-columns: 1fr 1fr; gap:.75rem; margin:.75rem 0; }
+    @media (max-width: 720px) { .kcc20-proof-grid { grid-template-columns: 1fr; } }
+    .kcc20-proof-card {
+      border:1px solid rgba(var(--td-skin-white-rgb), .14);
+      border-radius:14px;
+      padding:.75rem;
+      background:rgba(var(--td-skin-panel-rgb), .72);
+    }
+    @media (max-width: 760px){
+      nav.container-fluid{ display:flex !important; flex-wrap:wrap !important; justify-content:flex-start !important; align-items:stretch !important; gap:.75rem 1rem !important; }
+      nav.container-fluid > ul:first-child{ width:100% !important; display:flex !important; justify-content:center !important; }
+      nav.container-fluid > ul:first-child img{ height:52px !important; }
+      nav.container-fluid > ul:nth-of-type(2){ width:100% !important; display:flex !important; flex-wrap:wrap !important; justify-content:center !important; gap:.35rem .9rem !important; }
+      nav.container-fluid > ul:nth-of-type(2) li{ flex:0 0 auto !important; }
+    }
+  </style>
+</head>
+<body data-skin="classic_teal">
+<script>
+(function () {
+  var key = 'td_active_skin_id';
+  var allowed = { classic_teal: true, pink: true, pink_black: true, gold: true, gold_black: true, blue: true, blue_black: true, green: true, green_black: true, red: true, red_black: true, yellow: true, yellow_black: true, cyan: true, cyan_black: true, orange: true, orange_black: true };
+  try {
+    var skinId = String(sessionStorage.getItem(key) || '').trim();
+    if (allowed[skinId]) document.body.setAttribute('data-skin', skinId);
+  } catch (_) {}
+})();
+</script>
+
+  <main class="container">
+    <nav class="container-fluid">
+      <ul>
+        <li>
+          <a href="/wallet.html">
+            <img src="static/icon/logo.png" alt="Token Depot logo" style="height:60px; display:block;">
+          </a>
+        </li>
+      </ul>
+      <ul>
+        <li><a href="/deploy.html" aria-current="page">Deploy</a></li>
+        <li><a href="/issue.html">Issue</a></li>
+        <li><a href="/covenants.html">Cov Tools</a></li>
+        <li><a href="/redeem.html">Redeem</a></li>
+        <li><a href="/energy.html">Energy</a></li>
+        <li><a href="/manage.html">Settings</a></li>
+        <li><a href="#" id="btnLogout">Logout</a></li>
+      </ul>
+    </nav>
+    <script type="module" src="/static/js/nav_choice_modal.js"></script>
+
+    <script>
+      (function () {
+        var a = document.getElementById('btnLogout');
+        if (!a) return;
+        a.addEventListener('click', async function (e) {
+          e.preventDefault();
+          await window.CwLogoutShared.logoutNow({ redirectTo: '/login.html' });
+        });
+      })();
+    </script>
+
+    <article class="card">
+      <header>
+        <h3>Deploy KCC20 / OMA L1 Token</h3>
+        <p class="muted">Create a covenant-backed holder-token family using the proven OMA L1 compact-controller deploy route.</p>
+        <div class="kcc20-pill-row">
+          <span class="kcc20-pill">testnet-10: available to all OMA users</span>
+          <span class="kcc20-pill">mainnet: OMA PRO / TDPRO required</span>
+          <span class="kcc20-pill">signing stays local in browser</span>
+        </div>
+      </header>
+
+      <div class="two-col">
+        <section>
+          <p class="muted">
+            This page is for the new KCC20 deploy flow only. It does not replace the existing KRC-20 Deploy page.
+          </p>
+
+          <h6>Definition of Terms</h6>
+          <dl class="dot-list">
+            <dt>Token Name</dt>
+            <dd>Human-readable display name written into the OMA L1 token state envelope. Max 64 characters; spaces are allowed.</dd>
+
+            <dt>Token Symbol</dt>
+            <dd>Short ticker for wallet Holdings and Cov Tools display. Use 2–16 characters, A–Z and 0–9 only; no spaces.</dd>
+
+            <dt>Decimals</dt>
+            <dd>Display precision from 0–18. RAW amount = human amount × 10^decimals.</dd>
+
+            <dt>Max Supply (RAW)</dt>
+            <dd>The fixed positive issuance cap recorded in the controller state. Zero is not unlimited and is rejected. Burns reduce issued supply, not this cap.</dd>
+
+            <dt>Initial Issue (RAW)</dt>
+            <dd>Optional first holder output amount. When zero, deploy creates a controller only.</dd>
+
+            <dt>Controller Carrier</dt>
+            <dd>KAS carried by the controller P2SH output. Current deploy-page default is 1 KAS; the backend still verifies mass and standardness.</dd>
+
+            <dt>Holder Carrier</dt>
+            <dd>KAS carried by the initial holder output when initial issue is greater than zero. Current deploy-page default is 1 KAS; the backend still verifies mass and standardness.</dd>
+
+            <dt>Transfer Rules</dt>
+            <dd>Current proven rule is owner signature required. Additional covenant rule options remain blocked until separate proof.</dd>
+          </dl>
+
+          <div class="kcc20-proof-grid">
+            <div class="kcc20-proof-card">
+              <strong>Network guard</strong>
+              <p id="kcc20NetworkStatus" class="muted">Waiting for wallet status.</p>
+            </div>
+            <div class="kcc20-proof-card">
+              <strong>License guard</strong>
+              <p id="kcc20LicenseStatus" class="muted">Mainnet deploy requires OMA PRO / TDPRO.</p>
+            </div>
+          </div>
+
+          <div id="kcc20PreviewWrap" class="hidden" style="margin-top:1rem">
+            <h6>Build Preview</h6>
+            <pre id="kcc20Preview" class="logbox mono"></pre>
+          </div>
+
+          <div id="kcc20OutputWrap" class="hidden" style="margin-top:1rem">
+            <h6>Output</h6>
+            <pre id="kcc20Output" class="logbox mono"></pre>
+          </div>
+
+          <p id="kcc20Msg" class="muted" style="margin-top:.5rem">Ready.</p>
+        </section>
+
+        <section class="stack">
+          <label>
+            Active Wallet
+            <input id="kcc20ActiveWallet" type="text" class="mono" readonly placeholder="Load wallet status">
+            <small class="muted">Prefilled from the unlocked OMA wallet.</small>
+          </label>
+
+          <label>
+            Network
+            <input id="kcc20Network" type="text" class="mono" readonly placeholder="testnet-10 or mainnet">
+            <small class="muted">Uses the active wallet network. Do not free-type network values.</small>
+          </label>
+
+          <label>
+            Token Name
+            <input id="kcc20TokenName" type="text" maxlength="64" placeholder="OMA Compact Controller Proof" autocomplete="off">
+            <small class="muted">Max 64 characters. Spaces allowed.</small>
+          </label>
+
+          <label>
+            Token Symbol
+            <input id="kcc20TokenSymbol" type="text" maxlength="16" placeholder="OMAC" autocomplete="off">
+            <small class="muted">2–16 characters. A–Z and 0–9 only. No spaces.</small>
+          </label>
+
+          <label>
+            Decimals
+            <input id="kcc20Decimals" type="number" min="0" max="18" value="0">
+            <small class="muted">Allowed range: 0–18.</small>
+          </label>
+
+          <label>
+            Max Supply (RAW)
+            <input id="kcc20MaxSupplyRaw" type="text" inputmode="numeric" class="mono" placeholder="1000000">
+            <small class="muted">Positive unsigned integer. 0 is not unlimited.</small>
+          </label>
+
+          <label>
+            Initial Issue (RAW)
+            <input id="kcc20InitialIssueRaw" type="text" inputmode="numeric" class="mono" placeholder="1" value="0">
+          </label>
+
+          <label>
+            Transfer Rules
+            <select id="kcc20TransferRule">
+              <option value="owner_signature_required" selected>Owner signature required</option>
+            </select>
+            <small class="muted">Only the proven owner-signature rule is enabled. More rules require separate proof.</small>
+          </label>
+
+          <label>
+            Policy Hash / Reference
+            <input id="kcc20PolicyHash" type="text" class="mono" maxlength="128" placeholder="optional">
+          </label>
+
+          <label>
+            Controller Carrier (KAS)
+            <input id="kcc20ControllerCarrierKas" type="number" min="1" step="0.01" value="1">
+          </label>
+
+          <label>
+            Holder Carrier (KAS)
+            <input id="kcc20HolderCarrierKas" type="number" min="0" step="0.01" value="1">
+            <small class="muted">Used only when Initial Issue (RAW) is greater than 0.</small>
+          </label>
+
+          <input id="kcc20FeeReserveKas" type="hidden" value="0.01">
+          <div class="kcc20-proof-card">
+            <strong>Fee</strong>
+            <p class="muted">OMA manages the deploy fee reserve. The build proof returns the calculated mass and fee.</p>
+          </div>
+
+          <button id="kcc20BuildBtn" type="button">Build Deploy Packet</button>
+          <button id="kcc20SignBtn" type="button" disabled>Sign Locally</button>
+          <button id="kcc20SubmitBtn" type="button" disabled>Submit Deploy Once</button>
+        </section>
+      </div>
+    </article>
+  </main>
+
+  <script src="/static/js/network_shared.js"></script>
+  <script src="/static/js/logout_shared.js"></script>
+  <script type="module" src="/static/js/kaspa-bridge.mjs"></script>
+  <script type="module" src="/static/js/kcc20-deploy-ui.js"></script>
+
+      <footer style="
+      margin-top: 48px;
+      background: var(--td-skin-black);
+      color: var(--td-skin-white);
+      padding: 22px 16px;
+      border-top: 1px solid rgba(var(--td-skin-white-rgb), 0.12);
+    ">
+      <div style="
+        max-width: 1100px;
+        margin: 0 auto;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 18px 28px;
+        align-items: center;
+        justify-content: space-between;
+      ">
+        <div style="line-height: 1.35;">
+          <div style="font-weight: 700; letter-spacing: 0.06em;">
+            TOKEN DEPOT CORP.
+          </div>
+          <div style="opacity: 0.9;">
+            Statesville, NC 28625
+          </div>
+          <div style="opacity: 0.9;">
+            Contact Us: <a href="tel:+17046037347" style="color:var(--td-skin-white); text-decoration: underline;">(704) 603-7347</a>
+          </div>
+        </div>
+
+        <div style="text-align: right; line-height: 1.35;">
+          <div style="opacity: 0.9;">
+            © <span id="td-footer-year">2026</span> Token Depot Corp. All rights reserved.
+          </div>
+          <div style="opacity: 0.75; font-size: 0.92em;">
+            Secure digital asset operations • Compliance-first workflows
+          </div>
+        </div>
+      </div>
+
+      <script>
+        (function () {
+          var el = document.getElementById("td-footer-year");
+          if (el) el.textContent = String(new Date().getFullYear());
+        })();
+      </script>
+    </footer>
+</body>
+</html>

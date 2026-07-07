@@ -8,7 +8,9 @@ import { getTokenMetadataCacheEntry } from "../storage/tokenMetadataCacheStore";
 import { sendNotificationEmail } from "../email/smtp";
 import {
   addressPrefixFromAppNetworkKey,
+  applyKrc20ToccataFeeRateFloor,
   kasplexNetworkIdFromAppNetworkKey,
+  krc20ToccataFeeRateFloorFromAppNetworkKey,
   normalizeAppNetworkKey,
   rpcNetworkIdFromAppNetworkKey
 } from "../networks";
@@ -20,7 +22,6 @@ import {
   Opcodes,
   addressFromScriptPublicKey,
   FeeSource,
-  calculateTransactionFee,
   Transaction,
   PSKB,
   PSKT,
@@ -70,6 +71,13 @@ export type SwapModeOpenV2Ctx = {
     intent: unknown;
     authSignature: string;
   }) => Promise<{ ok: boolean; status: number; data: any }>;
+  bcwOpenSwapCancelSubmit?: (params: {
+    repoRootPath: string;
+    intent: unknown;
+    authSignature: string;
+    txSafeJson: string;
+    sendRedeemScriptHex: string;
+  }) => Promise<{ ok: boolean; status: number; data: any }>;
 
   validateOpenSwapPskbV2: (
     repoRootPath: string,
@@ -112,13 +120,293 @@ type OpenSwapOfferPrepCacheEntry = {
   sendTxToSignSafeJson?: string;
 };
 
+type OpenSwapCancelPrepCacheEntry = {
+  createdAtMs: number;
+  userId: string;
+  walletId: string;
+  offerId: string;
+  networkId: RpcNetworkId;
+  walletType: "standard" | "compliance";
+  txToSignSafeJson: string;
+  sendRedeemScriptHex: string;
+  bcwOpenSwapCancelIntent?: BcwOpenSwapCancelIntentV1;
+  intentMessage?: string;
+};
+
 const openSwapOfferPrepCache = new Map<string, OpenSwapOfferPrepCacheEntry>();
+const openSwapCancelPrepCache = new Map<string, OpenSwapCancelPrepCacheEntry>();
 
 function sweepOpenSwapOfferPrepCache(nowMs: number) {
   const ttlMs = 3 * 60 * 1000;
   for (const [rid, e] of openSwapOfferPrepCache.entries()) {
     if (nowMs - e.createdAtMs > ttlMs) openSwapOfferPrepCache.delete(rid);
   }
+}
+
+function sweepOpenSwapCancelPrepCache(nowMs: number) {
+  const ttlMs = 3 * 60 * 1000;
+  for (const [rid, e] of openSwapCancelPrepCache.entries()) {
+    if (nowMs - e.createdAtMs > ttlMs) openSwapCancelPrepCache.delete(rid);
+  }
+}
+
+function appNetworkKeyFromOpenSwapRpcNetworkId(networkId: RpcNetworkId): AppNetworkKey {
+  return networkId === "testnet-10" ? "tn10" : "mainnet";
+}
+
+function openSwapToccataFeeRateFloor(networkId: RpcNetworkId): number {
+  return krc20ToccataFeeRateFloorFromAppNetworkKey(appNetworkKeyFromOpenSwapRpcNetworkId(networkId));
+}
+
+function openSwapCancelFeeRateFloor(networkId: RpcNetworkId): number {
+  const toccataFloor = openSwapToccataFeeRateFloor(networkId);
+  return networkId === "testnet-10" ? Math.max(200, toccataFloor) : toccataFloor;
+}
+
+function openSwapHexByteLength(hex: unknown, errorReason: string): bigint {
+  if (typeof hex !== "string" || hex.length % 2 !== 0 || !/^[0-9a-fA-F]*$/.test(hex)) {
+    throw new Error(errorReason);
+  }
+  return BigInt(hex.length / 2);
+}
+
+function openSwapTransactionMassWithSignatureScripts(tx: any, errorReason: string): bigint {
+  const rawMass = tx && typeof tx === "object" ? tx.mass : null;
+  let baseMass: bigint;
+  if (typeof rawMass === "bigint") {
+    baseMass = rawMass;
+  } else if (typeof rawMass === "number" && Number.isSafeInteger(rawMass) && rawMass >= 0) {
+    baseMass = BigInt(rawMass);
+  } else if (typeof rawMass === "string" && /^\d+$/.test(rawMass)) {
+    baseMass = BigInt(rawMass);
+  } else {
+    throw new Error(errorReason);
+  }
+
+  const inputs = tx && Array.isArray(tx.inputs) ? tx.inputs : [];
+  const signatureScriptBytes = inputs.reduce((sum: bigint, input: any) => {
+    const script = input && typeof input === "object" ? input.signatureScript : "";
+    if (script === undefined || script === null || script === "") return sum;
+    return sum + openSwapHexByteLength(script, errorReason);
+  }, 0n);
+
+  return baseMass + signatureScriptBytes;
+}
+
+function openSwapToccataRequiredFee(networkId: RpcNetworkId, tx: any, errorReason: string): bigint {
+  return openSwapTransactionMassWithSignatureScripts(tx, errorReason) * BigInt(openSwapToccataFeeRateFloor(networkId));
+}
+
+
+const OPEN_SWAP_COMMIT_MAX_CANDIDATE_INPUTS = 4;
+const OPEN_SWAP_COMMIT_MAX_CANDIDATE_ATTEMPTS = 48;
+const OPEN_SWAP_COMMIT_RECOMMENDED_RESERVE_SOMPI = 5000000n;
+
+type OpenSwapCommitFundingSelection = {
+  ok: true;
+  created: any;
+  entries: any[];
+  selectedCount: number;
+  selectedTotalSompi: string;
+} | {
+  ok: false;
+  reason: "no_usable_open_swap_commit_utxo";
+  detail: string;
+  neededSompi: string;
+  neededKas: string;
+  recommendedSelfSendSompi: string;
+  recommendedSelfSendKas: string;
+  totalAvailableSompi: string;
+  totalAvailableKas: string;
+  largestUtxoSompi: string;
+  largestUtxoKas: string;
+  utxoCount: number;
+  validUtxoCount: number;
+  candidateInputLimit: number;
+  candidateAttempts: number;
+  lastSelectionError: string;
+};
+
+function readOpenSwapCommitSompi(value: any): bigint | null {
+  if (typeof value === "bigint") return value >= 0n ? value : null;
+  if (typeof value === "number") {
+    if (!Number.isSafeInteger(value) || value < 0) return null;
+    return BigInt(value);
+  }
+  if (typeof value === "string") {
+    const s = value.trim();
+    if (!/^\d+$/.test(s)) return null;
+    return BigInt(s);
+  }
+  if (value && typeof value === "object") {
+    for (const key of ["sompi", "amount", "value", "valueSompi", "value_sompi"]) {
+      const inner = readOpenSwapCommitSompi((value as any)[key]);
+      if (inner !== null) return inner;
+    }
+  }
+  return null;
+}
+
+function readOpenSwapCommitEntrySompi(entry: any): bigint | null {
+  return readOpenSwapCommitSompi((entry as any)?.utxoEntry?.amount ?? (entry as any)?.amount ?? (entry as any)?.utxo?.amount);
+}
+
+function formatOpenSwapCommitKasFromSompi(value: bigint): string {
+  const whole = value / 100000000n;
+  const frac = value % 100000000n;
+  if (frac === 0n) return whole.toString();
+  return `${whole.toString()}.${frac.toString().padStart(8, "0").replace(/0+$/, "")}`;
+}
+
+function openSwapCommitRecommendedReserveSompi(feeRate: number): bigint {
+  const rate = Number.isFinite(feeRate) && feeRate > 0 ? Math.ceil(feeRate) : 1;
+  const feeBasedReserve = BigInt(rate) * 10000n;
+  return feeBasedReserve > OPEN_SWAP_COMMIT_RECOMMENDED_RESERVE_SOMPI ? feeBasedReserve : OPEN_SWAP_COMMIT_RECOMMENDED_RESERVE_SOMPI;
+}
+
+function openSwapCommitEntrySortKey(entry: any): string {
+  const txid = typeof (entry as any)?.outpoint?.transactionId === "string" ? String((entry as any).outpoint.transactionId) : "";
+  const index = Number((entry as any)?.outpoint?.index ?? 0);
+  return `${txid}:${Number.isFinite(index) ? index : 0}`;
+}
+
+function openSwapCommitCandidateKey(items: { entry: any; amount: bigint }[]): string {
+  return items.map((item) => openSwapCommitEntrySortKey(item.entry)).sort().join("|");
+}
+
+async function selectOpenSwapCommitFundingEntries(args: {
+  ownerEntries: any[];
+  commitAmountSompi: bigint;
+  listP2shAddress: string;
+  changeAddress: string;
+  effectiveFeeRate: number;
+  networkId: RpcNetworkId;
+}): Promise<OpenSwapCommitFundingSelection> {
+  const validEntries = args.ownerEntries
+    .map((entry) => ({ entry, amount: readOpenSwapCommitEntrySompi(entry) }))
+    .filter((item): item is { entry: any; amount: bigint } => item.amount !== null && item.amount > 0n)
+    .sort((a, b) => {
+      if (a.amount !== b.amount) return a.amount < b.amount ? -1 : 1;
+      const ak = openSwapCommitEntrySortKey(a.entry);
+      const bk = openSwapCommitEntrySortKey(b.entry);
+      return ak < bk ? -1 : ak > bk ? 1 : 0;
+    });
+
+  const totalAvailableSompi = validEntries.reduce((acc, item) => acc + item.amount, 0n);
+  const largestUtxoSompi = validEntries.reduce((largest, item) => item.amount > largest ? item.amount : largest, 0n);
+  const reserveSompi = openSwapCommitRecommendedReserveSompi(args.effectiveFeeRate);
+  const recommendedSelfSendSompi = args.commitAmountSompi + reserveSompi;
+  const neededKas = formatOpenSwapCommitKasFromSompi(args.commitAmountSompi);
+  const recommendedSelfSendKas = formatOpenSwapCommitKasFromSompi(recommendedSelfSendSompi);
+
+  const makeFailure = (candidateAttempts: number, lastSelectionError: string): OpenSwapCommitFundingSelection => ({
+    ok: false,
+    reason: "no_usable_open_swap_commit_utxo",
+    detail: `No usable UTXO is available to create this offer. This wallet has funds, but not in a UTXO size/shape that can safely build this transaction. Needed: approximately ${neededKas} KAS plus network fee in one spendable UTXO, or in a small number of compatible UTXOs. To fix this, send yourself about ${recommendedSelfSendKas} KAS from another wallet, or switch to a wallet that has a suitable UTXO. Then refresh holdings and try again.`,
+    neededSompi: args.commitAmountSompi.toString(),
+    neededKas,
+    recommendedSelfSendSompi: recommendedSelfSendSompi.toString(),
+    recommendedSelfSendKas,
+    totalAvailableSompi: totalAvailableSompi.toString(),
+    totalAvailableKas: formatOpenSwapCommitKasFromSompi(totalAvailableSompi),
+    largestUtxoSompi: largestUtxoSompi.toString(),
+    largestUtxoKas: formatOpenSwapCommitKasFromSompi(largestUtxoSompi),
+    utxoCount: args.ownerEntries.length,
+    validUtxoCount: validEntries.length,
+    candidateInputLimit: OPEN_SWAP_COMMIT_MAX_CANDIDATE_INPUTS,
+    candidateAttempts,
+    lastSelectionError
+  });
+
+  if (!validEntries.length) {
+    return makeFailure(0, "no_valid_utxos");
+  }
+
+  const candidateSets: { entry: any; amount: bigint }[][] = [];
+  const seenCandidates = new Set<string>();
+  const pushCandidate = (items: { entry: any; amount: bigint }[]) => {
+    if (!items.length || items.length > OPEN_SWAP_COMMIT_MAX_CANDIDATE_INPUTS) return;
+    const total = items.reduce((acc, item) => acc + item.amount, 0n);
+    if (total < args.commitAmountSompi) return;
+    const key = openSwapCommitCandidateKey(items);
+    if (seenCandidates.has(key)) return;
+    seenCandidates.add(key);
+    candidateSets.push(items.slice());
+  };
+
+  for (const item of validEntries) {
+    if (item.amount >= args.commitAmountSompi) pushCandidate([item]);
+  }
+
+  const belowTarget = validEntries.filter((item) => item.amount < args.commitAmountSompi);
+  const descendingBelowTarget = belowTarget.slice().reverse();
+
+  let descendingTotal = 0n;
+  const descendingAccum: { entry: any; amount: bigint }[] = [];
+  for (const item of descendingBelowTarget) {
+    if (descendingAccum.length >= OPEN_SWAP_COMMIT_MAX_CANDIDATE_INPUTS) break;
+    descendingAccum.push(item);
+    descendingTotal += item.amount;
+    if (descendingTotal >= args.commitAmountSompi) pushCandidate(descendingAccum);
+  }
+
+  let ascendingTotal = 0n;
+  const ascendingAccum: { entry: any; amount: bigint }[] = [];
+  for (const item of belowTarget) {
+    if (ascendingAccum.length >= OPEN_SWAP_COMMIT_MAX_CANDIDATE_INPUTS) break;
+    ascendingAccum.push(item);
+    ascendingTotal += item.amount;
+    if (ascendingTotal >= args.commitAmountSompi) pushCandidate(ascendingAccum);
+  }
+
+  const comboWindow = validEntries.slice(0, Math.min(validEntries.length, 24));
+  for (let i = 0; i < comboWindow.length; i++) {
+    for (let j = i + 1; j < comboWindow.length; j++) {
+      pushCandidate([comboWindow[i], comboWindow[j]]);
+    }
+  }
+
+  candidateSets.sort((a, b) => {
+    const at = a.reduce((acc, item) => acc + item.amount, 0n);
+    const bt = b.reduce((acc, item) => acc + item.amount, 0n);
+    if (a.length !== b.length) return a.length - b.length;
+    if (at !== bt) return at < bt ? -1 : 1;
+    return openSwapCommitCandidateKey(a) < openSwapCommitCandidateKey(b) ? -1 : 1;
+  });
+
+  const attempts = candidateSets.slice(0, OPEN_SWAP_COMMIT_MAX_CANDIDATE_ATTEMPTS);
+  let lastSelectionError = attempts.length ? "no_candidate_succeeded" : "no_candidate_set";
+
+  for (const candidate of attempts) {
+    const entries = candidate.map((item) => item.entry);
+    const selectedTotalSompi = candidate.reduce((acc, item) => acc + item.amount, 0n);
+    try {
+      const created = await createTransactions({
+        outputs: [{ address: args.listP2shAddress, amount: args.commitAmountSompi }],
+        changeAddress: args.changeAddress,
+        feeRate: args.effectiveFeeRate,
+        priorityFee: { amount: 0n, source: FeeSource.SenderPays },
+        entries,
+        networkId: args.networkId
+      });
+      const transactions: any[] = created && Array.isArray((created as any).transactions) ? (created as any).transactions : [];
+      if (!transactions.length) {
+        lastSelectionError = "candidate_unexpected_empty_batch";
+        continue;
+      }
+      return {
+        ok: true,
+        created,
+        entries,
+        selectedCount: entries.length,
+        selectedTotalSompi: selectedTotalSompi.toString()
+      };
+    } catch (e: any) {
+      lastSelectionError = e && typeof e.message === "string" ? e.message.slice(0, 180) : String(e).slice(0, 180);
+    }
+  }
+
+  return makeFailure(attempts.length, lastSelectionError);
 }
 
 function queueUserNotification(
@@ -163,6 +451,92 @@ function queueNewOpenOfferNotifications(
   } catch {
     return;
   }
+}
+
+type OpenOfferBatchNotification = {
+  id: string;
+  index: number;
+  total: number;
+};
+
+function normalizeOpenOfferBatchNotification(body: any): OpenOfferBatchNotification | null {
+  const id = typeof body?.openOfferBatchId === "string" ? body.openOfferBatchId.trim() : "";
+  const index = Number(body?.openOfferBatchIndex);
+  const total = Number(body?.openOfferBatchTotal);
+
+  if (!id || !/^[A-Za-z0-9_-]{1,80}$/.test(id)) return null;
+  if (!Number.isSafeInteger(index) || index < 1) return null;
+  if (!Number.isSafeInteger(total) || total <= 1 || total > 1000) return null;
+  if (index > total) return null;
+
+  return { id, index, total };
+}
+
+function shouldQueueOpenOfferBatchNotification(batch: OpenOfferBatchNotification | null): boolean {
+  if (!batch || batch.total <= 1) return true;
+  return batch.index === batch.total;
+}
+
+function openOfferNotificationSubject(audience: "maker" | "users", batch: OpenOfferBatchNotification | null): string {
+  if (batch && batch.total > 1) {
+    return audience === "maker"
+      ? "Token Depot — Maker offers created"
+      : "Token Depot — New open offers";
+  }
+
+  return audience === "maker"
+    ? "Token Depot — Maker offer created"
+    : "Token Depot — New open offer";
+}
+
+function buildOpenOfferNotificationText(input: {
+  audience: "maker" | "users";
+  batch: OpenOfferBatchNotification | null;
+  offerId: string;
+  networkId: string;
+  kind: string;
+  sellAsset: string;
+  sellAmount: string;
+  buyAmountKas: string;
+  offerDescription: string;
+  offerInfoUrl: string;
+}): string {
+  const batch = input.batch && input.batch.total > 1 ? input.batch : null;
+  const lines: string[] = [];
+
+  lines.push(
+    input.audience === "maker"
+      ? (batch ? `Created ${batch.total} live open offers.` : "An open maker offer was created.")
+      : (batch ? `Now available: ${batch.total} live open offers.` : "A new open offer is available.")
+  );
+
+  lines.push("");
+  if (batch) {
+    lines.push(`Batch ID: ${batch.id}`);
+    lines.push(`Batch size: ${batch.total}`);
+    lines.push(`Latest offer ID: ${input.offerId}`);
+  } else {
+    lines.push(`Offer ID: ${input.offerId}`);
+  }
+
+  lines.push(`Network: ${input.networkId}`);
+  lines.push(`Kind: ${input.kind}`);
+  lines.push(`Sell asset: ${input.sellAsset}`);
+  lines.push(`Sell amount: ${input.sellAmount}`);
+  lines.push(`Buy amount KAS: ${input.buyAmountKas}`);
+
+  if (input.offerDescription) {
+    lines.push("");
+    lines.push("Offer description / terms:");
+    lines.push(input.offerDescription);
+  }
+
+  if (input.offerInfoUrl) {
+    lines.push("");
+    lines.push(`More information: ${input.offerInfoUrl}`);
+  }
+
+  return lines.join("\n");
 }
 
 function parseOpenSwapSellSymbol(raw: unknown): { kind: ""; symbol: ""; ticker: ""; caHex: "" } | { kind: "TICK"; symbol: string; ticker: string; caHex: "" } | { kind: "CA"; symbol: string; ticker: ""; caHex: string } {
@@ -229,9 +603,9 @@ function walletNetworkToBcwOpenSwapMakerNetwork(raw: unknown): BcwOpenSwapMakerN
 
 function normalizeBcwOpenSwapMakerTtlSeconds(value: unknown): number {
   const n = typeof value === "number" ? value : Number(value);
-  if (!Number.isFinite(n)) return 0;
+  if (!Number.isFinite(n)) return -1;
   const ttl = Math.round(n);
-  return ttl >= 60 && ttl <= 168 * 60 * 60 ? ttl : 0;
+  return ttl === 0 || (ttl >= 60 && ttl <= 168 * 60 * 60) ? ttl : -1;
 }
 
 function newBcwOpenSwapMakerNonce(): string {
@@ -301,9 +675,11 @@ function normalizeBcwOpenSwapMakerIntent(raw: unknown): BcwOpenSwapMakerIntentV1
   if (intent.kind !== "tick_to_kas" && intent.kind !== "ca_to_kas") return null;
   if (!intent.sell_amount_raw || !/^[0-9]+$/.test(intent.sell_amount_raw) || BigInt(intent.sell_amount_raw) <= 0n) return null;
   if (!intent.buy_amount_sompi || !/^[0-9]+$/.test(intent.buy_amount_sompi) || BigInt(intent.buy_amount_sompi) <= 0n) return null;
-  if (intent.ttl_seconds < 60 || intent.ttl_seconds > 168 * 60 * 60) return null;
+  if (intent.ttl_seconds !== 0 && (intent.ttl_seconds < 60 || intent.ttl_seconds > 168 * 60 * 60)) return null;
   if (!/^(02|03)[0-9a-fA-F]{64}$/.test(intent.user_auth_pubkey)) return null;
-  if (!intent.created_at || !intent.expires_at || !intent.nonce) return null;
+  if (!intent.created_at || !intent.nonce) return null;
+  if (intent.ttl_seconds === 0 && intent.expires_at) return null;
+  if (intent.ttl_seconds > 0 && !intent.expires_at) return null;
   if (!/^BCWOPENMAKERREQ_[A-Za-z0-9_-]+$/.test(intent.nonce)) return null;
 
   if (intent.kind === "ca_to_kas") {
@@ -330,6 +706,104 @@ function formatBcwOpenSwapMakerKasFromSompi(raw: string): string {
   return `${whole.toString()}.${fracText}`;
 }
 
+type BcwOpenSwapCancelIntentV1 = {
+  v: 1;
+  purpose: "bcw_open_swap_cancel";
+  wallet_id: string;
+  wallet_type: "compliance";
+  custody_model: "broker_1of1";
+  network: BcwOpenSwapMakerNetworkInput;
+  broker_custody_key_ref: string;
+  from_address: string;
+  maker_kas_receive_address: string;
+  offer_id: string;
+  p2sh_send_outpoint_txid: string;
+  p2sh_send_outpoint_index: number;
+  p2sh_send_sompi: string;
+  send_p2sh_address: string;
+  send_redeem_script_sha256: string;
+  tx_safe_json_sha256: string;
+  user_auth_pubkey: string;
+  created_at: string;
+  nonce: string;
+};
+
+function newBcwOpenSwapCancelNonce(): string {
+  return `BCWOPENCANCELREQ_${Date.now().toString(36)}_${crypto.randomBytes(12).toString("hex")}`;
+}
+
+function canonicalBcwOpenSwapCancelIntentMessage(intent: BcwOpenSwapCancelIntentV1): string {
+  return JSON.stringify({
+    v: intent.v,
+    purpose: intent.purpose,
+    wallet_id: intent.wallet_id,
+    wallet_type: intent.wallet_type,
+    custody_model: intent.custody_model,
+    network: intent.network,
+    broker_custody_key_ref: intent.broker_custody_key_ref,
+    from_address: intent.from_address,
+    maker_kas_receive_address: intent.maker_kas_receive_address,
+    offer_id: intent.offer_id,
+    p2sh_send_outpoint_txid: intent.p2sh_send_outpoint_txid,
+    p2sh_send_outpoint_index: intent.p2sh_send_outpoint_index,
+    p2sh_send_sompi: intent.p2sh_send_sompi,
+    send_p2sh_address: intent.send_p2sh_address,
+    send_redeem_script_sha256: intent.send_redeem_script_sha256,
+    tx_safe_json_sha256: intent.tx_safe_json_sha256,
+    user_auth_pubkey: intent.user_auth_pubkey,
+    created_at: intent.created_at,
+    nonce: intent.nonce
+  });
+}
+
+function normalizeBcwOpenSwapCancelIntent(raw: unknown): BcwOpenSwapCancelIntentV1 | null {
+  if (!raw || typeof raw !== "object") return null;
+  const input = raw as Record<string, unknown>;
+  const network = input.network === "testnet" || input.network === "mainnet" ? input.network : "";
+  const outpointIndex = Number(input.p2sh_send_outpoint_index ?? -1);
+
+  const intent: BcwOpenSwapCancelIntentV1 = {
+    v: input.v === 1 ? 1 : 0 as 1,
+    purpose: input.purpose === "bcw_open_swap_cancel" ? "bcw_open_swap_cancel" : "" as "bcw_open_swap_cancel",
+    wallet_id: typeof input.wallet_id === "string" ? input.wallet_id.trim() : "",
+    wallet_type: input.wallet_type === "compliance" ? "compliance" : "" as "compliance",
+    custody_model: input.custody_model === "broker_1of1" ? "broker_1of1" : "" as "broker_1of1",
+    network: network as BcwOpenSwapMakerNetworkInput,
+    broker_custody_key_ref: typeof input.broker_custody_key_ref === "string" ? input.broker_custody_key_ref.trim() : "",
+    from_address: typeof input.from_address === "string" ? input.from_address.trim() : "",
+    maker_kas_receive_address: typeof input.maker_kas_receive_address === "string" ? input.maker_kas_receive_address.trim() : "",
+    offer_id: typeof input.offer_id === "string" ? input.offer_id.trim() : "",
+    p2sh_send_outpoint_txid: typeof input.p2sh_send_outpoint_txid === "string" ? input.p2sh_send_outpoint_txid.trim().toLowerCase() : "",
+    p2sh_send_outpoint_index: Number.isInteger(outpointIndex) ? outpointIndex : -1,
+    p2sh_send_sompi: typeof input.p2sh_send_sompi === "string" || typeof input.p2sh_send_sompi === "number" ? String(input.p2sh_send_sompi).trim() : "",
+    send_p2sh_address: typeof input.send_p2sh_address === "string" ? input.send_p2sh_address.trim() : "",
+    send_redeem_script_sha256: typeof input.send_redeem_script_sha256 === "string" ? input.send_redeem_script_sha256.trim().toLowerCase() : "",
+    tx_safe_json_sha256: typeof input.tx_safe_json_sha256 === "string" ? input.tx_safe_json_sha256.trim().toLowerCase() : "",
+    user_auth_pubkey: typeof input.user_auth_pubkey === "string" ? input.user_auth_pubkey.trim() : "",
+    created_at: typeof input.created_at === "string" ? input.created_at.trim() : "",
+    nonce: typeof input.nonce === "string" ? input.nonce.trim() : ""
+  };
+
+  if (intent.v !== 1) return null;
+  if (intent.purpose !== "bcw_open_swap_cancel") return null;
+  if (intent.wallet_type !== "compliance") return null;
+  if (intent.custody_model !== "broker_1of1") return null;
+  if (intent.network !== "testnet") return null;
+  if (!intent.wallet_id || !intent.broker_custody_key_ref) return null;
+  if (!intent.from_address || !intent.maker_kas_receive_address) return null;
+  if (!intent.offer_id) return null;
+  if (!/^[0-9a-f]{64}$/.test(intent.p2sh_send_outpoint_txid)) return null;
+  if (!Number.isInteger(intent.p2sh_send_outpoint_index) || intent.p2sh_send_outpoint_index < 0) return null;
+  if (!/^[0-9]+$/.test(intent.p2sh_send_sompi) || BigInt(intent.p2sh_send_sompi) <= 0n) return null;
+  if (!intent.send_p2sh_address) return null;
+  if (!/^[0-9a-f]{64}$/.test(intent.send_redeem_script_sha256)) return null;
+  if (!/^[0-9a-f]{64}$/.test(intent.tx_safe_json_sha256)) return null;
+  if (!/^(02|03)[0-9a-fA-F]{64}$/.test(intent.user_auth_pubkey)) return null;
+  if (!intent.created_at || !/^BCWOPENCANCELREQ_[A-Za-z0-9_-]+$/.test(intent.nonce)) return null;
+
+  return intent;
+}
+
 function readActiveOpenSwapMaker(repoRoot: string, userId: string): any | null {
   const store = readWalletStore(repoRoot, userId);
   const items = Array.isArray(store?.items) ? store.items : [];
@@ -348,6 +822,25 @@ function normalizeOpenSwapBoardState(raw: unknown): "open" | "filled" | "expired
   if (!v || v === "all") return "";
   if (v === "open" || v === "filled" || v === "expired" || v === "cancelled") return v;
   return "";
+}
+
+function sanitizeOpenOfferDescription(raw: unknown): string {
+  const value = typeof raw === "string" ? raw.trim() : "";
+  if (!value) return "";
+  return value.slice(0, 2000);
+}
+
+function sanitizeOpenOfferInfoUrl(raw: unknown): string {
+  const value = typeof raw === "string" ? raw.trim() : "";
+  if (!value) return "";
+
+  try {
+    const parsed = new URL(value);
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return "";
+    return parsed.toString().slice(0, 500);
+  } catch {
+    return "";
+  }
 }
 
 function analyzeOpenSwapRequest(body: any, active: any) {
@@ -426,6 +919,14 @@ function analyzeOpenSwapRequest(body: any, active: any) {
     blockers.push("amount_must_be_positive");
   }
 
+  const offerDescription = sanitizeOpenOfferDescription(
+    body?.offerDescription ?? body?.offer_description ?? body?.description
+  );
+  const offerInfoUrl = sanitizeOpenOfferInfoUrl(
+    body?.offerInfoUrl ?? body?.offer_info_url ?? body?.info_url
+  );
+  const openOfferBatch = normalizeOpenOfferBatchNotification(body);
+
   const ttlRaw =
     typeof body?.ttl === "number" || typeof body?.ttl === "string"
       ? Number(body.ttl)
@@ -435,7 +936,7 @@ function analyzeOpenSwapRequest(body: any, active: any) {
     blockers.push("ttl_invalid");
   } else {
     const ttl = Math.round(ttlRaw);
-    if (ttl < 60 || ttl > 168 * 60 * 60) blockers.push("ttl_out_of_range");
+    if (ttl !== 0 && (ttl < 60 || ttl > 168 * 60 * 60)) blockers.push("ttl_out_of_range");
   }
 
   const partialEnabled = !!(body?.partial && typeof body.partial === "object" && body.partial.enabled);
@@ -474,6 +975,9 @@ function analyzeOpenSwapRequest(body: any, active: any) {
         symbol: "KAS",
         amount: buyAmountStr
       },
+      offerDescription,
+      offerInfoUrl,
+      openOfferBatch,
       ttl: Number.isFinite(ttlRaw) ? Math.round(ttlRaw) : null,
       partial: { enabled: false }
     }
@@ -732,6 +1236,7 @@ export function registerSwapModeOpenV2Routes(app: Express, ctx: SwapModeOpenV2Ct
     normalizeOpCheckSigSignature64,
     encodePushOnlyP2shSigScript,
     bcwOpenSwapMakerSubmit,
+    bcwOpenSwapCancelSubmit,
     validateOpenSwapPskbV2
   } = ctx;
 
@@ -822,6 +1327,8 @@ export function registerSwapModeOpenV2Routes(app: Express, ctx: SwapModeOpenV2Ct
       makerWalletType: item.makerWalletType,
       makerKasReceiveAddress: item.makerKasReceiveAddress,
       termsCommitment: item.termsCommitment,
+      offerDescription: item.offerDescription || "",
+      offerInfoUrl: item.offerInfoUrl || "",
       complianceOnly: !!(item.offerDraft && item.offerDraft.complianceOnly),
       offerBlob: item.offerBlob
     })));
@@ -832,6 +1339,553 @@ export function registerSwapModeOpenV2Routes(app: Express, ctx: SwapModeOpenV2Ct
       state: stateFilter || "all",
       networkId: networkFilter || null
     });
+  });
+
+  app.get("/api/open-swaps/mine", async (req, res) => {
+    try {
+      const userId = String((res.locals as any).td_user_id || "").trim();
+      if (!userId) {
+        return res.status(401).json({ ok: false, reason: "auth_required", login: "/login.html" });
+      }
+
+      const historyRaw: any = (req as any).query ? (req as any).query.history : undefined;
+      const includeHistory = historyRaw === "1" || historyRaw === "true" || historyRaw === "yes";
+
+      const active = readActiveOpenSwapMaker(repoRoot, userId);
+      const activeWalletId = typeof active?.id === "string" ? active.id.trim() : "";
+      if (!activeWalletId) {
+        return res.json({ ok: true, items: [], active_wallet_id: "", history: includeHistory });
+      }
+
+      const openSwapSellNameFromRecord = (item: any): string => {
+        if (!item || typeof item !== "object") return "";
+        if (item.kind !== "ca_to_kas") return "";
+
+        const draft = item.offerDraft && typeof item.offerDraft === "object" ? item.offerDraft : null;
+        const draftSell = draft && draft.sell && typeof draft.sell === "object" ? draft.sell : null;
+        const draftName = draftSell && typeof draftSell.name === "string" ? draftSell.name.trim() : "";
+        if (draftName) return draftName;
+
+        const caRaw = draftSell && typeof draftSell.ca === "string" ? draftSell.ca : item.sellSymbol;
+        const caHex = String(caRaw || "").trim().replace(/^CA:/i, "").toLowerCase();
+        if (!caHex || !/^[0-9a-f]+$/.test(caHex)) return "";
+
+        const networkKey = normalizeAppNetworkKey(item.networkId);
+        if (!networkKey) return "";
+
+        try {
+          const entry = getTokenMetadataCacheEntry(repoRoot, networkKey, caHex);
+          const name = entry && entry.metadata && entry.metadata.identity && entry.metadata.identity.name
+            ? String(entry.metadata.identity.name).trim()
+            : "";
+          if (name && name !== `CA:${caHex}`) return name;
+        } catch {}
+
+        return "";
+      };
+
+      const mineRaw = listOpenSwapOffers(repoRoot).filter((item) => {
+        if (String(item.makerWalletId || "").trim() !== activeWalletId) return false;
+        if (includeHistory) return true;
+        return item.state === "open";
+      });
+
+      const items = mineRaw.map((item) => ({
+        offerId: item.offerId,
+        state: item.state,
+        createdAt: item.createdAt,
+        expiresAt: item.expiresAt,
+        mode: item.mode,
+        discovery: item.discovery,
+        fillMode: item.fillMode,
+        kind: item.kind,
+        networkId: item.networkId,
+        sellSymbol: item.sellSymbol,
+        sellName: openSwapSellNameFromRecord(item),
+        sellAmount: item.sellAmount,
+        buyAmountKas: item.buyAmountKas,
+        makerWalletId: item.makerWalletId,
+        makerWalletType: item.makerWalletType,
+        makerKasReceiveAddress: item.makerKasReceiveAddress,
+        termsCommitment: item.termsCommitment,
+        offerDescription: item.offerDescription || "",
+        offerInfoUrl: item.offerInfoUrl || "",
+        complianceOnly: !!(item.offerDraft && item.offerDraft.complianceOnly),
+        cancelTxid: item.offerDraft && typeof item.offerDraft.cancelTxid === "string" ? item.offerDraft.cancelTxid : "",
+        cancelledAt: item.offerDraft && typeof item.offerDraft.cancelledAt === "string" ? item.offerDraft.cancelledAt : "",
+        cancelFailedAt: item.offerDraft && typeof item.offerDraft.cancelFailedAt === "string" ? item.offerDraft.cancelFailedAt : "",
+        cancelFailureReason: item.offerDraft && typeof item.offerDraft.cancelFailureReason === "string" ? item.offerDraft.cancelFailureReason : "",
+        cancelFailureCount: item.offerDraft && Number.isFinite(Number(item.offerDraft.cancelFailureCount)) ? Number(item.offerDraft.cancelFailureCount) : 0,
+        offerBlob: item.offerBlob
+      }));
+
+      return res.json({ ok: true, items, active_wallet_id: activeWalletId, history: includeHistory });
+    } catch (err) {
+      return res.status(500).json({ ok: false, reason: "open_swaps_mine_failed", error: String(err) });
+    }
+  });
+
+  app.post("/api/open-swaps/offer/expire", async (req, res) => {
+    let stage = "expire_start";
+    let cancelFailureOffer: any = null;
+
+    try {
+      const userId = String((res.locals as any).td_user_id || "").trim();
+      if (!userId) {
+        return res.status(401).json({ ok: false, reason: "auth_required", login: "/login.html" });
+      }
+
+      const body: any = (req as any).body ?? null;
+      if (!body || typeof body !== "object") {
+        return res.status(400).json({ ok: false, reason: "invalid_json", stage });
+      }
+
+      const requestStage = typeof body.stage === "string" ? body.stage.trim() : "";
+      if (requestStage !== "prepare" && requestStage !== "submit") {
+        return res.status(400).json({ ok: false, reason: "invalid_stage", stage });
+      }
+
+      const offerId = typeof body.offerId === "string" ? body.offerId.trim() : "";
+      if (!offerId) {
+        return res.status(400).json({ ok: false, reason: "missing_offer_id", stage });
+      }
+
+      const active = readActiveOpenSwapMaker(repoRoot, userId);
+      const activeWalletId = typeof active?.id === "string" ? active.id.trim() : "";
+      if (!activeWalletId) {
+        return res.status(409).json({ ok: false, reason: "no_active_wallet", stage });
+      }
+
+      const offer = listOpenSwapOffers(repoRoot).find((item) => item.offerId === offerId) ?? null;
+      if (!offer) {
+        return res.status(404).json({ ok: false, reason: "offer_not_found", stage });
+      }
+      cancelFailureOffer = offer;
+
+      const makerWalletId = typeof offer.makerWalletId === "string" ? offer.makerWalletId.trim() : "";
+      if (makerWalletId !== activeWalletId) {
+        return res.status(403).json({ ok: false, reason: "offer_not_owned_by_active_wallet", stage });
+      }
+
+      if (offer.state !== "open" && offer.state !== "expired") {
+        return res.status(409).json({ ok: false, reason: "offer_not_cancelable", state: offer.state, stage });
+      }
+
+      const markCancelFailure = (reason: string): void => {
+        const nowIso = new Date().toISOString();
+        const currentDraft: any = offer.offerDraft && typeof offer.offerDraft === "object" ? offer.offerDraft : {};
+        const previousCount = Number.isFinite(Number(currentDraft.cancelFailureCount)) ? Number(currentDraft.cancelFailureCount) : 0;
+        try {
+          upsertOpenSwapOffer(repoRoot, Object.assign({}, offer, {
+            updatedAt: nowIso,
+            offerDraft: Object.assign({}, currentDraft, {
+              cancelFailedAt: nowIso,
+              cancelFailureReason: reason,
+              cancelFailureCount: previousCount + 1
+            })
+          }));
+        } catch {}
+      };
+
+      const draft: any = offer.offerDraft && typeof offer.offerDraft === "object" ? offer.offerDraft : null;
+      const p2shSendOutpointRaw = draft && draft.p2shSendOutpoint && typeof draft.p2shSendOutpoint === "object" ? draft.p2shSendOutpoint : null;
+      const p2shSendOutpoint = {
+        txid: typeof p2shSendOutpointRaw?.txid === "string" ? p2shSendOutpointRaw.txid.trim() : "",
+        index: Number(p2shSendOutpointRaw?.index ?? -1)
+      };
+      const p2shSendSompiRaw = typeof draft?.p2shSendSompi === "string" ? draft.p2shSendSompi.trim() : "";
+      const sendP2shAddress = typeof draft?.sendP2shAddress === "string" ? draft.sendP2shAddress.trim() : "";
+      const sendRedeemScriptHex = typeof draft?.sendRedeemScriptHex === "string" ? draft.sendRedeemScriptHex.trim() : "";
+      const makerKasReceiveAddress = typeof offer.makerKasReceiveAddress === "string" ? offer.makerKasReceiveAddress.trim() : "";
+
+      if (!/^[0-9a-f]{64}$/.test(p2shSendOutpoint.txid) || !Number.isInteger(p2shSendOutpoint.index) || p2shSendOutpoint.index < 0) {
+        markCancelFailure("p2sh_send_outpoint_missing");
+        return res.status(409).json({ ok: false, reason: "p2sh_send_outpoint_missing", stage });
+      }
+      if (!/^[0-9]+$/.test(p2shSendSompiRaw)) {
+        markCancelFailure("p2sh_send_sompi_missing");
+        return res.status(409).json({ ok: false, reason: "p2sh_send_sompi_missing", stage });
+      }
+      if (!sendP2shAddress) {
+        markCancelFailure("send_p2sh_address_missing");
+        return res.status(409).json({ ok: false, reason: "send_p2sh_address_missing", stage });
+      }
+      if (!/^[0-9a-f]+$/.test(sendRedeemScriptHex)) {
+        markCancelFailure("send_redeem_script_hex_missing");
+        return res.status(409).json({ ok: false, reason: "send_redeem_script_hex_missing", stage });
+      }
+      if (!makerKasReceiveAddress) {
+        markCancelFailure("maker_receive_address_missing");
+        return res.status(409).json({ ok: false, reason: "maker_receive_address_missing", stage });
+      }
+
+      await ensureKaspaReady(repoRoot);
+      const networkId = offer.networkId as RpcNetworkId;
+      const rpc = await getSharedRpc(networkId);
+
+      if (requestStage === "prepare") {
+        stage = "cancel_prepare";
+        sweepOpenSwapCancelPrepCache(Date.now());
+
+        const utxos = await rpc.getUtxosByAddresses({ addresses: [sendP2shAddress] });
+        const entries: any[] = utxos && Array.isArray((utxos as any).entries) ? (utxos as any).entries : [];
+        const sendEntry = entries.find((entry: any) => {
+          const op = entry && entry.outpoint ? entry.outpoint : null;
+          const txid = typeof op?.transactionId === "string" ? op.transactionId.trim() : "";
+          const index = Number(op?.index ?? -1);
+          return txid === p2shSendOutpoint.txid && index === p2shSendOutpoint.index;
+        });
+
+        if (!sendEntry) {
+          markCancelFailure("p2sh_send_utxo_spent_or_missing");
+          return res.status(409).json({ ok: false, reason: "p2sh_send_utxo_spent_or_missing", stage });
+        }
+
+        const p2shSendSompi = BigInt(p2shSendSompiRaw);
+        const buildCancel = async (feeRateToUse: number) => {
+          const created = await createTransactions({
+            priorityEntries: [sendEntry],
+            entries: [],
+            changeAddress: makerKasReceiveAddress,
+            outputs: [],
+            feeRate: feeRateToUse,
+            priorityFee: 0n,
+            networkId
+          });
+          const transactions: any[] = created && Array.isArray((created as any).transactions) ? (created as any).transactions : [];
+          if (transactions.length !== 1) throw new Error("unexpected_cancel_batch");
+          const cancel0 = transactions[0];
+
+          const inputIndex0 = cancel0.transaction.inputs.findIndex((input: any) => {
+            const op = input && input.previousOutpoint ? input.previousOutpoint : null;
+            const txid = typeof op?.transactionId === "string" ? op.transactionId.trim() : "";
+            const index = Number(op?.index ?? -1);
+            return txid === p2shSendOutpoint.txid && index === p2shSendOutpoint.index;
+          });
+          if (inputIndex0 === -1) throw new Error("p2sh_send_input_not_found");
+          if (inputIndex0 !== 0) throw new Error("p2sh_send_input_not_input0");
+
+          const dummySig = new Uint8Array(64);
+          const dummySigScriptHex = encodePushOnlyP2shSigScript(dummySig, SighashType.SingleAnyOneCanPay, sendRedeemScriptHex);
+          cancel0.fillInput(0, dummySigScriptHex);
+
+          const requiredFee = openSwapToccataRequiredFee(networkId, cancel0.transaction, "cancel_tx_mass_exceeds_standard");
+
+          return { cancel0, requiredFee };
+        };
+
+        const feeRateFloor = openSwapCancelFeeRateFloor(networkId);
+        let cancelFeeRate = feeRateFloor;
+        let cancelBuilt = await buildCancel(cancelFeeRate);
+        for (let pass = 0; pass < 4 && cancelBuilt.cancel0.feeAmount < cancelBuilt.requiredFee; pass++) {
+          const currentFee = cancelBuilt.cancel0.feeAmount > 0n ? cancelBuilt.cancel0.feeAmount : 1n;
+          const scale = 1000000n;
+          const scaled = (cancelBuilt.requiredFee * scale + currentFee - 1n) / currentFee;
+          const feeRateMultiplier = Number(scaled) / 1_000_000;
+          const bumpedFeeRate = Math.max(feeRateFloor, cancelFeeRate * feeRateMultiplier * 1.02, cancelFeeRate + 0.000001);
+          if (!Number.isFinite(bumpedFeeRate) || bumpedFeeRate <= cancelFeeRate) break;
+          cancelFeeRate = bumpedFeeRate;
+          cancelBuilt = await buildCancel(cancelFeeRate);
+        }
+        if (cancelBuilt.cancel0.feeAmount < cancelBuilt.requiredFee) {
+          markCancelFailure("cancel_fee_under_minimum");
+          return res.status(500).json({
+            ok: false,
+            reason: "cancel_fee_under_minimum",
+            stage,
+            feeSompi: cancelBuilt.cancel0.feeAmount.toString(),
+            requiredFeeSompi: cancelBuilt.requiredFee.toString(),
+            feeRate: cancelFeeRate
+          });
+        }
+
+        const input0: any = (cancelBuilt.cancel0.transaction as any).inputs?.[0] ?? null;
+        const op0: any = input0 && typeof input0 === "object" ? input0.previousOutpoint : null;
+        const op0TxidHex = bytesToHex(op0 && (op0 as any).transactionId);
+        if (!op0TxidHex) {
+          markCancelFailure("cancel_outpoint_txid_invalid");
+          return res.status(500).json({ ok: false, reason: "cancel_outpoint_txid_invalid", stage });
+        }
+
+        const txToSignObj: any = {
+          version: (cancelBuilt.cancel0.transaction as any).version,
+          lockTime: (cancelBuilt.cancel0.transaction as any).lockTime,
+          subnetworkId: (cancelBuilt.cancel0.transaction as any).subnetworkId,
+          gas: (cancelBuilt.cancel0.transaction as any).gas,
+          payload: (cancelBuilt.cancel0.transaction as any).payload,
+          inputs: [
+            {
+              previousOutpoint: { transactionId: op0TxidHex, index: Number((op0 as any).index) },
+              sequence: (input0 as any).sequence,
+              sigOpCount: (input0 as any).sigOpCount,
+              utxo: (input0 as any).utxo
+            }
+          ],
+          outputs: Array.isArray((cancelBuilt.cancel0.transaction as any).outputs)
+            ? (cancelBuilt.cancel0.transaction as any).outputs.map((out: any) => {
+                const spkHex = spkToHex(out && out.scriptPublicKey);
+                if (!spkHex) throw new Error("cancel_output_scriptPublicKey_invalid");
+                return {
+                  value: typeof out?.value === "bigint" ? out.value : BigInt(String(out?.value || 0)),
+                  scriptPublicKey: spkHex
+                };
+              })
+            : []
+        };
+
+        if (!Array.isArray(txToSignObj.outputs) || txToSignObj.outputs.length !== 1) {
+          markCancelFailure("cancel_output_count_invalid");
+          return res.status(500).json({ ok: false, reason: "cancel_output_count_invalid", outputCount: txToSignObj.outputs.length, stage });
+        }
+
+        const cancelRid = `OCANCEL_${crypto.randomBytes(12).toString("hex")}`;
+        const txToSignSafeJson = new Transaction(txToSignObj).serializeToSafeJSON();
+        const makerWalletType = typeof offer.makerWalletType === "string" ? offer.makerWalletType.trim() : "";
+
+        if (makerWalletType === "compliance") {
+          const activeWalletType = typeof active?.wallet_type === "string" ? active.wallet_type.trim() : "";
+          const activeCustodyModel = typeof active?.custody_model === "string" ? active.custody_model.trim() : "";
+          const activeBrokerCustodyKeyRef = typeof active?.broker_custody_key_ref === "string" ? active.broker_custody_key_ref.trim() : "";
+          const activeUserAuthPubkey = typeof active?.user_auth_pubkey === "string" ? active.user_auth_pubkey.trim() : "";
+          const activeAddress = typeof active?.address0 === "string" ? active.address0.trim() : "";
+          const activeNetwork = walletNetworkToBcwOpenSwapMakerNetwork(active?.network);
+
+          if (activeWalletType !== "compliance" || activeCustodyModel !== "broker_1of1") {
+            return res.status(409).json({ ok: false, reason: "bcw_open_swap_cancel_wallet_not_broker_custody", stage });
+          }
+          if (activeNetwork !== "testnet" || networkId !== "testnet-10") {
+            return res.status(403).json({ ok: false, reason: "bcw_local_dev_testnet_only", stage });
+          }
+          if (!activeBrokerCustodyKeyRef) {
+            return res.status(409).json({ ok: false, reason: "bcw_open_swap_cancel_key_ref_missing", stage });
+          }
+          if (!/^(02|03)[0-9a-fA-F]{64}$/.test(activeUserAuthPubkey)) {
+            return res.status(409).json({ ok: false, reason: "bcw_open_swap_cancel_auth_pubkey_missing", stage });
+          }
+          if (!activeAddress || activeAddress !== makerKasReceiveAddress) {
+            return res.status(409).json({ ok: false, reason: "bcw_open_swap_cancel_address_mismatch", stage });
+          }
+
+          const createdAt = new Date().toISOString();
+          const intent: BcwOpenSwapCancelIntentV1 = {
+            v: 1,
+            purpose: "bcw_open_swap_cancel",
+            wallet_id: activeWalletId,
+            wallet_type: "compliance",
+            custody_model: "broker_1of1",
+            network: "testnet",
+            broker_custody_key_ref: activeBrokerCustodyKeyRef,
+            from_address: activeAddress,
+            maker_kas_receive_address: makerKasReceiveAddress,
+            offer_id: offerId,
+            p2sh_send_outpoint_txid: p2shSendOutpoint.txid,
+            p2sh_send_outpoint_index: p2shSendOutpoint.index,
+            p2sh_send_sompi: p2shSendSompi.toString(),
+            send_p2sh_address: sendP2shAddress,
+            send_redeem_script_sha256: crypto.createHash("sha256").update(sendRedeemScriptHex, "utf8").digest("hex"),
+            tx_safe_json_sha256: crypto.createHash("sha256").update(txToSignSafeJson, "utf8").digest("hex"),
+            user_auth_pubkey: activeUserAuthPubkey,
+            created_at: createdAt,
+            nonce: newBcwOpenSwapCancelNonce()
+          };
+
+          const normalizedIntent = normalizeBcwOpenSwapCancelIntent(intent);
+          if (!normalizedIntent) {
+            return res.status(500).json({ ok: false, reason: "bcw_open_swap_cancel_intent_build_failed", stage });
+          }
+
+          const intentMessage = canonicalBcwOpenSwapCancelIntentMessage(normalizedIntent);
+          openSwapCancelPrepCache.set(cancelRid, {
+            createdAtMs: Date.now(),
+            userId,
+            walletId: activeWalletId,
+            offerId,
+            networkId,
+            walletType: "compliance",
+            txToSignSafeJson,
+            sendRedeemScriptHex,
+            bcwOpenSwapCancelIntent: normalizedIntent,
+            intentMessage
+          });
+
+          return res.json({
+            ok: true,
+            stage: "bcw_open_swap_cancel_intent",
+            cancelRid,
+            offerId,
+            bcw_open_swap_cancel_intent: normalizedIntent,
+            intent_message: intentMessage,
+            sign_mode: "bcw_auth",
+            p2shSendOutpoint,
+            p2shSendSompi: p2shSendSompi.toString(),
+            sendP2shAddress,
+            makerKasReceiveAddress,
+            outputCount: txToSignObj.outputs.length
+          });
+        }
+
+        openSwapCancelPrepCache.set(cancelRid, {
+          createdAtMs: Date.now(),
+          userId,
+          walletId: activeWalletId,
+          offerId,
+          networkId,
+          walletType: "standard",
+          txToSignSafeJson,
+          sendRedeemScriptHex
+        });
+
+        return res.json({
+          ok: true,
+          stage: "cancel_prepare",
+          cancelRid,
+          offerId,
+          txToSignSafeJson,
+          sighashType: "SingleAnyOneCanPay",
+          p2shSendOutpoint,
+          p2shSendSompi: p2shSendSompi.toString(),
+          sendP2shAddress,
+          makerKasReceiveAddress,
+          outputCount: txToSignObj.outputs.length
+        });
+      }
+
+      stage = "cancel_submit";
+      const cancelRid = typeof body.cancelRid === "string" ? body.cancelRid.trim() : "";
+      const signature0 = typeof body.signature0 === "string" ? body.signature0.trim() : "";
+      if (!cancelRid) {
+        return res.status(400).json({ ok: false, reason: "missing_cancelRid", stage });
+      }
+      if (!signature0) {
+        return res.status(400).json({ ok: false, reason: "missing_signature0", stage });
+      }
+
+      const cached = openSwapCancelPrepCache.get(cancelRid) ?? null;
+      if (!cached || cached.userId !== userId || cached.walletId !== activeWalletId || cached.offerId !== offerId) {
+        return res.status(409).json({ ok: false, reason: "cancelRid_not_prepared", stage });
+      }
+      if (cached.walletType === "compliance") {
+        if (!cached.bcwOpenSwapCancelIntent) {
+          markCancelFailure("bcw_open_swap_cancel_intent_missing");
+          return res.status(409).json({ ok: false, reason: "bcw_open_swap_cancel_intent_missing", stage });
+        }
+        if (!bcwOpenSwapCancelSubmit) {
+          markCancelFailure("bcw_open_swap_cancel_submit_not_configured");
+          return res.status(501).json({ ok: false, reason: "bcw_open_swap_cancel_submit_not_configured", stage });
+        }
+
+        const cnRes = await bcwOpenSwapCancelSubmit({
+          repoRootPath: repoRoot,
+          intent: cached.bcwOpenSwapCancelIntent,
+          authSignature: signature0,
+          txSafeJson: cached.txToSignSafeJson,
+          sendRedeemScriptHex: cached.sendRedeemScriptHex
+        });
+
+        if (!cnRes.ok) {
+          const reason =
+            cnRes.data && typeof cnRes.data.reason === "string" && cnRes.data.reason.trim()
+              ? cnRes.data.reason.trim()
+              : "bcw_open_swap_cancel_submit_failed";
+          markCancelFailure(reason);
+          return res.status(cnRes.status || 502).json(Object.assign({ ok: false, stage }, cnRes.data || { reason }));
+        }
+
+        const cancelTxid =
+          cnRes.data && typeof cnRes.data.cancelTxid === "string" ? cnRes.data.cancelTxid.trim() : "";
+        if (!/^[0-9a-f]{64}$/i.test(cancelTxid)) {
+          markCancelFailure("bcw_cancel_submit_missing_txid");
+          return res.status(502).json({ ok: false, reason: "bcw_cancel_submit_missing_txid", stage });
+        }
+
+        openSwapCancelPrepCache.delete(cancelRid);
+        const nowIso = new Date().toISOString();
+        const cancelled = upsertOpenSwapOffer(repoRoot, Object.assign({}, offer, {
+          state: "cancelled",
+          expiresAt: nowIso,
+          updatedAt: nowIso,
+          offerDraft: Object.assign({}, offer.offerDraft || {}, {
+            cancelTxid,
+            cancelledAt: nowIso
+          })
+        }));
+
+        return res.json({
+          ok: true,
+          stage: "bcw_cancel_submit",
+          offerId: cancelled.offerId,
+          state: cancelled.state,
+          expiresAt: cancelled.expiresAt,
+          cancelTxid,
+          cancelledAt: nowIso
+        });
+      }
+
+      const sendSig0 = normalizeOpCheckSigSignature64(signature0, "open_swap_cancel.signature0");
+      const sigScriptHex0 = encodePushOnlyP2shSigScript(sendSig0, SighashType.SingleAnyOneCanPay, cached.sendRedeemScriptHex);
+      const txToSubmit = Transaction.deserializeFromSafeJSON(cached.txToSignSafeJson);
+      const txInputs: any[] = Array.isArray(txToSubmit.inputs) ? txToSubmit.inputs : [];
+      if (!txInputs[0]) {
+        markCancelFailure("cancel_tx_missing_input0");
+        return res.status(500).json({ ok: false, reason: "cancel_tx_missing_input0", stage });
+      }
+      txInputs[0].signatureScript = sigScriptHex0;
+      txToSubmit.inputs = txInputs;
+      txToSubmit.finalize();
+
+      const outputs: any[] = Array.isArray(txToSubmit.outputs) ? txToSubmit.outputs : [];
+      if (outputs.length !== 1) {
+        markCancelFailure("cancel_output_count_invalid");
+        return res.status(500).json({ ok: false, reason: "cancel_output_count_invalid", outputCount: outputs.length, stage });
+      }
+
+      const submitRes = await rpc.submitTransaction({ transaction: txToSubmit, allowOrphan: false });
+      const cancelTxid = submitRes && typeof (submitRes as any).transactionId === "string" ? String((submitRes as any).transactionId) : "";
+      if (!cancelTxid) {
+        markCancelFailure("cancel_submit_missing_txid");
+        return res.status(502).json({ ok: false, reason: "cancel_submit_missing_txid", stage });
+      }
+
+      openSwapCancelPrepCache.delete(cancelRid);
+      const nowIso = new Date().toISOString();
+      const cancelled = upsertOpenSwapOffer(repoRoot, Object.assign({}, offer, {
+        state: "cancelled",
+        expiresAt: nowIso,
+        updatedAt: nowIso,
+        offerDraft: Object.assign({}, offer.offerDraft || {}, {
+          cancelTxid,
+          cancelledAt: nowIso
+        })
+      }));
+
+      return res.json({
+        ok: true,
+        stage: "cancel_submit",
+        offerId: cancelled.offerId,
+        state: cancelled.state,
+        expiresAt: cancelled.expiresAt,
+        cancelTxid,
+        active_wallet_id: activeWalletId
+      });
+    } catch (err) {
+      const errorText = String(err && typeof (err as any).message === "string" ? (err as any).message : err);
+      try {
+        if (cancelFailureOffer && (stage === "cancel_prepare" || stage === "cancel_submit")) {
+          const nowIso = new Date().toISOString();
+          const currentDraft: any = cancelFailureOffer.offerDraft && typeof cancelFailureOffer.offerDraft === "object" ? cancelFailureOffer.offerDraft : {};
+          const previousCount = Number.isFinite(Number(currentDraft.cancelFailureCount)) ? Number(currentDraft.cancelFailureCount) : 0;
+          upsertOpenSwapOffer(repoRoot, Object.assign({}, cancelFailureOffer, {
+            updatedAt: nowIso,
+            offerDraft: Object.assign({}, currentDraft, {
+              cancelFailedAt: nowIso,
+              cancelFailureReason: errorText.slice(0, 240),
+              cancelFailureCount: previousCount + 1
+            })
+          }));
+        }
+      } catch {}
+      return res.status(500).json({ ok: false, reason: "open_swap_offer_cancel_failed", stage, error: errorText });
+    }
   });
 
   app.post("/api/open-swaps/analyze", async (req, res) => {
@@ -953,7 +2007,8 @@ export function registerSwapModeOpenV2Routes(app: Express, ctx: SwapModeOpenV2Ct
 
         const cfg = getAppConfig(repoRoot);
         const feeRateMin = cfg && typeof cfg.fee_rate_min === "number" && Number.isFinite(cfg.fee_rate_min) ? cfg.fee_rate_min : 0;
-        const effectiveFeeRate = feeRate < feeRateMin ? feeRateMin : feeRate;
+        const configuredFeeRate = feeRate < feeRateMin ? feeRateMin : feeRate;
+        const effectiveFeeRate = applyKrc20ToccataFeeRateFloor(appNetworkKey, configuredFeeRate);
 
         stage = "resolve_sell_meta";
         let sellMeta: any;
@@ -986,7 +2041,7 @@ export function registerSwapModeOpenV2Routes(app: Express, ctx: SwapModeOpenV2Ct
           const createdAtMs = Date.now();
           const createdAt = new Date(createdAtMs).toISOString();
           const ttlSeconds = Number(normalized.ttl || 0);
-          const expiresAt = new Date(createdAtMs + ttlSeconds * 1000).toISOString();
+          const expiresAt = ttlSeconds > 0 ? new Date(createdAtMs + ttlSeconds * 1000).toISOString() : "";
           const intent: BcwOpenSwapMakerIntentV1 = {
             v: 1,
             purpose: "bcw_open_swap_maker",
@@ -1098,15 +2153,37 @@ export function registerSwapModeOpenV2Routes(app: Express, ctx: SwapModeOpenV2Ct
           return res.status(409).json({ ok: false, reason: "no_utxos" });
         }
 
-        const commitCreated = await createTransactions({
-          outputs: [{ address: listP2shAddress, amount: commitAmountSompi }],
+        const commitFunding = await selectOpenSwapCommitFundingEntries({
+          ownerEntries,
+          commitAmountSompi,
+          listP2shAddress,
           changeAddress: String(active.address0 || "").trim(),
-          feeRate: effectiveFeeRate,
-          priorityFee: { amount: 0n, source: FeeSource.SenderPays },
-          entries: ownerEntries,
+          effectiveFeeRate,
           networkId
         });
+        if (!commitFunding.ok) {
+          return res.status(409).json({
+            ok: false,
+            reason: commitFunding.reason,
+            stage,
+            detail: commitFunding.detail,
+            neededSompi: commitFunding.neededSompi,
+            neededKas: commitFunding.neededKas,
+            recommendedSelfSendSompi: commitFunding.recommendedSelfSendSompi,
+            recommendedSelfSendKas: commitFunding.recommendedSelfSendKas,
+            totalAvailableSompi: commitFunding.totalAvailableSompi,
+            totalAvailableKas: commitFunding.totalAvailableKas,
+            largestUtxoSompi: commitFunding.largestUtxoSompi,
+            largestUtxoKas: commitFunding.largestUtxoKas,
+            utxoCount: commitFunding.utxoCount,
+            validUtxoCount: commitFunding.validUtxoCount,
+            candidateInputLimit: commitFunding.candidateInputLimit,
+            candidateAttempts: commitFunding.candidateAttempts,
+            lastSelectionError: commitFunding.lastSelectionError
+          });
+        }
 
+        const commitCreated = commitFunding.created;
         const commitPtxs: any[] = commitCreated && Array.isArray((commitCreated as any).transactions) ? (commitCreated as any).transactions : [];
         if (!commitPtxs.length) {
           return res.status(500).json({ ok: false, reason: "unexpected_commit_batch" });
@@ -1115,7 +2192,8 @@ export function registerSwapModeOpenV2Routes(app: Express, ctx: SwapModeOpenV2Ct
         const rid = `${Date.now().toString(36)}-${Math.random().toString(16).slice(2, 8)}`;
         const createdAtMs = Date.now();
         const createdAt = new Date(createdAtMs).toISOString();
-        const expiresAt = new Date(createdAtMs + Number(normalized.ttl || 0) * 1000).toISOString();
+        const ttlSeconds = Number(normalized.ttl || 0);
+        const expiresAt = ttlSeconds > 0 ? new Date(createdAtMs + ttlSeconds * 1000).toISOString() : "";
         const complianceOnly = (() => {
           if (normalized.kind !== "ca_to_kas") return false;
           const ca = typeof normalized?.sell?.ca === "string" ? normalized.sell.ca.trim().toLowerCase() : "";
@@ -1176,6 +2254,8 @@ export function registerSwapModeOpenV2Routes(app: Express, ctx: SwapModeOpenV2Ct
           ttl: normalized.ttl,
           partial: normalized.partial,
           complianceOnly,
+          offerDescription: normalized.offerDescription,
+          offerInfoUrl: normalized.offerInfoUrl,
           createdAt,
           expiresAt,
           makerListPayload,
@@ -1406,6 +2486,9 @@ export function registerSwapModeOpenV2Routes(app: Express, ctx: SwapModeOpenV2Ct
             symbol: "KAS",
             amount: buyAmountKas
           },
+          offerDescription: String(replay.normalized?.offerDescription || ""),
+          offerInfoUrl: String(replay.normalized?.offerInfoUrl || ""),
+          openOfferBatch: replay.normalized?.openOfferBatch || null,
           ttl: intent.ttl_seconds,
           partial: { enabled: false }
         };
@@ -1489,6 +2572,8 @@ export function registerSwapModeOpenV2Routes(app: Express, ctx: SwapModeOpenV2Ct
           ttl: intent.ttl_seconds,
           partial: { enabled: false },
           complianceOnly,
+          offerDescription: normalized.offerDescription,
+          offerInfoUrl: normalized.offerInfoUrl,
           createdAt,
           expiresAt,
           makerListPayload,
@@ -1526,41 +2611,50 @@ export function registerSwapModeOpenV2Routes(app: Express, ctx: SwapModeOpenV2Ct
           makerWalletType: "compliance",
           makerKasReceiveAddress: intent.maker_kas_receive_address,
           termsCommitment,
+          offerDescription: normalized.offerDescription,
+          offerInfoUrl: normalized.offerInfoUrl,
           offerBlob,
           offerDraft: finalOfferDraft
         });
 
-        queueUserNotification(
-          repoRoot,
-          userId,
-          "maker_offer_created",
-          "Token Depot — Maker offer created",
-          [
-            "An open maker offer was created.",
-            "",
-            `Offer ID: ${offerId}`,
-            `Network: ${networkId}`,
-            `Kind: ${kind}`,
-            `Sell asset: ${sellSymbol}`,
-            `Sell amount RAW: ${intent.sell_amount_raw}`,
-            `Buy amount KAS: ${buyAmountKas}`
-          ].join("\n")
-        );
+        const notificationBatch = normalized.openOfferBatch || null;
+        if (shouldQueueOpenOfferBatchNotification(notificationBatch)) {
+          queueUserNotification(
+            repoRoot,
+            userId,
+            "maker_offer_created",
+            openOfferNotificationSubject("maker", notificationBatch),
+            buildOpenOfferNotificationText({
+              audience: "maker",
+              batch: notificationBatch,
+              offerId,
+              networkId,
+              kind,
+              sellAsset: sellSymbol,
+              sellAmount: sellAmountDisplay || intent.sell_amount_raw,
+              buyAmountKas,
+              offerDescription: String(normalized.offerDescription || ""),
+              offerInfoUrl: String(normalized.offerInfoUrl || "")
+            })
+          );
 
-        queueNewOpenOfferNotifications(
-          repoRoot,
-          "Token Depot — New open offer",
-          [
-            "A new open offer is available.",
-            "",
-            `Offer ID: ${offerId}`,
-            `Network: ${networkId}`,
-            `Kind: ${kind}`,
-            `Sell asset: ${sellSymbol}`,
-            `Sell amount RAW: ${intent.sell_amount_raw}`,
-            `Buy amount KAS: ${buyAmountKas}`
-          ].join("\n")
-        );
+          queueNewOpenOfferNotifications(
+            repoRoot,
+            openOfferNotificationSubject("users", notificationBatch),
+            buildOpenOfferNotificationText({
+              audience: "users",
+              batch: notificationBatch,
+              offerId,
+              networkId,
+              kind,
+              sellAsset: sellSymbol,
+              sellAmount: sellAmountDisplay || intent.sell_amount_raw,
+              buyAmountKas,
+              offerDescription: String(normalized.offerDescription || ""),
+              offerInfoUrl: String(normalized.offerInfoUrl || "")
+            })
+          );
+        }
 
         return res.json({
           ok: true,
@@ -1698,8 +2792,7 @@ export function registerSwapModeOpenV2Routes(app: Express, ctx: SwapModeOpenV2Ct
           const dummySigScriptHex = encodePushOnlyP2shSigScript(dummySig, SighashType.SingleAnyOneCanPay, cached.listRedeemScriptHex);
           reveal0.fillInput(0, dummySigScriptHex);
 
-          const requiredFee = calculateTransactionFee(cached.networkId, reveal0.transaction);
-          if (requiredFee === undefined) throw new Error("reveal_tx_mass_exceeds_standard");
+          const requiredFee = openSwapToccataRequiredFee(cached.networkId, reveal0.transaction, "reveal_tx_mass_exceeds_standard");
 
           return { reveal0, requiredFee };
         };
@@ -1861,41 +2954,50 @@ export function registerSwapModeOpenV2Routes(app: Express, ctx: SwapModeOpenV2Ct
           makerWalletType: String(cached.normalized?.maker?.walletType || ""),
           makerKasReceiveAddress: String(cached.normalized?.maker?.kasReceiveAddress || ""),
           termsCommitment,
+          offerDescription: String(cached.offerDraftBase?.offerDescription || ""),
+          offerInfoUrl: String(cached.offerDraftBase?.offerInfoUrl || ""),
           offerBlob,
           offerDraft: finalOfferDraft
         });
 
-        queueUserNotification(
-          repoRoot,
-          userId,
-          "maker_offer_created",
-          "Token Depot — Maker offer created",
-          [
-            "An open maker offer was created.",
-            "",
-            `Offer ID: ${offerId}`,
-            `Network: ${cached.networkId}`,
-            `Kind: ${cached.normalized.kind}`,
-            `Sell asset: ${String(cached.normalized?.sell?.symbol || "")}`,
-            `Sell amount (RAW/display input): ${String(cached.normalized?.sell?.amount || "")}`,
-            `Buy amount (KAS): ${String(cached.normalized?.buy?.amount || "")}`
-          ].join("\n")
-        );
+        const notificationBatch = cached.normalized?.openOfferBatch || null;
+        if (shouldQueueOpenOfferBatchNotification(notificationBatch)) {
+          queueUserNotification(
+            repoRoot,
+            userId,
+            "maker_offer_created",
+            openOfferNotificationSubject("maker", notificationBatch),
+            buildOpenOfferNotificationText({
+              audience: "maker",
+              batch: notificationBatch,
+              offerId,
+              networkId: cached.networkId,
+              kind: String(cached.normalized.kind || ""),
+              sellAsset: String(cached.normalized?.sell?.symbol || ""),
+              sellAmount: String(cached.normalized?.sell?.amount || ""),
+              buyAmountKas: String(cached.normalized?.buy?.amount || ""),
+              offerDescription: String(cached.offerDraftBase?.offerDescription || ""),
+              offerInfoUrl: String(cached.offerDraftBase?.offerInfoUrl || "")
+            })
+          );
 
-        queueNewOpenOfferNotifications(
-          repoRoot,
-          "Token Depot — New open offer",
-          [
-            "A new open offer is available.",
-            "",
-            `Offer ID: ${offerId}`,
-            `Network: ${cached.networkId}`,
-            `Kind: ${cached.normalized.kind}`,
-            `Sell asset: ${String(cached.normalized?.sell?.symbol || "")}`,
-            `Sell amount (RAW/display input): ${String(cached.normalized?.sell?.amount || "")}`,
-            `Buy amount (KAS): ${String(cached.normalized?.buy?.amount || "")}`
-          ].join("\n")
-        );
+          queueNewOpenOfferNotifications(
+            repoRoot,
+            openOfferNotificationSubject("users", notificationBatch),
+            buildOpenOfferNotificationText({
+              audience: "users",
+              batch: notificationBatch,
+              offerId,
+              networkId: cached.networkId,
+              kind: String(cached.normalized.kind || ""),
+              sellAsset: String(cached.normalized?.sell?.symbol || ""),
+              sellAmount: String(cached.normalized?.sell?.amount || ""),
+              buyAmountKas: String(cached.normalized?.buy?.amount || ""),
+              offerDescription: String(cached.offerDraftBase?.offerDescription || ""),
+              offerInfoUrl: String(cached.offerDraftBase?.offerInfoUrl || "")
+            })
+          );
+        }
 
         openSwapOfferPrepCache.delete(offerRid);
 
