@@ -1,0 +1,5 @@
+Upstream: https://github.com/kaspanet/rusty-kaspa
+Branch intent: stable
+Packed refs excerpt:
+fcd9c28f9b211b9872a0c90a8c94f79466ffb063 refs/remotes/origin/stable
+Note: .git and build artifacts removed from vendor to keep repo small.

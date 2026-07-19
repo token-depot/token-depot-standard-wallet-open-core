@@ -1,0 +1,1893 @@
+/* Token Depot classic teal skin variables
+   Keep this block color-only. Future skins should override these variables, not layouts, fonts, images, or button sizes. */
+:root,
+body[data-skin="classic_teal"] {
+  --td-skin-bg: #020617;
+  --td-skin-bg-2: #0b1220;
+  --td-skin-panel: #0f172a;
+  --td-skin-panel-rgb: 15, 23, 42;
+  --td-skin-black: #000000;
+  --td-skin-black-rgb: 0, 0, 0;
+  --td-skin-white: #ffffff;
+  --td-skin-white-rgb: 255, 255, 255;
+
+  --td-skin-primary: #22d3ee;
+  --td-skin-primary-hover: #67e8f9;
+  --td-skin-primary-rgb: 34, 211, 238;
+  --td-skin-primary-hover-rgb: 103, 232, 249;
+  --td-skin-primary-glow-rgb: 56, 189, 248;
+  --td-skin-border-rgb: 125, 252, 255;
+  --td-skin-teal-rgb: 45, 212, 191;
+  --td-skin-teal-border-rgb: 94, 234, 212;
+
+  --td-skin-text: #f5f9ff;
+  --td-skin-text-strong: #f9fbff;
+  --td-skin-button-text: #f9fbff;
+  --td-skin-text-muted: #e5f2ff;
+  --td-skin-text-field: #e5f4ff;
+  --td-skin-text-soft: #cbd5ff;
+  --td-skin-muted-rgb: 148, 163, 184;
+  --td-skin-table-bg-rgb: 15, 23, 42;
+  --td-skin-table-head-rgb: 2, 6, 23;
+  --td-skin-table-row-rgb: 15, 23, 42;
+  --td-skin-link: #7dd3fc;
+  --td-skin-link-hover: #a5f3fc;
+  --td-skin-code-text: #34a1ef;
+
+  --td-skin-danger: #ff6b6b;
+  --td-skin-success: #51cf66;
+  --td-skin-warning-rgb: 255, 214, 102;
+  --td-skin-gold: #f4bf56;
+
+  --td-home-bg: #050910;
+  --td-home-bg-2: #08111b;
+  --td-home-panel-rgb: 7, 12, 20;
+  --td-home-panel-strong-rgb: 7, 11, 18;
+  --td-home-cyan: #88f1ff;
+  --td-home-cyan-strong: #43d7ea;
+  --td-home-green: #96ffba;
+  --td-home-text: #f3f7fb;
+  --td-home-text-soft-rgb: 234, 244, 255;
+  --td-home-gold-text: #ffe5ae;
+  --td-home-green-text: #d6ffe4;
+  --td-home-cyan-text: #d9faff;
+}
+
+/* Token Depot pink skin variables
+   Color-only override. This skin is dormant until a page/user profile selects data-skin="pink". */
+body[data-skin="pink"] {
+  --td-skin-bg: #ffffff;
+  --td-skin-bg-2: #fff7fb;
+  --td-skin-panel: #ffffff;
+  --td-skin-panel-rgb: 255, 255, 255;
+  --td-skin-black: #ffffff;
+  --td-skin-black-rgb: 255, 255, 255;
+  --td-skin-white: #050510;
+  --td-skin-white-rgb: 5, 5, 16;
+
+  --td-skin-primary: #ff5caf;
+  --td-skin-primary-hover: #ff8ac8;
+  --td-skin-primary-rgb: 255, 92, 175;
+  --td-skin-primary-hover-rgb: 255, 138, 200;
+  --td-skin-primary-glow-rgb: 255, 92, 175;
+  --td-skin-border-rgb: 255, 138, 200;
+  --td-skin-teal-rgb: 255, 92, 175;
+  --td-skin-teal-border-rgb: 255, 138, 200;
+
+  --td-skin-text: #050510;
+  --td-skin-text-strong: #000000;
+  --td-skin-button-text: #050510;
+  --td-skin-text-muted: #111827;
+  --td-skin-text-field: #050510;
+  --td-skin-text-soft: #374151;
+  --td-skin-muted-rgb: 75, 85, 99;
+  --td-skin-table-bg-rgb: 255, 247, 251;
+  --td-skin-table-head-rgb: 255, 236, 246;
+  --td-skin-table-row-rgb: 255, 255, 255;
+  --td-skin-link: #c21875;
+  --td-skin-link-hover: #8a0f52;
+  --td-skin-code-text: #8a0f52;
+
+  --td-skin-danger: #c1121f;
+  --td-skin-success: #0f7a34;
+  --td-skin-warning-rgb: 156, 105, 0;
+  --td-skin-gold: #8a5a00;
+
+  --td-home-bg: #ffffff;
+  --td-home-bg-2: #fff7fb;
+  --td-home-panel-rgb: 255, 255, 255;
+  --td-home-panel-strong-rgb: 255, 247, 251;
+  --td-home-cyan: #ff5caf;
+  --td-home-cyan-strong: #c21875;
+  --td-home-green: #0f7a34;
+  --td-home-text: #050510;
+  --td-home-text-soft-rgb: 17, 24, 39;
+  --td-home-gold-text: #8a5a00;
+  --td-home-green-text: #0f7a34;
+  --td-home-cyan-text: #8a0f52;
+}
+
+/* Token Depot gold skin variables
+   Color-only override. This skin is dormant until a page/user profile selects data-skin="gold". */
+body[data-skin="gold"] {
+  --td-skin-bg: #ffffff;
+  --td-skin-bg-2: #fff0c2;
+  --td-skin-panel: #fff6dc;
+  --td-skin-panel-rgb: 255, 246, 220;
+  --td-skin-black: #fff6dc;
+  --td-skin-black-rgb: 255, 246, 220;
+  --td-skin-white: #160f00;
+  --td-skin-white-rgb: 22, 15, 0;
+
+  --td-skin-primary: #b8860b;
+  --td-skin-primary-hover: #d4a017;
+  --td-skin-primary-rgb: 184, 134, 11;
+  --td-skin-primary-hover-rgb: 212, 160, 23;
+  --td-skin-primary-glow-rgb: 184, 134, 11;
+  --td-skin-border-rgb: 143, 101, 0;
+  --td-skin-teal-rgb: 184, 134, 11;
+  --td-skin-teal-border-rgb: 143, 101, 0;
+
+  --td-skin-text: #160f00;
+  --td-skin-text-strong: #000000;
+  --td-skin-button-text: #160f00;
+  --td-skin-text-muted: #3d2a00;
+  --td-skin-text-field: #160f00;
+  --td-skin-text-soft: #4a3100;
+  --td-skin-muted-rgb: 74, 49, 0;
+  --td-skin-table-bg-rgb: 255, 240, 194;
+  --td-skin-table-head-rgb: 244, 211, 126;
+  --td-skin-table-row-rgb: 255, 252, 241;
+  --td-skin-link: #8a6200;
+  --td-skin-link-hover: #5c4200;
+  --td-skin-code-text: #8a6200;
+
+  --td-skin-danger: #b42318;
+  --td-skin-success: #0f7a34;
+  --td-skin-warning-rgb: 138, 98, 0;
+  --td-skin-gold: #d4af37;
+
+  --td-home-bg: #ffffff;
+  --td-home-bg-2: #fff1bf;
+  --td-home-panel-rgb: 255, 248, 223;
+  --td-home-panel-strong-rgb: 255, 241, 191;
+  --td-home-cyan: #d4af37;
+  --td-home-cyan-strong: #8a6200;
+  --td-home-green: #0f7a34;
+  --td-home-text: #160f00;
+  --td-home-text-soft-rgb: 63, 45, 0;
+  --td-home-gold-text: #8a6200;
+  --td-home-green-text: #0f7a34;
+  --td-home-cyan-text: #5c4200;
+}
+
+/* Token Depot gold-on-black skin variables
+   Color-only override. This skin is dormant until a page/user profile selects data-skin="gold_black". */
+body[data-skin="gold_black"] {
+  --td-skin-bg: #050300;
+  --td-skin-bg-2: #0f0900;
+  --td-skin-panel: #1a1003;
+  --td-skin-panel-rgb: 26, 16, 3;
+  --td-skin-black: #050300;
+  --td-skin-black-rgb: 5, 3, 0;
+  --td-skin-white: #e6c15a;
+  --td-skin-white-rgb: 230, 193, 90;
+
+  --td-skin-primary: #b8860b;
+  --td-skin-primary-hover: #d4af37;
+  --td-skin-primary-rgb: 184, 134, 11;
+  --td-skin-primary-hover-rgb: 212, 175, 55;
+  --td-skin-primary-glow-rgb: 184, 134, 11;
+  --td-skin-border-rgb: 184, 134, 11;
+  --td-skin-teal-rgb: 184, 134, 11;
+  --td-skin-teal-border-rgb: 212, 175, 55;
+
+  --td-skin-text: #e6c15a;
+  --td-skin-text-strong: #f5d06f;
+  --td-skin-button-text: #ffffff;
+  --td-skin-text-muted: #d6b75a;
+  --td-skin-text-field: #e6c15a;
+  --td-skin-text-soft: #b89532;
+  --td-skin-muted-rgb: 184, 149, 50;
+  --td-skin-table-bg-rgb: 26, 16, 3;
+  --td-skin-table-head-rgb: 38, 24, 5;
+  --td-skin-table-row-rgb: 42, 30, 8;
+  --td-skin-link: #ffe08a;
+  --td-skin-link-hover: #fff0b8;
+  --td-skin-code-text: #ffd166;
+
+  --td-skin-danger: #ff7a7a;
+  --td-skin-success: #8ee99a;
+  --td-skin-warning-rgb: 255, 209, 102;
+  --td-skin-gold: #d4af37;
+
+  --td-home-bg: #050300;
+  --td-home-bg-2: #120c02;
+  --td-home-panel-rgb: 31, 22, 5;
+  --td-home-panel-strong-rgb: 18, 12, 2;
+  --td-home-cyan: #d4af37;
+  --td-home-cyan-strong: #ffe08a;
+  --td-home-green: #8ee99a;
+  --td-home-text: #f6d76f;
+  --td-home-text-soft-rgb: 232, 200, 120;
+  --td-home-gold-text: #ffe08a;
+  --td-home-green-text: #b7f7c1;
+  --td-home-cyan-text: #fff0b8;
+}
+
+/* Token Depot blue skin variables
+   Color-only override. This skin is dormant until a page/user profile selects data-skin="blue". */
+body[data-skin="blue"] {
+  --td-skin-bg: #ffffff;
+  --td-skin-bg-2: #eef4ff;
+  --td-skin-panel: #f7faff;
+  --td-skin-panel-rgb: 247, 250, 255;
+  --td-skin-black: #f7faff;
+  --td-skin-black-rgb: 247, 250, 255;
+  --td-skin-white: #061326;
+  --td-skin-white-rgb: 6, 19, 38;
+
+  --td-skin-primary: #1d4ed8;
+  --td-skin-primary-hover: #3b82f6;
+  --td-skin-primary-rgb: 29, 78, 216;
+  --td-skin-primary-hover-rgb: 59, 130, 246;
+  --td-skin-primary-glow-rgb: 29, 78, 216;
+  --td-skin-border-rgb: 37, 99, 235;
+  --td-skin-teal-rgb: 29, 78, 216;
+  --td-skin-teal-border-rgb: 37, 99, 235;
+
+  --td-skin-text: #061326;
+  --td-skin-text-strong: #000000;
+  --td-skin-button-text: #061326;
+  --td-skin-text-muted: #1f2937;
+  --td-skin-text-field: #061326;
+  --td-skin-text-soft: #1e3a8a;
+  --td-skin-muted-rgb: 75, 85, 99;
+  --td-skin-table-bg-rgb: 239, 246, 255;
+  --td-skin-table-head-rgb: 219, 234, 254;
+  --td-skin-table-row-rgb: 255, 255, 255;
+  --td-skin-link: #0b5cad;
+  --td-skin-link-hover: #355070;
+  --td-skin-code-text: #0b5cad;
+
+  --td-skin-danger: #b42318;
+  --td-skin-success: #0f7a34;
+  --td-skin-warning-rgb: 156, 105, 0;
+  --td-skin-gold: #8a5a00;
+
+  --td-home-bg: #ffffff;
+  --td-home-bg-2: #eef7ff;
+  --td-home-panel-rgb: 247, 251, 255;
+  --td-home-panel-strong-rgb: 238, 247, 255;
+  --td-home-cyan: #2589ff;
+  --td-home-cyan-strong: #0b5cad;
+  --td-home-green: #0f7a34;
+  --td-home-text: #061326;
+  --td-home-text-soft-rgb: 31, 41, 55;
+  --td-home-gold-text: #8a5a00;
+  --td-home-green-text: #0f7a34;
+  --td-home-cyan-text: #0b5cad;
+}
+
+/* Token Depot green skin variables
+   Color-only override. This skin is dormant until a page/user profile selects data-skin="green". */
+body[data-skin="green"] {
+  --td-skin-bg: #ffffff;
+  --td-skin-bg-2: #edfdf3;
+  --td-skin-panel: #f8fffb;
+  --td-skin-panel-rgb: 248, 255, 251;
+  --td-skin-black: #f8fffb;
+  --td-skin-black-rgb: 248, 255, 251;
+  --td-skin-white: #062013;
+  --td-skin-white-rgb: 6, 32, 19;
+
+  --td-skin-primary: #25a65a;
+  --td-skin-primary-hover: #6bd98f;
+  --td-skin-primary-rgb: 37, 166, 90;
+  --td-skin-primary-hover-rgb: 107, 217, 143;
+  --td-skin-primary-glow-rgb: 37, 166, 90;
+  --td-skin-border-rgb: 37, 166, 90;
+  --td-skin-teal-rgb: 37, 166, 90;
+  --td-skin-teal-border-rgb: 37, 166, 90;
+
+  --td-skin-text: #062013;
+  --td-skin-text-strong: #000000;
+  --td-skin-button-text: #062013;
+  --td-skin-text-muted: #1f2937;
+  --td-skin-text-field: #062013;
+  --td-skin-text-soft: #27583a;
+  --td-skin-muted-rgb: 75, 85, 99;
+  --td-skin-table-bg-rgb: 237, 253, 243;
+  --td-skin-table-head-rgb: 217, 247, 229;
+  --td-skin-table-row-rgb: 255, 255, 255;
+  --td-skin-link: #0f7a34;
+  --td-skin-link-hover: #27583a;
+  --td-skin-code-text: #0f7a34;
+
+  --td-skin-danger: #b42318;
+  --td-skin-success: #087f3d;
+  --td-skin-warning-rgb: 156, 105, 0;
+  --td-skin-gold: #8a5a00;
+
+  --td-home-bg: #ffffff;
+  --td-home-bg-2: #edfdf3;
+  --td-home-panel-rgb: 248, 255, 251;
+  --td-home-panel-strong-rgb: 237, 253, 243;
+  --td-home-cyan: #25a65a;
+  --td-home-cyan-strong: #0f7a34;
+  --td-home-green: #087f3d;
+  --td-home-text: #062013;
+  --td-home-text-soft-rgb: 31, 41, 55;
+  --td-home-gold-text: #8a5a00;
+  --td-home-green-text: #087f3d;
+  --td-home-cyan-text: #0f7a34;
+}
+
+/* Token Depot red skin variables
+   Color-only override. This skin is dormant until a page/user profile selects data-skin="red". */
+body[data-skin="red"] {
+  --td-skin-bg: #ffffff;
+  --td-skin-bg-2: #fff0f1;
+  --td-skin-panel: #fffafa;
+  --td-skin-panel-rgb: 255, 250, 250;
+  --td-skin-black: #fffafa;
+  --td-skin-black-rgb: 255, 250, 250;
+  --td-skin-white: #240405;
+  --td-skin-white-rgb: 36, 4, 5;
+
+  --td-skin-primary: #e63946;
+  --td-skin-primary-hover: #ff6b76;
+  --td-skin-primary-rgb: 230, 57, 70;
+  --td-skin-primary-hover-rgb: 255, 107, 118;
+  --td-skin-primary-glow-rgb: 230, 57, 70;
+  --td-skin-border-rgb: 230, 57, 70;
+  --td-skin-teal-rgb: 230, 57, 70;
+  --td-skin-teal-border-rgb: 230, 57, 70;
+
+  --td-skin-text: #240405;
+  --td-skin-text-strong: #000000;
+  --td-skin-button-text: #240405;
+  --td-skin-text-muted: #1f2937;
+  --td-skin-text-field: #240405;
+  --td-skin-text-soft: #6f1d1b;
+  --td-skin-muted-rgb: 75, 85, 99;
+  --td-skin-table-bg-rgb: 255, 240, 241;
+  --td-skin-table-head-rgb: 255, 214, 218;
+  --td-skin-table-row-rgb: 255, 255, 255;
+  --td-skin-link: #a4161a;
+  --td-skin-link-hover: #6f1d1b;
+  --td-skin-code-text: #a4161a;
+
+  --td-skin-danger: #b42318;
+  --td-skin-success: #0f7a34;
+  --td-skin-warning-rgb: 156, 105, 0;
+  --td-skin-gold: #8a5a00;
+
+  --td-home-bg: #ffffff;
+  --td-home-bg-2: #fff0f1;
+  --td-home-panel-rgb: 255, 250, 250;
+  --td-home-panel-strong-rgb: 255, 240, 241;
+  --td-home-cyan: #e63946;
+  --td-home-cyan-strong: #a4161a;
+  --td-home-green: #0f7a34;
+  --td-home-text: #240405;
+  --td-home-text-soft-rgb: 31, 41, 55;
+  --td-home-gold-text: #8a5a00;
+  --td-home-green-text: #0f7a34;
+  --td-home-cyan-text: #a4161a;
+}
+
+/* Token Depot yellow skin variables
+   Color-only override. This skin is dormant until a page/user profile selects data-skin="yellow". */
+body[data-skin="yellow"] {
+  --td-skin-bg: #ffffff;
+  --td-skin-bg-2: #fffde7;
+  --td-skin-panel: #fffef2;
+  --td-skin-panel-rgb: 255, 254, 242;
+  --td-skin-black: #fffef2;
+  --td-skin-black-rgb: 255, 254, 242;
+  --td-skin-white: #161100;
+  --td-skin-white-rgb: 22, 17, 0;
+
+  --td-skin-primary: #ffe135;
+  --td-skin-primary-hover: #fff176;
+  --td-skin-primary-rgb: 255, 225, 53;
+  --td-skin-primary-hover-rgb: 255, 241, 118;
+  --td-skin-primary-glow-rgb: 255, 225, 53;
+  --td-skin-border-rgb: 250, 204, 21;
+  --td-skin-teal-rgb: 255, 225, 53;
+  --td-skin-teal-border-rgb: 250, 204, 21;
+
+  --td-skin-text: #161100;
+  --td-skin-text-strong: #000000;
+  --td-skin-button-text: #161100;
+  --td-skin-text-muted: #1f2937;
+  --td-skin-text-field: #161100;
+  --td-skin-text-soft: #5f5300;
+  --td-skin-muted-rgb: 75, 85, 99;
+  --td-skin-table-bg-rgb: 255, 253, 231;
+  --td-skin-table-head-rgb: 255, 249, 196;
+  --td-skin-table-row-rgb: 255, 255, 255;
+  --td-skin-link: #8a6a00;
+  --td-skin-link-hover: #5c4a00;
+  --td-skin-code-text: #8a6a00;
+
+  --td-skin-danger: #b42318;
+  --td-skin-success: #0f7a34;
+  --td-skin-warning-rgb: 156, 105, 0;
+  --td-skin-gold: #8a5a00;
+
+  --td-home-bg: #ffffff;
+  --td-home-bg-2: #fff9db;
+  --td-home-panel-rgb: 255, 253, 240;
+  --td-home-panel-strong-rgb: 255, 249, 219;
+  --td-home-cyan: #ffd43b;
+  --td-home-cyan-strong: #8a6a00;
+  --td-home-green: #0f7a34;
+  --td-home-text: #161100;
+  --td-home-text-soft-rgb: 31, 41, 55;
+  --td-home-gold-text: #8a5a00;
+  --td-home-green-text: #0f7a34;
+  --td-home-cyan-text: #8a6a00;
+}
+
+/* Token Depot cyan skin variables
+   Color-only override. This skin is dormant until a page/user profile selects data-skin="cyan". */
+body[data-skin="cyan"] {
+  --td-skin-bg: #ffffff;
+  --td-skin-bg-2: #ecfeff;
+  --td-skin-panel: #f8ffff;
+  --td-skin-panel-rgb: 248, 255, 255;
+  --td-skin-black: #f8ffff;
+  --td-skin-black-rgb: 248, 255, 255;
+  --td-skin-white: #03191d;
+  --td-skin-white-rgb: 3, 25, 29;
+
+  --td-skin-primary: #00cfe8;
+  --td-skin-primary-hover: #67f8ff;
+  --td-skin-primary-rgb: 0, 207, 232;
+  --td-skin-primary-hover-rgb: 103, 248, 255;
+  --td-skin-primary-glow-rgb: 0, 207, 232;
+  --td-skin-border-rgb: 0, 188, 212;
+  --td-skin-teal-rgb: 0, 207, 232;
+  --td-skin-teal-border-rgb: 0, 188, 212;
+
+  --td-skin-text: #03191d;
+  --td-skin-text-strong: #000000;
+  --td-skin-button-text: #03191d;
+  --td-skin-text-muted: #1f2937;
+  --td-skin-text-field: #03191d;
+  --td-skin-text-soft: #0e7490;
+  --td-skin-muted-rgb: 75, 85, 99;
+  --td-skin-table-bg-rgb: 236, 254, 255;
+  --td-skin-table-head-rgb: 207, 250, 254;
+  --td-skin-table-row-rgb: 255, 255, 255;
+  --td-skin-link: #087d8f;
+  --td-skin-link-hover: #155e66;
+  --td-skin-code-text: #087d8f;
+
+  --td-skin-danger: #b42318;
+  --td-skin-success: #0f7a34;
+  --td-skin-warning-rgb: 156, 105, 0;
+  --td-skin-gold: #8a5a00;
+
+  --td-home-bg: #ffffff;
+  --td-home-bg-2: #ecfeff;
+  --td-home-panel-rgb: 248, 255, 255;
+  --td-home-panel-strong-rgb: 236, 254, 255;
+  --td-home-cyan: #00bcd4;
+  --td-home-cyan-strong: #087d8f;
+  --td-home-green: #0f7a34;
+  --td-home-text: #03191d;
+  --td-home-text-soft-rgb: 31, 41, 55;
+  --td-home-gold-text: #8a5a00;
+  --td-home-green-text: #0f7a34;
+  --td-home-cyan-text: #087d8f;
+}
+
+/* Token Depot orange skin variables
+   Color-only override. This skin is dormant until a page/user profile selects data-skin="orange". */
+body[data-skin="orange"] {
+  --td-skin-bg: #ffffff;
+  --td-skin-bg-2: #fff4e8;
+  --td-skin-panel: #fffaf5;
+  --td-skin-panel-rgb: 255, 250, 245;
+  --td-skin-black: #fffaf5;
+  --td-skin-black-rgb: 255, 250, 245;
+  --td-skin-white: #1f0d00;
+  --td-skin-white-rgb: 31, 13, 0;
+
+  --td-skin-primary: #ff8c1a;
+  --td-skin-primary-hover: #ffb15c;
+  --td-skin-primary-rgb: 255, 140, 26;
+  --td-skin-primary-hover-rgb: 255, 177, 92;
+  --td-skin-primary-glow-rgb: 255, 140, 26;
+  --td-skin-border-rgb: 255, 140, 26;
+  --td-skin-teal-rgb: 255, 140, 26;
+  --td-skin-teal-border-rgb: 255, 140, 26;
+
+  --td-skin-text: #1f0d00;
+  --td-skin-text-strong: #000000;
+  --td-skin-button-text: #1f0d00;
+  --td-skin-text-muted: #1f2937;
+  --td-skin-text-field: #1f0d00;
+  --td-skin-text-soft: #6f3500;
+  --td-skin-muted-rgb: 75, 85, 99;
+  --td-skin-table-bg-rgb: 255, 244, 232;
+  --td-skin-table-head-rgb: 255, 228, 194;
+  --td-skin-table-row-rgb: 255, 255, 255;
+  --td-skin-link: #a64f00;
+  --td-skin-link-hover: #6f3500;
+  --td-skin-code-text: #a64f00;
+
+  --td-skin-danger: #b42318;
+  --td-skin-success: #0f7a34;
+  --td-skin-warning-rgb: 156, 105, 0;
+  --td-skin-gold: #8a5a00;
+
+  --td-home-bg: #ffffff;
+  --td-home-bg-2: #fff4e8;
+  --td-home-panel-rgb: 255, 250, 245;
+  --td-home-panel-strong-rgb: 255, 244, 232;
+  --td-home-cyan: #ff8c1a;
+  --td-home-cyan-strong: #a64f00;
+  --td-home-green: #0f7a34;
+  --td-home-text: #1f0d00;
+  --td-home-text-soft-rgb: 31, 41, 55;
+  --td-home-gold-text: #8a5a00;
+  --td-home-green-text: #0f7a34;
+  --td-home-cyan-text: #a64f00;
+}
+
+/* Token Depot pink-on-black skin variables
+   Color-only override. This skin is dormant until a page/user profile selects data-skin="pink_black". */
+body[data-skin="pink_black"] {
+  --td-skin-bg: #050509;
+  --td-skin-bg-2: #16030f;
+  --td-skin-panel: #210516;
+  --td-skin-panel-rgb: 33, 5, 22;
+  --td-skin-black: #050509;
+  --td-skin-black-rgb: 5, 5, 9;
+  --td-skin-white: #ffadd6;
+  --td-skin-white-rgb: 255, 173, 214;
+
+  --td-skin-primary: #d63384;
+  --td-skin-primary-hover: #ff85c2;
+  --td-skin-primary-rgb: 214, 51, 132;
+  --td-skin-primary-hover-rgb: 255, 133, 194;
+  --td-skin-primary-glow-rgb: 214, 51, 132;
+  --td-skin-border-rgb: 214, 51, 132;
+  --td-skin-teal-rgb: 214, 51, 132;
+  --td-skin-teal-border-rgb: 255, 133, 194;
+
+  --td-skin-text: #ffadd6;
+  --td-skin-text-strong: #ffffff;
+  --td-skin-button-text: #ffffff;
+  --td-skin-text-muted: #ffadd6;
+  --td-skin-text-field: #ffadd6;
+  --td-skin-text-soft: #d982b5;
+  --td-skin-muted-rgb: 217, 130, 181;
+  --td-skin-table-bg-rgb: 33, 5, 22;
+  --td-skin-table-head-rgb: 36, 6, 26;
+  --td-skin-table-row-rgb: 47, 10, 33;
+  --td-skin-link: #ff85c2;
+  --td-skin-link-hover: #ffffff;
+  --td-skin-code-text: #ff85c2;
+
+  --td-skin-danger: #ff7a7a;
+  --td-skin-success: #8ee99a;
+  --td-skin-warning-rgb: 214, 51, 132;
+  --td-skin-gold: #d63384;
+
+  --td-home-bg: #050509;
+  --td-home-bg-2: #16030f;
+  --td-home-panel-rgb: 33, 5, 22;
+  --td-home-panel-strong-rgb: 47, 10, 33;
+  --td-home-cyan: #d63384;
+  --td-home-cyan-strong: #ff85c2;
+  --td-home-green: #8ee99a;
+  --td-home-text: #ffadd6;
+  --td-home-text-soft-rgb: 217, 130, 181;
+  --td-home-gold-text: #ff85c2;
+  --td-home-green-text: #8ee99a;
+  --td-home-cyan-text: #ff85c2;
+}
+
+/* Token Depot blue-on-black skin variables
+   Color-only override. This skin is dormant until a page/user profile selects data-skin="blue_black". */
+body[data-skin="blue_black"] {
+  --td-skin-bg: #050509;
+  --td-skin-bg-2: #030b1f;
+  --td-skin-panel: #06142e;
+  --td-skin-panel-rgb: 6, 20, 46;
+  --td-skin-black: #050509;
+  --td-skin-black-rgb: 5, 5, 9;
+  --td-skin-white: #bfdbfe;
+  --td-skin-white-rgb: 191, 219, 254;
+
+  --td-skin-primary: #2563eb;
+  --td-skin-primary-hover: #60a5fa;
+  --td-skin-primary-rgb: 37, 99, 235;
+  --td-skin-primary-hover-rgb: 96, 165, 250;
+  --td-skin-primary-glow-rgb: 37, 99, 235;
+  --td-skin-border-rgb: 37, 99, 235;
+  --td-skin-teal-rgb: 37, 99, 235;
+  --td-skin-teal-border-rgb: 96, 165, 250;
+
+  --td-skin-text: #bfdbfe;
+  --td-skin-text-strong: #ffffff;
+  --td-skin-button-text: #ffffff;
+  --td-skin-text-muted: #bfdbfe;
+  --td-skin-text-field: #bfdbfe;
+  --td-skin-text-soft: #93c5fd;
+  --td-skin-muted-rgb: 147, 197, 253;
+  --td-skin-table-bg-rgb: 6, 20, 46;
+  --td-skin-table-head-rgb: 10, 31, 68;
+  --td-skin-table-row-rgb: 11, 39, 69;
+  --td-skin-link: #74b9ff;
+  --td-skin-link-hover: #ffffff;
+  --td-skin-code-text: #74b9ff;
+
+  --td-skin-danger: #ff7a7a;
+  --td-skin-success: #8ee99a;
+  --td-skin-warning-rgb: 31, 111, 235;
+  --td-skin-gold: #1f6feb;
+
+  --td-home-bg: #050509;
+  --td-home-bg-2: #03101f;
+  --td-home-panel-rgb: 6, 23, 42;
+  --td-home-panel-strong-rgb: 11, 39, 69;
+  --td-home-cyan: #1f6feb;
+  --td-home-cyan-strong: #74b9ff;
+  --td-home-green: #8ee99a;
+  --td-home-text: #9fd0ff;
+  --td-home-text-soft-rgb: 121, 168, 216;
+  --td-home-gold-text: #74b9ff;
+  --td-home-green-text: #8ee99a;
+  --td-home-cyan-text: #74b9ff;
+}
+
+/* Token Depot green-on-black skin variables
+   Color-only override. This skin is dormant until a page/user profile selects data-skin="green_black". */
+body[data-skin="green_black"] {
+  --td-skin-bg: #050509;
+  --td-skin-bg-2: #03160b;
+  --td-skin-panel: #062312;
+  --td-skin-panel-rgb: 6, 35, 18;
+  --td-skin-black: #050509;
+  --td-skin-black-rgb: 5, 5, 9;
+  --td-skin-white: #9af7b8;
+  --td-skin-white-rgb: 154, 247, 184;
+
+  --td-skin-primary: #198754;
+  --td-skin-primary-hover: #5de27f;
+  --td-skin-primary-rgb: 25, 135, 84;
+  --td-skin-primary-hover-rgb: 93, 226, 127;
+  --td-skin-primary-glow-rgb: 25, 135, 84;
+  --td-skin-border-rgb: 25, 135, 84;
+  --td-skin-teal-rgb: 25, 135, 84;
+  --td-skin-teal-border-rgb: 93, 226, 127;
+
+  --td-skin-text: #9af7b8;
+  --td-skin-text-strong: #ffffff;
+  --td-skin-button-text: #ffffff;
+  --td-skin-text-muted: #9af7b8;
+  --td-skin-text-field: #9af7b8;
+  --td-skin-text-soft: #74c98f;
+  --td-skin-muted-rgb: 116, 201, 143;
+  --td-skin-table-bg-rgb: 6, 35, 18;
+  --td-skin-table-head-rgb: 8, 42, 21;
+  --td-skin-table-row-rgb: 11, 53, 27;
+  --td-skin-link: #5de27f;
+  --td-skin-link-hover: #ffffff;
+  --td-skin-code-text: #5de27f;
+
+  --td-skin-danger: #ff7a7a;
+  --td-skin-success: #8ee99a;
+  --td-skin-warning-rgb: 25, 135, 84;
+  --td-skin-gold: #198754;
+
+  --td-home-bg: #050509;
+  --td-home-bg-2: #03160b;
+  --td-home-panel-rgb: 6, 35, 18;
+  --td-home-panel-strong-rgb: 11, 53, 27;
+  --td-home-cyan: #198754;
+  --td-home-cyan-strong: #5de27f;
+  --td-home-green: #8ee99a;
+  --td-home-text: #9af7b8;
+  --td-home-text-soft-rgb: 116, 201, 143;
+  --td-home-gold-text: #5de27f;
+  --td-home-green-text: #8ee99a;
+  --td-home-cyan-text: #5de27f;
+}
+
+/* Token Depot red-on-black skin variables
+   Color-only override. This skin is dormant until a page/user profile selects data-skin="red_black". */
+body[data-skin="red_black"] {
+  --td-skin-bg: #050509;
+  --td-skin-bg-2: #190306;
+  --td-skin-panel: #2a060a;
+  --td-skin-panel-rgb: 42, 6, 10;
+  --td-skin-black: #050509;
+  --td-skin-black-rgb: 5, 5, 9;
+  --td-skin-white: #ffb3b8;
+  --td-skin-white-rgb: 255, 179, 184;
+
+  --td-skin-primary: #c1121f;
+  --td-skin-primary-hover: #ff6b6b;
+  --td-skin-primary-rgb: 193, 18, 31;
+  --td-skin-primary-hover-rgb: 255, 107, 107;
+  --td-skin-primary-glow-rgb: 193, 18, 31;
+  --td-skin-border-rgb: 193, 18, 31;
+  --td-skin-teal-rgb: 193, 18, 31;
+  --td-skin-teal-border-rgb: 255, 107, 107;
+
+  --td-skin-text: #ffb3b8;
+  --td-skin-text-strong: #ffffff;
+  --td-skin-button-text: #ffffff;
+  --td-skin-text-muted: #ffb3b8;
+  --td-skin-text-field: #ffb3b8;
+  --td-skin-text-soft: #d87b82;
+  --td-skin-muted-rgb: 216, 123, 130;
+  --td-skin-table-bg-rgb: 42, 6, 10;
+  --td-skin-table-head-rgb: 51, 8, 13;
+  --td-skin-table-row-rgb: 69, 12, 18;
+  --td-skin-link: #ff858c;
+  --td-skin-link-hover: #ffffff;
+  --td-skin-code-text: #ff6b6b;
+
+  --td-skin-danger: #ff7a7a;
+  --td-skin-success: #8ee99a;
+  --td-skin-warning-rgb: 193, 18, 31;
+  --td-skin-gold: #c1121f;
+
+  --td-home-bg: #050509;
+  --td-home-bg-2: #190306;
+  --td-home-panel-rgb: 42, 6, 10;
+  --td-home-panel-strong-rgb: 69, 12, 18;
+  --td-home-cyan: #c1121f;
+  --td-home-cyan-strong: #ff6b6b;
+  --td-home-green: #8ee99a;
+  --td-home-text: #ffb3b8;
+  --td-home-text-soft-rgb: 216, 123, 130;
+  --td-home-gold-text: #ff6b6b;
+  --td-home-green-text: #8ee99a;
+  --td-home-cyan-text: #ff858c;
+}
+
+/* Token Depot yellow-on-black skin variables
+   Color-only override. This skin is dormant until a page/user profile selects data-skin="yellow_black". */
+body[data-skin="yellow_black"] {
+  --td-skin-bg: #050509;
+  --td-skin-bg-2: #161500;
+  --td-skin-panel: #2a2500;
+  --td-skin-panel-rgb: 42, 37, 0;
+  --td-skin-black: #050509;
+  --td-skin-black-rgb: 5, 5, 9;
+  --td-skin-white: #fff36b;
+  --td-skin-white-rgb: 255, 243, 107;
+
+  --td-skin-primary: #ffe135;
+  --td-skin-primary-hover: #fff176;
+  --td-skin-primary-rgb: 255, 225, 53;
+  --td-skin-primary-hover-rgb: 255, 241, 118;
+  --td-skin-primary-glow-rgb: 255, 225, 53;
+  --td-skin-border-rgb: 255, 223, 0;
+  --td-skin-teal-rgb: 255, 225, 53;
+  --td-skin-teal-border-rgb: 255, 241, 118;
+
+  --td-skin-text: #fff36b;
+  --td-skin-text-strong: #ffffff;
+  --td-skin-button-text: #ffffff;
+  --td-skin-text-muted: #fff36b;
+  --td-skin-text-field: #fff36b;
+  --td-skin-text-soft: #f6e95a;
+  --td-skin-muted-rgb: 246, 233, 90;
+  --td-skin-table-bg-rgb: 42, 37, 0;
+  --td-skin-table-head-rgb: 55, 49, 0;
+  --td-skin-table-row-rgb: 63, 66, 0;
+  --td-skin-link: #fff86b;
+  --td-skin-link-hover: #ffffff;
+  --td-skin-code-text: #fff86b;
+
+  --td-skin-danger: #ff7a7a;
+  --td-skin-success: #8ee99a;
+  --td-skin-warning-rgb: 255, 234, 0;
+  --td-skin-gold: #ffea00;
+
+  --td-home-bg: #050509;
+  --td-home-bg-2: #151600;
+  --td-home-panel-rgb: 36, 38, 0;
+  --td-home-panel-strong-rgb: 63, 66, 0;
+  --td-home-cyan: #ffea00;
+  --td-home-cyan-strong: #fff86b;
+  --td-home-green: #8ee99a;
+  --td-home-text: #fff36b;
+  --td-home-text-soft-rgb: 246, 233, 90;
+  --td-home-gold-text: #fff86b;
+  --td-home-green-text: #8ee99a;
+  --td-home-cyan-text: #fff86b;
+}
+
+/* Token Depot cyan-on-black skin variables
+   Color-only override. This skin is dormant until a page/user profile selects data-skin="cyan_black". */
+body[data-skin="cyan_black"] {
+  --td-skin-bg: #050509;
+  --td-skin-bg-2: #021923;
+  --td-skin-panel: #033142;
+  --td-skin-panel-rgb: 3, 49, 66;
+  --td-skin-black: #050509;
+  --td-skin-black-rgb: 5, 5, 9;
+  --td-skin-white: #b9fbff;
+  --td-skin-white-rgb: 185, 251, 255;
+
+  --td-skin-primary: #00eaff;
+  --td-skin-primary-hover: #8ffbff;
+  --td-skin-primary-rgb: 0, 234, 255;
+  --td-skin-primary-hover-rgb: 143, 251, 255;
+  --td-skin-primary-glow-rgb: 0, 234, 255;
+  --td-skin-border-rgb: 0, 213, 235;
+  --td-skin-teal-rgb: 0, 234, 255;
+  --td-skin-teal-border-rgb: 143, 251, 255;
+
+  --td-skin-text: #b9fbff;
+  --td-skin-text-strong: #ffffff;
+  --td-skin-button-text: #ffffff;
+  --td-skin-text-muted: #b9fbff;
+  --td-skin-text-field: #b9fbff;
+  --td-skin-text-soft: #88f4ff;
+  --td-skin-muted-rgb: 136, 244, 255;
+  --td-skin-table-bg-rgb: 3, 49, 66;
+  --td-skin-table-head-rgb: 4, 67, 88;
+  --td-skin-table-row-rgb: 8, 73, 96;
+  --td-skin-link: #80f7ff;
+  --td-skin-link-hover: #ffffff;
+  --td-skin-code-text: #80f7ff;
+
+  --td-skin-danger: #ff7a7a;
+  --td-skin-success: #8ee99a;
+  --td-skin-warning-rgb: 0, 229, 255;
+  --td-skin-gold: #00e5ff;
+
+  --td-home-bg: #050509;
+  --td-home-bg-2: #02151f;
+  --td-home-panel-rgb: 4, 40, 58;
+  --td-home-panel-strong-rgb: 8, 73, 96;
+  --td-home-cyan: #00e5ff;
+  --td-home-cyan-strong: #80f7ff;
+  --td-home-green: #8ee99a;
+  --td-home-text: #b9fbff;
+  --td-home-text-soft-rgb: 136, 244, 255;
+  --td-home-gold-text: #80f7ff;
+  --td-home-green-text: #8ee99a;
+  --td-home-cyan-text: #80f7ff;
+}
+
+/* Token Depot orange-on-black skin variables
+   Color-only override. This skin is dormant until a page/user profile selects data-skin="orange_black". */
+body[data-skin="orange_black"] {
+  --td-skin-bg: #050509;
+  --td-skin-bg-2: #1b0b02;
+  --td-skin-panel: #2b1204;
+  --td-skin-panel-rgb: 43, 18, 4;
+  --td-skin-black: #050509;
+  --td-skin-black-rgb: 5, 5, 9;
+  --td-skin-white: #ffc18a;
+  --td-skin-white-rgb: 255, 193, 138;
+
+  --td-skin-primary: #c65f00;
+  --td-skin-primary-hover: #ff9f43;
+  --td-skin-primary-rgb: 198, 95, 0;
+  --td-skin-primary-hover-rgb: 255, 159, 67;
+  --td-skin-primary-glow-rgb: 198, 95, 0;
+  --td-skin-border-rgb: 198, 95, 0;
+  --td-skin-teal-rgb: 198, 95, 0;
+  --td-skin-teal-border-rgb: 255, 159, 67;
+
+  --td-skin-text: #ffc18a;
+  --td-skin-text-strong: #ffffff;
+  --td-skin-button-text: #ffffff;
+  --td-skin-text-muted: #ffc18a;
+  --td-skin-text-field: #ffc18a;
+  --td-skin-text-soft: #d99357;
+  --td-skin-muted-rgb: 217, 147, 87;
+  --td-skin-table-bg-rgb: 43, 18, 4;
+  --td-skin-table-head-rgb: 53, 24, 4;
+  --td-skin-table-row-rgb: 72, 32, 6;
+  --td-skin-link: #ff9f43;
+  --td-skin-link-hover: #ffffff;
+  --td-skin-code-text: #ff9f43;
+
+  --td-skin-danger: #ff7a7a;
+  --td-skin-success: #8ee99a;
+  --td-skin-warning-rgb: 198, 95, 0;
+  --td-skin-gold: #c65f00;
+
+  --td-home-bg: #050509;
+  --td-home-bg-2: #1b0b02;
+  --td-home-panel-rgb: 43, 18, 4;
+  --td-home-panel-strong-rgb: 72, 32, 6;
+  --td-home-cyan: #c65f00;
+  --td-home-cyan-strong: #ff9f43;
+  --td-home-green: #8ee99a;
+  --td-home-text: #ffc18a;
+  --td-home-text-soft-rgb: 217, 147, 87;
+  --td-home-gold-text: #ff9f43;
+  --td-home-green-text: #8ee99a;
+  --td-home-cyan-text: #ff9f43;
+}
+
+/* Global layout container */
+main.container {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 2rem 1rem 4rem;
+}
+
+/* Global dark theme */
+html,
+body {
+  font-size: 14px;
+  background: radial-gradient(circle at top left, var(--td-skin-bg) 0%, var(--td-skin-bg) 40%, var(--td-skin-bg) 100%);
+  color: var(--td-skin-text); /* brighter base text color */
+}
+
+small {
+  font-size: 0.95rem;
+}
+
+/* Heading scale (compact, high contrast) */
+h1 { font-size: 28px; line-height: 1.2; }
+h2 { font-size: 22px; line-height: 1.25; }
+h3 { font-size: 18px; line-height: 1.3; }
+h4 { font-size: 16px; line-height: 1.35; }
+h5, h6 { font-size: 15px; line-height: 1.4; }
+
+h1, h2, h3, h4, h5, h6 {
+  color: var(--td-skin-text-strong);
+}
+
+/* Body copy & labels */
+p,
+li,
+label,
+small,
+dt,
+dd {
+  color: var(--td-skin-text-muted);
+}
+
+strong {
+  color: var(--td-skin-white);
+}
+
+
+/* Links on dark */
+a {
+  color: var(--td-skin-link);
+}
+a:hover {
+  color: var(--td-skin-link-hover);
+}
+
+/* Glass neon cards */
+.card {
+  padding: 1.5rem;
+  border-radius: 18px;
+  border: 1px solid rgba(var(--td-skin-border-rgb), 0.95); /* brighter edge line */
+  background:
+    radial-gradient(circle at top left, rgba(var(--td-skin-primary-glow-rgb), 0.28), rgba(var(--td-skin-panel-rgb), 0.95));
+  box-shadow:
+    0 0 0 1px rgba(var(--td-skin-panel-rgb), 1),
+    0 0 40px rgba(var(--td-skin-primary-glow-rgb), 0.95),   /* stronger neon glow */
+    0 0 90px rgba(8, 47, 73, 0.98);      /* deeper outer aura */
+  backdrop-filter: blur(18px);
+}
+
+.card > header,
+.card > footer,
+.card section {
+  background: transparent;  /* override Pico’s light section background */
+  box-shadow: none;
+}
+
+/* Give the card header a subtle divider instead of a white bar */
+.card > header {
+  margin: 0 0 0.75rem;
+  padding: 0 0 0.5rem;
+  border-bottom: 1px solid rgba(var(--td-skin-muted-rgb), 0.35);
+}
+
+/* Monospace boxes for JSON / previews */
+.codebox {
+  border-radius: 14px;
+  border: 1px solid rgba(var(--td-skin-teal-border-rgb), 0.7);
+  background:
+    radial-gradient(circle at top left, rgba(var(--td-skin-teal-rgb), 0.616), rgba(var(--td-skin-panel-rgb), 0.98));
+  padding: 0.75rem 0.9rem;
+  max-height: 280px;
+  overflow: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: var(--td-skin-code-text);
+  box-shadow:
+    0 0 16px rgba(var(--td-skin-primary-rgb), 0.821);
+}
+
+/* Canvas embeds */
+canvas {
+  max-width: 100%;
+}
+
+/* Form controls: glowing glass inputs */
+input[type="text"],
+input[type="number"],
+input[type="password"],
+input[type="email"],
+input[type="tel"],
+input[type="search"],
+textarea,
+select {
+  font-size: 1rem;
+  background:
+    radial-gradient(circle at top left, rgba(var(--td-skin-panel-rgb), 0.95), rgba(var(--td-skin-panel-rgb), 1));
+  border-radius: 12px;
+  /* match card edge color */
+  border: 1px solid rgba(var(--td-skin-border-rgb), 0.95);
+  color: var(--td-skin-text-field);
+  /* subtle neon halo around the field */
+  box-shadow:
+    0 0 0 1px rgba(var(--td-skin-primary-glow-rgb), 0.55);
+  transition:
+    border-color 150ms ease-out,
+    box-shadow 150ms ease-out,
+    background 150ms ease-out,
+    transform 80ms ease-out;
+}
+
+input::placeholder,
+textarea::placeholder {
+  font-size: 1rem;
+  color: rgba(var(--td-skin-muted-rgb), 0.8);
+}
+
+
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: var(--td-skin-primary);
+  box-shadow:
+    0 0 0 1px rgba(var(--td-skin-primary-rgb), 0.7),
+    0 0 25px rgba(var(--td-skin-primary-rgb), 0.85);
+  background:
+    radial-gradient(circle at top left, rgba(var(--td-skin-primary-rgb), 0.22), rgba(var(--td-skin-panel-rgb), 1));
+  transform: translateY(-1px);
+}
+
+/* Buttons: bright neon panels */
+button,
+button.secondary,
+button.outline,
+input[type="submit"],
+input[type="button"],
+a[role="button"],
+a.button {
+  border-radius: 999px !important; /* force oval for all button variants */
+  border: 1px solid rgba(var(--td-skin-primary-glow-rgb), 0.9);
+  background:
+    radial-gradient(circle at top left, var(--td-skin-primary) 0%, var(--td-skin-panel) 70%);
+  color: var(--td-skin-button-text);
+  font-family: inherit !important;
+  font-size: 1rem;
+  line-height: 1.2;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.55rem 1.6rem;
+  box-shadow:
+    0 0 0 1px rgba(var(--td-skin-panel-rgb), 1),
+    0 0 20px rgba(var(--td-skin-primary-rgb), 0.8);
+  transition:
+    transform 80ms ease-out,
+    box-shadow 150ms ease-out,
+    background 150ms ease-out;
+}
+
+button:hover,
+input[type="submit"]:hover,
+input[type="button"]:hover,
+a[role="button"]:hover,
+a.button:hover {
+  transform: translateY(-1px);
+  background:
+    radial-gradient(circle at top left, var(--td-skin-primary-hover) 0%, var(--td-skin-bg-2) 70%);
+  box-shadow:
+    0 0 0 1px rgba(var(--td-skin-panel-rgb), 1),
+    0 0 30px rgba(var(--td-skin-primary-glow-rgb), 0.95);
+}
+
+button:active,
+input[type="submit"]:active,
+input[type="button"]:active,
+a[role="button"]:active,
+a.button:active {
+  transform: translateY(0);
+  box-shadow:
+    0 0 0 1px rgba(var(--td-skin-panel-rgb), 1),
+    0 0 14px rgba(var(--td-skin-teal-rgb), 0.7);
+}
+
+/* Muted text on dark */
+.muted {
+  opacity: 0.92;
+  color: var(--td-skin-text-soft);
+}
+
+/* CW readability: field labels + helper line */
+.toolbar label {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+#kasFeeWarn {
+  font-size: 1rem;
+}
+
+/* Keep compact card typography spacing */
+.card header h3 { margin: 0.2rem 0 0.6rem; }
+.card h5 { margin: 0.2rem 0 0.3rem; }
+.card p { margin: 0 0 0.4rem; }
+
+/* === Compliance_Wallet nav/menu overrides (override inline styles in index.html) === */
+nav.topnav{
+  position: relative !important;
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  gap: 14px !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 10px 0 18px 0 !important;
+  padding: 0 !important;
+}
+
+nav.topnav > ul{
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+nav.topnav img{
+  height: 120px !important;
+  width: auto !important;
+  display: block !important;
+}
+
+nav.container-fluid img[src$="static/icon/logo.png"]{
+  height: 120px !important;
+  width: auto !important;
+  display: block !important;
+}
+
+nav.topnav a,
+nav.container-fluid a{
+  font-size: 14px !important;
+}
+
+nav.topnav .menu{
+  position: relative !important;
+}
+
+#networkSelect{
+  width: 10.5em !important;     /* “testnet-10” sized */
+  max-width: 10.5em !important;
+  flex: 0 0 auto !important;
+}
+
+nav.topnav .dd-toggle{
+  border-radius: 999px !important;
+  border: 1px solid rgba(var(--td-skin-primary-glow-rgb), 0.9) !important;
+  background: radial-gradient(circle at top left, var(--td-skin-primary) 0%, var(--td-skin-panel) 70%) !important;
+  color: var(--td-skin-button-text) !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.04em !important;
+  text-transform: uppercase !important;
+  padding: 0.55rem 1.35rem !important;
+}
+
+nav.topnav .dd-panel{
+  background:
+    radial-gradient(circle at top left, rgba(var(--td-skin-primary-glow-rgb), 0.18), rgba(var(--td-skin-panel-rgb), 0.98)) !important;
+  color: var(--td-skin-text-field) !important;
+  border: 1px solid rgba(var(--td-skin-border-rgb), 0.65) !important;
+  border-radius: 14px !important;
+  box-shadow:
+    0 0 0 1px rgba(var(--td-skin-panel-rgb), 1),
+    0 0 24px rgba(var(--td-skin-primary-glow-rgb), 0.55) !important;
+}
+
+nav.topnav .dd-panel a{
+  color: var(--td-skin-text-field) !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  padding: 10px 14px !important;
+}
+
+nav.topnav .dd-panel a:hover{
+  background: rgba(var(--td-skin-primary-glow-rgb), 0.14) !important;
+}
+
+/* Keep native file upload buttons consistent with the rest of the button typography */
+input[type="file"]::file-selector-button {
+  font-family: inherit !important;
+  font-size: 1rem !important;
+  line-height: 1.2 !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.04em !important;
+}
+
+/* Inputs have inline styles today; override them for Token-Depot look */
+#wTo,
+#wAmt{
+  background:
+    radial-gradient(circle at top left, rgba(var(--td-skin-panel-rgb), 0.95), rgba(var(--td-skin-panel-rgb), 1)) !important;
+  border-radius: 12px !important;
+  border: 1px solid rgba(var(--td-skin-border-rgb), 0.95) !important;
+  color: var(--td-skin-text-field) !important;
+  box-shadow: 0 0 0 1px rgba(var(--td-skin-primary-glow-rgb), 0.55) !important;
+}
+
+/* QR preview box: match card/input neon outline */
+.qr-preview{
+  border: 1px solid rgba(var(--td-skin-border-rgb), 0.95) !important;
+  border-radius: 14px !important;
+  background:
+    radial-gradient(circle at top left, rgba(var(--td-skin-primary-glow-rgb), 0.18), rgba(var(--td-skin-panel-rgb), 0.98)) !important;
+  box-shadow: 0 0 16px rgba(var(--td-skin-primary-rgb), 0.5) !important;
+  color: var(--td-skin-text-field) !important;
+}
+
+/* Force Token-Depot glass cards even if Pico sets light card backgrounds */
+section.card,
+article.card{
+  background:
+    radial-gradient(circle at top left, rgba(var(--td-skin-primary-glow-rgb), 0.20), rgba(var(--td-skin-panel-rgb), 0.96)) !important;
+  border: 1px solid rgba(var(--td-skin-border-rgb), 0.90) !important;
+  box-shadow:
+    0 0 0 1px rgba(var(--td-skin-panel-rgb), 1),
+    0 0 28px rgba(var(--td-skin-teal-rgb), 0.55),
+    0 0 80px rgba(var(--td-skin-primary-rgb), 0.55) !important;
+  backdrop-filter: blur(18px) !important;
+}
+
+section.card > header,
+article.card > header{
+  background: transparent !important;
+}
+
+/* Dropdown mechanics (was inline in index.html) */
+nav.topnav .dd-panel{
+  position: absolute !important;
+  right: 0 !important;
+  top: calc(100% + 6px) !important;
+  display: none !important;
+  min-width: 200px !important;
+  overflow: hidden !important;
+  z-index: 50 !important;
+}
+
+nav.topnav .dd-panel.open{
+  display: block !important;
+}
+
+
+/* Skin-aware table and preview surfaces.
+   These overrides keep data tables readable on light skins without changing layout. */
+table[role="grid"]{
+  color: var(--td-skin-text-field) !important;
+  background: rgba(var(--td-skin-table-bg-rgb), 0.92) !important;
+  border-color: rgba(var(--td-skin-border-rgb), 0.55) !important;
+}
+
+table[role="grid"] thead th{
+  color: var(--td-skin-text-strong) !important;
+  background: rgba(var(--td-skin-table-head-rgb), 0.96) !important;
+  border-color: rgba(var(--td-skin-border-rgb), 0.45) !important;
+}
+
+table[role="grid"] tbody td{
+  color: var(--td-skin-text-field) !important;
+  background: rgba(var(--td-skin-table-row-rgb), 0.88) !important;
+  border-color: rgba(var(--td-skin-border-rgb), 0.25) !important;
+}
+
+table[role="grid"] tbody tr:hover td{
+  background: rgba(var(--td-skin-primary-rgb), 0.12) !important;
+}
+
+/* Pink skin polish: keep light backgrounds and dark readable text. */
+body[data-skin="pink"] button,
+body[data-skin="pink"] button.secondary,
+body[data-skin="pink"] button.outline,
+body[data-skin="pink"] button:disabled,
+body[data-skin="pink"] input[type="submit"],
+body[data-skin="pink"] input[type="button"],
+body[data-skin="pink"] input[type="submit"]:disabled,
+body[data-skin="pink"] input[type="button"]:disabled,
+body[data-skin="pink"] a[role="button"],
+body[data-skin="pink"] a.button,
+body[data-skin="pink"] nav.topnav .dd-toggle{
+  color: var(--td-skin-button-text) !important;
+  text-shadow: none !important;
+}
+
+body[data-skin="pink"] button *,
+body[data-skin="pink"] input[type="submit"] *,
+body[data-skin="pink"] input[type="button"] *,
+body[data-skin="pink"] a[role="button"] *,
+body[data-skin="pink"] a.button *{
+  color: inherit !important;
+  font-family: inherit !important;
+  font-size: inherit !important;
+  line-height: inherit !important;
+  letter-spacing: inherit !important;
+  text-transform: inherit !important;
+}
+
+/* Fade-to-black skin button polish: keep dark-gradient button text readable. */
+body[data-skin="gold_black"] button,
+body[data-skin="gold_black"] button.secondary,
+body[data-skin="gold_black"] button.outline,
+body[data-skin="gold_black"] button:disabled,
+body[data-skin="gold_black"] input[type="submit"],
+body[data-skin="gold_black"] input[type="button"],
+body[data-skin="gold_black"] input[type="submit"]:disabled,
+body[data-skin="gold_black"] input[type="button"]:disabled,
+body[data-skin="gold_black"] a[role="button"],
+body[data-skin="gold_black"] a.button,
+body[data-skin="gold_black"] nav.topnav .dd-toggle,
+body[data-skin="pink_black"] button,
+body[data-skin="pink_black"] button.secondary,
+body[data-skin="pink_black"] button.outline,
+body[data-skin="pink_black"] button:disabled,
+body[data-skin="pink_black"] input[type="submit"],
+body[data-skin="pink_black"] input[type="button"],
+body[data-skin="pink_black"] input[type="submit"]:disabled,
+body[data-skin="pink_black"] input[type="button"]:disabled,
+body[data-skin="pink_black"] a[role="button"],
+body[data-skin="pink_black"] a.button,
+body[data-skin="pink_black"] nav.topnav .dd-toggle,
+body[data-skin="blue_black"] button,
+body[data-skin="blue_black"] button.secondary,
+body[data-skin="blue_black"] button.outline,
+body[data-skin="blue_black"] button:disabled,
+body[data-skin="blue_black"] input[type="submit"],
+body[data-skin="blue_black"] input[type="button"],
+body[data-skin="blue_black"] input[type="submit"]:disabled,
+body[data-skin="blue_black"] input[type="button"]:disabled,
+body[data-skin="blue_black"] a[role="button"],
+body[data-skin="blue_black"] a.button,
+body[data-skin="blue_black"] nav.topnav .dd-toggle,
+body[data-skin="green_black"] button,
+body[data-skin="green_black"] button.secondary,
+body[data-skin="green_black"] button.outline,
+body[data-skin="green_black"] button:disabled,
+body[data-skin="green_black"] input[type="submit"],
+body[data-skin="green_black"] input[type="button"],
+body[data-skin="green_black"] input[type="submit"]:disabled,
+body[data-skin="green_black"] input[type="button"]:disabled,
+body[data-skin="green_black"] a[role="button"],
+body[data-skin="green_black"] a.button,
+body[data-skin="green_black"] nav.topnav .dd-toggle,
+body[data-skin="red_black"] button,
+body[data-skin="red_black"] button.secondary,
+body[data-skin="red_black"] button.outline,
+body[data-skin="red_black"] button:disabled,
+body[data-skin="red_black"] input[type="submit"],
+body[data-skin="red_black"] input[type="button"],
+body[data-skin="red_black"] input[type="submit"]:disabled,
+body[data-skin="red_black"] input[type="button"]:disabled,
+body[data-skin="red_black"] a[role="button"],
+body[data-skin="red_black"] a.button,
+body[data-skin="red_black"] nav.topnav .dd-toggle,
+body[data-skin="yellow_black"] button,
+body[data-skin="yellow_black"] button.secondary,
+body[data-skin="yellow_black"] button.outline,
+body[data-skin="yellow_black"] button:disabled,
+body[data-skin="yellow_black"] input[type="submit"],
+body[data-skin="yellow_black"] input[type="button"],
+body[data-skin="yellow_black"] input[type="submit"]:disabled,
+body[data-skin="yellow_black"] input[type="button"]:disabled,
+body[data-skin="yellow_black"] a[role="button"],
+body[data-skin="yellow_black"] a.button,
+body[data-skin="yellow_black"] nav.topnav .dd-toggle,
+body[data-skin="cyan_black"] button,
+body[data-skin="cyan_black"] button.secondary,
+body[data-skin="cyan_black"] button.outline,
+body[data-skin="cyan_black"] button:disabled,
+body[data-skin="cyan_black"] input[type="submit"],
+body[data-skin="cyan_black"] input[type="button"],
+body[data-skin="cyan_black"] input[type="submit"]:disabled,
+body[data-skin="cyan_black"] input[type="button"]:disabled,
+body[data-skin="cyan_black"] a[role="button"],
+body[data-skin="cyan_black"] a.button,
+body[data-skin="cyan_black"] nav.topnav .dd-toggle,
+body[data-skin="orange_black"] button,
+body[data-skin="orange_black"] button.secondary,
+body[data-skin="orange_black"] button.outline,
+body[data-skin="orange_black"] button:disabled,
+body[data-skin="orange_black"] input[type="submit"],
+body[data-skin="orange_black"] input[type="button"],
+body[data-skin="orange_black"] input[type="submit"]:disabled,
+body[data-skin="orange_black"] input[type="button"]:disabled,
+body[data-skin="orange_black"] a[role="button"],
+body[data-skin="orange_black"] a.button,
+body[data-skin="orange_black"] nav.topnav .dd-toggle{
+  color: #ffffff !important;
+  text-shadow: 0 0 7px rgba(var(--td-skin-black-rgb), 0.95) !important;
+}
+
+body[data-skin="gold_black"] button *,
+body[data-skin="gold_black"] input[type="submit"] *,
+body[data-skin="gold_black"] input[type="button"] *,
+body[data-skin="gold_black"] a[role="button"] *,
+body[data-skin="gold_black"] a.button *,
+body[data-skin="pink_black"] button *,
+body[data-skin="pink_black"] input[type="submit"] *,
+body[data-skin="pink_black"] input[type="button"] *,
+body[data-skin="pink_black"] a[role="button"] *,
+body[data-skin="pink_black"] a.button *,
+body[data-skin="blue_black"] button *,
+body[data-skin="blue_black"] input[type="submit"] *,
+body[data-skin="blue_black"] input[type="button"] *,
+body[data-skin="blue_black"] a[role="button"] *,
+body[data-skin="blue_black"] a.button *,
+body[data-skin="green_black"] button *,
+body[data-skin="green_black"] input[type="submit"] *,
+body[data-skin="green_black"] input[type="button"] *,
+body[data-skin="green_black"] a[role="button"] *,
+body[data-skin="green_black"] a.button *,
+body[data-skin="red_black"] button *,
+body[data-skin="red_black"] input[type="submit"] *,
+body[data-skin="red_black"] input[type="button"] *,
+body[data-skin="red_black"] a[role="button"] *,
+body[data-skin="red_black"] a.button *,
+body[data-skin="yellow_black"] button *,
+body[data-skin="yellow_black"] input[type="submit"] *,
+body[data-skin="yellow_black"] input[type="button"] *,
+body[data-skin="yellow_black"] a[role="button"] *,
+body[data-skin="yellow_black"] a.button *,
+body[data-skin="cyan_black"] button *,
+body[data-skin="cyan_black"] input[type="submit"] *,
+body[data-skin="cyan_black"] input[type="button"] *,
+body[data-skin="cyan_black"] a[role="button"] *,
+body[data-skin="cyan_black"] a.button *,
+body[data-skin="orange_black"] button *,
+body[data-skin="orange_black"] input[type="submit"] *,
+body[data-skin="orange_black"] input[type="button"] *,
+body[data-skin="orange_black"] a[role="button"] *,
+body[data-skin="orange_black"] a.button *{
+  color: inherit !important;
+  font-family: inherit !important;
+  font-size: inherit !important;
+  line-height: inherit !important;
+  letter-spacing: inherit !important;
+  text-transform: inherit !important;
+}
+
+
+/* Skin button text consistency: fade-to-white skins use black button text; fade-to-black skins use white button text. */
+body[data-skin="pink"] button,
+body[data-skin="pink"] button.secondary,
+body[data-skin="pink"] button.outline,
+body[data-skin="pink"] button:disabled,
+body[data-skin="pink"] input[type="submit"],
+body[data-skin="pink"] input[type="button"],
+body[data-skin="pink"] input[type="submit"]:disabled,
+body[data-skin="pink"] input[type="button"]:disabled,
+body[data-skin="pink"] a[role="button"],
+body[data-skin="pink"] a.button,
+body[data-skin="pink"] .button,
+body[data-skin="pink"] .btn,
+body[data-skin="pink"] nav.topnav .dd-toggle,
+body[data-skin="gold"] button,
+body[data-skin="gold"] button.secondary,
+body[data-skin="gold"] button.outline,
+body[data-skin="gold"] button:disabled,
+body[data-skin="gold"] input[type="submit"],
+body[data-skin="gold"] input[type="button"],
+body[data-skin="gold"] input[type="submit"]:disabled,
+body[data-skin="gold"] input[type="button"]:disabled,
+body[data-skin="gold"] a[role="button"],
+body[data-skin="gold"] a.button,
+body[data-skin="gold"] .button,
+body[data-skin="gold"] .btn,
+body[data-skin="gold"] nav.topnav .dd-toggle,
+body[data-skin="blue"] button,
+body[data-skin="blue"] button.secondary,
+body[data-skin="blue"] button.outline,
+body[data-skin="blue"] button:disabled,
+body[data-skin="blue"] input[type="submit"],
+body[data-skin="blue"] input[type="button"],
+body[data-skin="blue"] input[type="submit"]:disabled,
+body[data-skin="blue"] input[type="button"]:disabled,
+body[data-skin="blue"] a[role="button"],
+body[data-skin="blue"] a.button,
+body[data-skin="blue"] .button,
+body[data-skin="blue"] .btn,
+body[data-skin="blue"] nav.topnav .dd-toggle,
+body[data-skin="green"] button,
+body[data-skin="green"] button.secondary,
+body[data-skin="green"] button.outline,
+body[data-skin="green"] button:disabled,
+body[data-skin="green"] input[type="submit"],
+body[data-skin="green"] input[type="button"],
+body[data-skin="green"] input[type="submit"]:disabled,
+body[data-skin="green"] input[type="button"]:disabled,
+body[data-skin="green"] a[role="button"],
+body[data-skin="green"] a.button,
+body[data-skin="green"] .button,
+body[data-skin="green"] .btn,
+body[data-skin="green"] nav.topnav .dd-toggle,
+body[data-skin="red"] button,
+body[data-skin="red"] button.secondary,
+body[data-skin="red"] button.outline,
+body[data-skin="red"] button:disabled,
+body[data-skin="red"] input[type="submit"],
+body[data-skin="red"] input[type="button"],
+body[data-skin="red"] input[type="submit"]:disabled,
+body[data-skin="red"] input[type="button"]:disabled,
+body[data-skin="red"] a[role="button"],
+body[data-skin="red"] a.button,
+body[data-skin="red"] .button,
+body[data-skin="red"] .btn,
+body[data-skin="red"] nav.topnav .dd-toggle,
+body[data-skin="yellow"] button,
+body[data-skin="yellow"] button.secondary,
+body[data-skin="yellow"] button.outline,
+body[data-skin="yellow"] button:disabled,
+body[data-skin="yellow"] input[type="submit"],
+body[data-skin="yellow"] input[type="button"],
+body[data-skin="yellow"] input[type="submit"]:disabled,
+body[data-skin="yellow"] input[type="button"]:disabled,
+body[data-skin="yellow"] a[role="button"],
+body[data-skin="yellow"] a.button,
+body[data-skin="yellow"] .button,
+body[data-skin="yellow"] .btn,
+body[data-skin="yellow"] nav.topnav .dd-toggle,
+body[data-skin="cyan"] button,
+body[data-skin="cyan"] button.secondary,
+body[data-skin="cyan"] button.outline,
+body[data-skin="cyan"] button:disabled,
+body[data-skin="cyan"] input[type="submit"],
+body[data-skin="cyan"] input[type="button"],
+body[data-skin="cyan"] input[type="submit"]:disabled,
+body[data-skin="cyan"] input[type="button"]:disabled,
+body[data-skin="cyan"] a[role="button"],
+body[data-skin="cyan"] a.button,
+body[data-skin="cyan"] .button,
+body[data-skin="cyan"] .btn,
+body[data-skin="cyan"] nav.topnav .dd-toggle,
+body[data-skin="orange"] button,
+body[data-skin="orange"] button.secondary,
+body[data-skin="orange"] button.outline,
+body[data-skin="orange"] button:disabled,
+body[data-skin="orange"] input[type="submit"],
+body[data-skin="orange"] input[type="button"],
+body[data-skin="orange"] input[type="submit"]:disabled,
+body[data-skin="orange"] input[type="button"]:disabled,
+body[data-skin="orange"] a[role="button"],
+body[data-skin="orange"] a.button,
+body[data-skin="orange"] .button,
+body[data-skin="orange"] .btn,
+body[data-skin="orange"] nav.topnav .dd-toggle{
+  color: #000000 !important;
+  -webkit-text-fill-color: #000000 !important;
+  text-shadow: none !important;
+}
+
+body[data-skin="pink"] button *,
+body[data-skin="pink"] input[type="submit"] *,
+body[data-skin="pink"] input[type="button"] *,
+body[data-skin="pink"] a[role="button"] *,
+body[data-skin="pink"] a.button *,
+body[data-skin="pink"] .button *,
+body[data-skin="pink"] .btn *,
+body[data-skin="gold"] button *,
+body[data-skin="gold"] input[type="submit"] *,
+body[data-skin="gold"] input[type="button"] *,
+body[data-skin="gold"] a[role="button"] *,
+body[data-skin="gold"] a.button *,
+body[data-skin="gold"] .button *,
+body[data-skin="gold"] .btn *,
+body[data-skin="blue"] button *,
+body[data-skin="blue"] input[type="submit"] *,
+body[data-skin="blue"] input[type="button"] *,
+body[data-skin="blue"] a[role="button"] *,
+body[data-skin="blue"] a.button *,
+body[data-skin="blue"] .button *,
+body[data-skin="blue"] .btn *,
+body[data-skin="green"] button *,
+body[data-skin="green"] input[type="submit"] *,
+body[data-skin="green"] input[type="button"] *,
+body[data-skin="green"] a[role="button"] *,
+body[data-skin="green"] a.button *,
+body[data-skin="green"] .button *,
+body[data-skin="green"] .btn *,
+body[data-skin="red"] button *,
+body[data-skin="red"] input[type="submit"] *,
+body[data-skin="red"] input[type="button"] *,
+body[data-skin="red"] a[role="button"] *,
+body[data-skin="red"] a.button *,
+body[data-skin="red"] .button *,
+body[data-skin="red"] .btn *,
+body[data-skin="yellow"] button *,
+body[data-skin="yellow"] input[type="submit"] *,
+body[data-skin="yellow"] input[type="button"] *,
+body[data-skin="yellow"] a[role="button"] *,
+body[data-skin="yellow"] a.button *,
+body[data-skin="yellow"] .button *,
+body[data-skin="yellow"] .btn *,
+body[data-skin="cyan"] button *,
+body[data-skin="cyan"] input[type="submit"] *,
+body[data-skin="cyan"] input[type="button"] *,
+body[data-skin="cyan"] a[role="button"] *,
+body[data-skin="cyan"] a.button *,
+body[data-skin="cyan"] .button *,
+body[data-skin="cyan"] .btn *,
+body[data-skin="orange"] button *,
+body[data-skin="orange"] input[type="submit"] *,
+body[data-skin="orange"] input[type="button"] *,
+body[data-skin="orange"] a[role="button"] *,
+body[data-skin="orange"] a.button *,
+body[data-skin="orange"] .button *,
+body[data-skin="orange"] .btn *{
+  color: inherit !important;
+  -webkit-text-fill-color: inherit !important;
+  font-family: inherit !important;
+  font-size: inherit !important;
+  line-height: inherit !important;
+  letter-spacing: inherit !important;
+  text-transform: inherit !important;
+}
+
+body[data-skin="pink_black"] button,
+body[data-skin="pink_black"] button.secondary,
+body[data-skin="pink_black"] button.outline,
+body[data-skin="pink_black"] button:disabled,
+body[data-skin="pink_black"] input[type="submit"],
+body[data-skin="pink_black"] input[type="button"],
+body[data-skin="pink_black"] input[type="submit"]:disabled,
+body[data-skin="pink_black"] input[type="button"]:disabled,
+body[data-skin="pink_black"] a[role="button"],
+body[data-skin="pink_black"] a.button,
+body[data-skin="pink_black"] .button,
+body[data-skin="pink_black"] .btn,
+body[data-skin="pink_black"] nav.topnav .dd-toggle,
+body[data-skin="gold_black"] button,
+body[data-skin="gold_black"] button.secondary,
+body[data-skin="gold_black"] button.outline,
+body[data-skin="gold_black"] button:disabled,
+body[data-skin="gold_black"] input[type="submit"],
+body[data-skin="gold_black"] input[type="button"],
+body[data-skin="gold_black"] input[type="submit"]:disabled,
+body[data-skin="gold_black"] input[type="button"]:disabled,
+body[data-skin="gold_black"] a[role="button"],
+body[data-skin="gold_black"] a.button,
+body[data-skin="gold_black"] .button,
+body[data-skin="gold_black"] .btn,
+body[data-skin="gold_black"] nav.topnav .dd-toggle,
+body[data-skin="blue_black"] button,
+body[data-skin="blue_black"] button.secondary,
+body[data-skin="blue_black"] button.outline,
+body[data-skin="blue_black"] button:disabled,
+body[data-skin="blue_black"] input[type="submit"],
+body[data-skin="blue_black"] input[type="button"],
+body[data-skin="blue_black"] input[type="submit"]:disabled,
+body[data-skin="blue_black"] input[type="button"]:disabled,
+body[data-skin="blue_black"] a[role="button"],
+body[data-skin="blue_black"] a.button,
+body[data-skin="blue_black"] .button,
+body[data-skin="blue_black"] .btn,
+body[data-skin="blue_black"] nav.topnav .dd-toggle,
+body[data-skin="green_black"] button,
+body[data-skin="green_black"] button.secondary,
+body[data-skin="green_black"] button.outline,
+body[data-skin="green_black"] button:disabled,
+body[data-skin="green_black"] input[type="submit"],
+body[data-skin="green_black"] input[type="button"],
+body[data-skin="green_black"] input[type="submit"]:disabled,
+body[data-skin="green_black"] input[type="button"]:disabled,
+body[data-skin="green_black"] a[role="button"],
+body[data-skin="green_black"] a.button,
+body[data-skin="green_black"] .button,
+body[data-skin="green_black"] .btn,
+body[data-skin="green_black"] nav.topnav .dd-toggle,
+body[data-skin="red_black"] button,
+body[data-skin="red_black"] button.secondary,
+body[data-skin="red_black"] button.outline,
+body[data-skin="red_black"] button:disabled,
+body[data-skin="red_black"] input[type="submit"],
+body[data-skin="red_black"] input[type="button"],
+body[data-skin="red_black"] input[type="submit"]:disabled,
+body[data-skin="red_black"] input[type="button"]:disabled,
+body[data-skin="red_black"] a[role="button"],
+body[data-skin="red_black"] a.button,
+body[data-skin="red_black"] .button,
+body[data-skin="red_black"] .btn,
+body[data-skin="red_black"] nav.topnav .dd-toggle,
+body[data-skin="yellow_black"] button,
+body[data-skin="yellow_black"] button.secondary,
+body[data-skin="yellow_black"] button.outline,
+body[data-skin="yellow_black"] button:disabled,
+body[data-skin="yellow_black"] input[type="submit"],
+body[data-skin="yellow_black"] input[type="button"],
+body[data-skin="yellow_black"] input[type="submit"]:disabled,
+body[data-skin="yellow_black"] input[type="button"]:disabled,
+body[data-skin="yellow_black"] a[role="button"],
+body[data-skin="yellow_black"] a.button,
+body[data-skin="yellow_black"] .button,
+body[data-skin="yellow_black"] .btn,
+body[data-skin="yellow_black"] nav.topnav .dd-toggle,
+body[data-skin="cyan_black"] button,
+body[data-skin="cyan_black"] button.secondary,
+body[data-skin="cyan_black"] button.outline,
+body[data-skin="cyan_black"] button:disabled,
+body[data-skin="cyan_black"] input[type="submit"],
+body[data-skin="cyan_black"] input[type="button"],
+body[data-skin="cyan_black"] input[type="submit"]:disabled,
+body[data-skin="cyan_black"] input[type="button"]:disabled,
+body[data-skin="cyan_black"] a[role="button"],
+body[data-skin="cyan_black"] a.button,
+body[data-skin="cyan_black"] .button,
+body[data-skin="cyan_black"] .btn,
+body[data-skin="cyan_black"] nav.topnav .dd-toggle,
+body[data-skin="orange_black"] button,
+body[data-skin="orange_black"] button.secondary,
+body[data-skin="orange_black"] button.outline,
+body[data-skin="orange_black"] button:disabled,
+body[data-skin="orange_black"] input[type="submit"],
+body[data-skin="orange_black"] input[type="button"],
+body[data-skin="orange_black"] input[type="submit"]:disabled,
+body[data-skin="orange_black"] input[type="button"]:disabled,
+body[data-skin="orange_black"] a[role="button"],
+body[data-skin="orange_black"] a.button,
+body[data-skin="orange_black"] .button,
+body[data-skin="orange_black"] .btn,
+body[data-skin="orange_black"] nav.topnav .dd-toggle{
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  text-shadow: 0 0 7px rgba(var(--td-skin-black-rgb), 0.95) !important;
+}
+
+body[data-skin="pink_black"] button *,
+body[data-skin="pink_black"] input[type="submit"] *,
+body[data-skin="pink_black"] input[type="button"] *,
+body[data-skin="pink_black"] a[role="button"] *,
+body[data-skin="pink_black"] a.button *,
+body[data-skin="pink_black"] .button *,
+body[data-skin="pink_black"] .btn *,
+body[data-skin="gold_black"] button *,
+body[data-skin="gold_black"] input[type="submit"] *,
+body[data-skin="gold_black"] input[type="button"] *,
+body[data-skin="gold_black"] a[role="button"] *,
+body[data-skin="gold_black"] a.button *,
+body[data-skin="gold_black"] .button *,
+body[data-skin="gold_black"] .btn *,
+body[data-skin="blue_black"] button *,
+body[data-skin="blue_black"] input[type="submit"] *,
+body[data-skin="blue_black"] input[type="button"] *,
+body[data-skin="blue_black"] a[role="button"] *,
+body[data-skin="blue_black"] a.button *,
+body[data-skin="blue_black"] .button *,
+body[data-skin="blue_black"] .btn *,
+body[data-skin="green_black"] button *,
+body[data-skin="green_black"] input[type="submit"] *,
+body[data-skin="green_black"] input[type="button"] *,
+body[data-skin="green_black"] a[role="button"] *,
+body[data-skin="green_black"] a.button *,
+body[data-skin="green_black"] .button *,
+body[data-skin="green_black"] .btn *,
+body[data-skin="red_black"] button *,
+body[data-skin="red_black"] input[type="submit"] *,
+body[data-skin="red_black"] input[type="button"] *,
+body[data-skin="red_black"] a[role="button"] *,
+body[data-skin="red_black"] a.button *,
+body[data-skin="red_black"] .button *,
+body[data-skin="red_black"] .btn *,
+body[data-skin="yellow_black"] button *,
+body[data-skin="yellow_black"] input[type="submit"] *,
+body[data-skin="yellow_black"] input[type="button"] *,
+body[data-skin="yellow_black"] a[role="button"] *,
+body[data-skin="yellow_black"] a.button *,
+body[data-skin="yellow_black"] .button *,
+body[data-skin="yellow_black"] .btn *,
+body[data-skin="cyan_black"] button *,
+body[data-skin="cyan_black"] input[type="submit"] *,
+body[data-skin="cyan_black"] input[type="button"] *,
+body[data-skin="cyan_black"] a[role="button"] *,
+body[data-skin="cyan_black"] a.button *,
+body[data-skin="cyan_black"] .button *,
+body[data-skin="cyan_black"] .btn *,
+body[data-skin="orange_black"] button *,
+body[data-skin="orange_black"] input[type="submit"] *,
+body[data-skin="orange_black"] input[type="button"] *,
+body[data-skin="orange_black"] a[role="button"] *,
+body[data-skin="orange_black"] a.button *,
+body[data-skin="orange_black"] .button *,
+body[data-skin="orange_black"] .btn *{
+  color: inherit !important;
+  -webkit-text-fill-color: inherit !important;
+  font-family: inherit !important;
+  font-size: inherit !important;
+  line-height: inherit !important;
+  letter-spacing: inherit !important;
+  text-transform: inherit !important;
+}
+
+body[data-skin="pink"] table,
+body[data-skin="pink"] table[role="grid"],
+body[data-skin="pink"] .table-wrap table,
+body[data-skin="pink"] #assetsTable,
+body[data-skin="pink"] #bulkHelperTable,
+body[data-skin="pink"] #whitelistTable,
+body[data-skin="pink"] #issuableAssetsTable,
+body[data-skin="pink"] #controlledAssetsTable{
+  color: var(--td-skin-text-field) !important;
+  background: rgba(var(--td-skin-table-bg-rgb), 0.98) !important;
+}
+
+body[data-skin="pink"] table th,
+body[data-skin="pink"] table td,
+body[data-skin="pink"] table[role="grid"] th,
+body[data-skin="pink"] table[role="grid"] td,
+body[data-skin="pink"] #assetsTable th,
+body[data-skin="pink"] #assetsTable td,
+body[data-skin="pink"] #bulkHelperTable th,
+body[data-skin="pink"] #bulkHelperTable td,
+body[data-skin="pink"] #whitelistTable th,
+body[data-skin="pink"] #whitelistTable td,
+body[data-skin="pink"] #issuableAssetsTable th,
+body[data-skin="pink"] #issuableAssetsTable td,
+body[data-skin="pink"] #controlledAssetsTable th,
+body[data-skin="pink"] #controlledAssetsTable td{
+  color: var(--td-skin-text-field) !important;
+  border-color: rgba(var(--td-skin-border-rgb), 0.28) !important;
+}
+
+body[data-skin="pink"] table thead,
+body[data-skin="pink"] table thead tr,
+body[data-skin="pink"] table thead th,
+body[data-skin="pink"] table[role="grid"] thead th,
+body[data-skin="pink"] #assetsTable thead th,
+body[data-skin="pink"] #bulkHelperTable thead th,
+body[data-skin="pink"] #whitelistTable thead th,
+body[data-skin="pink"] #issuableAssetsTable thead th,
+body[data-skin="pink"] #controlledAssetsTable thead th{
+  color: var(--td-skin-text-strong) !important;
+  background: rgba(var(--td-skin-table-head-rgb), 0.98) !important;
+}
+
+body[data-skin="pink"] table tbody,
+body[data-skin="pink"] table tbody tr,
+body[data-skin="pink"] table tbody td,
+body[data-skin="pink"] table[role="grid"] tbody td,
+body[data-skin="pink"] #assetsTable tbody td,
+body[data-skin="pink"] #bulkHelperTable tbody td,
+body[data-skin="pink"] #whitelistTable tbody td,
+body[data-skin="pink"] #issuableAssetsTable tbody td,
+body[data-skin="pink"] #controlledAssetsTable tbody td{
+  background: rgba(var(--td-skin-table-row-rgb), 0.96) !important;
+}
+
+body[data-skin="pink"] table tbody tr:hover,
+body[data-skin="pink"] table tbody tr:hover td{
+  background: rgba(var(--td-skin-primary-rgb), 0.12) !important;
+}
+
+body[data-skin="pink"] .codebox,
+body[data-skin="pink"] .logbox,
+body[data-skin="pink"] pre,
+body[data-skin="pink"] code{
+  color: var(--td-skin-text-field) !important;
+  background: radial-gradient(circle at top left, rgba(255, 236, 246, 0.96), rgba(var(--td-skin-panel-rgb), 0.98)) !important;
+}

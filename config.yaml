@@ -1,0 +1,15 @@
+# Compliance Wallet runtime configuration (CB-CW-SEND-1)
+# This file is read by the CW server at startup. Restart the CW server after changes.
+
+cn_url: "http://127.0.0.1:8081"
+cn_timeout_ms: "120000"
+fee_rate_min: "2"
+
+# NOTE (M3 Polish):
+# Broker fee policy (mode/amount/destination) is sourced from the Compliance Node policy file:
+#   ../Compliance_Node/data/policy/recipient_policy.json
+# (or cn_policy_path if set). CW config fee keys were removed to avoid drift/confusion.
+
+# Optional: local dev shortcut to read CN policy from disk.
+# cn_policy_path: "../Compliance_Node/data/policy/recipient_policy.json"
+

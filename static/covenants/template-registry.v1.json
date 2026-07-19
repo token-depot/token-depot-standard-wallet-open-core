@@ -1,0 +1,557 @@
+{
+  "registry_kind": "oma_covenant_template_registry_v1",
+  "registry_version": 1,
+  "registry_status": "local_template_registry_proof",
+  "application_status": "local_registry_only",
+  "generated_utc": "2026-06-28T15:30:00Z",
+  "rules_lock": [
+    "SoT-first",
+    "forensics first",
+    "no guesses",
+    "no fallbacks",
+    "no parallel paths",
+    "no stop-gaps",
+    "one file at a time",
+    "Rule #1: Do NOT break the working code"
+  ],
+  "source_sot": {
+    "KCC20-Lab_6.zip": "0abe45174d02d70a0e525f844066101622f10b7471472ac2046e0d294ec49b4e",
+    "What_the_SDK_Requires_v2-20.zip": "4277504a3d71679e82f7b2143827454005a70f24b7d5cc31b4d9d0e22fd8f7ba",
+    "Compliance_Wallet_250_Mac.zip": "fc80560d10593cc9c78835ea6c4acfd8c12c804d35826b457c6864e5428b0e0d",
+    "Compliance_Node_100.zip": "c6c13a43710c287a94ef475faef37ede007d67f8d5425c2306c4bb94279bb81e"
+  },
+  "sdk_policy": {
+    "current_status": "isolated_toccata_v2_bridge_present_no_main_sdk_replacement_yet",
+    "required_before_deployment": [
+      "SDK upgrade or approved production bridge architecture",
+      "existing wallet behavior regression proof",
+      "local Mac signing proof",
+      "local Mac broadcast proof",
+      "local Mac mint or approved live action proof"
+    ]
+  },
+  "network_policy": {
+    "not_tn10_gated": true,
+    "registry_network_support": [
+      "mainnet",
+      "testnet-10"
+    ],
+    "mainnet_readiness": "templates_may_support_mainnet_but_live_actions_remain_disabled_until_local_mac_proof_and_explicit_approval",
+    "testnet_policy": "testnet_10_remains_allowed_for_lab_and_regression_proofs_but_is_not_a_product_gate"
+  },
+  "safety_state": {
+    "signing_enabled": false,
+    "broadcasting_enabled": false,
+    "minting_enabled": false,
+    "wallet_mutation_enabled": false,
+    "mainnet_live_action_enabled": false,
+    "testnet_live_action_enabled": false
+  },
+  "classification_policy": {
+    "native_kas": {
+      "classification": "native_kas",
+      "asset_kind": "native_kas",
+      "token": false,
+      "normal_send_eligible": true,
+      "warning_class": "none"
+    },
+    "unknown_covenant": {
+      "classification": "unknown_covenanted_kas",
+      "asset_kind": "kas_under_contract",
+      "token": false,
+      "normal_send_eligible": false,
+      "warning_class": "unknown_covenant_normal_send_blocked",
+      "warning": "Unknown covenant UTXOs are KAS under contract, not tokens. Normal KAS send must not spend them."
+    },
+    "known_template_match": {
+      "classification_source": "template_registry",
+      "minimum_match_keys": [
+        "network_id",
+        "covenant_id",
+        "template_id",
+        "template_version",
+        "contract_type",
+        "proof_status"
+      ]
+    }
+  },
+  "proof_requirements_before_live_actions": [
+    "template registry entry is hash-pinned",
+    "builder proof packet is generated locally",
+    "input and output covenant plan is displayed before signing",
+    "compute budget, storage mass, and fee estimate are displayed before signing",
+    "normal-send exclusion proof is displayed before signing",
+    "local Mac signing proof passes",
+    "local Mac broadcast proof passes",
+    "post-submit scan proof detects expected covenant or token state",
+    "failure paths are proven for invalid authority or invalid state transitions"
+  ],
+  "templates": [
+    {
+      "template_id": "lab_lowlevel_covenanted_kas_v1",
+      "template_name": "Lab Low-Level Covenant Proof / KAS Under Contract",
+      "template_version": "1.0.0",
+      "contract_type": "kas_under_contract",
+      "network_support": [
+        "testnet-10"
+      ],
+      "classification": "lab_lowlevel_covenanted_kas",
+      "asset_kind": "kas_under_contract",
+      "token": false,
+      "normal_send_eligible": false,
+      "live_action_enabled": false,
+      "signing_enabled": false,
+      "broadcasting_enabled": false,
+      "minting_enabled": false,
+      "proof_status": "testnet_proven",
+      "warning_class": "lab_proof_not_token",
+      "warning": "This known TN10 covenant proof is KAS under covenant rules. It is not a KCC20 token and must remain blocked from normal KAS send.",
+      "covenant_id": "de602e6788cf6c8c0cef9f46b18590483bd50ec7f356827dc299214e733fe9c3",
+      "accepted_txid": "51f38fdd832ea73f54142d64e527ae41400a0b6dc82e9115a51d293627b0bb23",
+      "public_address": "kaspatest:qrv4hypvyfku6zu4pu3navk5g94seedlltsng86nxxargj257lhl2ezlkuhh2",
+      "public_address_sha256": "9c438f98fc345487de8f00dee166aa2d3a64f116942a10daf0bb6c87ac335330",
+      "known_outputs": [
+        {
+          "outpoint": "51f38fdd832ea73f54142d64e527ae41400a0b6dc82e9115a51d293627b0bb23:0",
+          "amount_sompi": "500000000",
+          "amount_kas": "5",
+          "covenant_present": true,
+          "normal_send_eligible": false
+        },
+        {
+          "outpoint": "51f38fdd832ea73f54142d64e527ae41400a0b6dc82e9115a51d293627b0bb23:1",
+          "amount_sompi": "499000000",
+          "amount_kas": "4.99",
+          "covenant_present": false,
+          "normal_send_eligible": true
+        }
+      ],
+      "source_proof_hashes": {
+        "kcc20_offline_proof_ledger_js": "dd090dced150efbfb7e0a9e150b80222561a717076c0520183aa97994a2a7786",
+        "tn10_throwaway_submit_lowlevel_genesis_tx_probe_js": "739cd914ebe9c40fa265dc1698322b25c16ee92a86dac99958e606730c67336e",
+        "tn10_readonly_normal_send_exclusion_proof_js": "290aeaf6f6de9451d760aa40a50fee3ad965e96b398b188217b1ac5aef9a8c48"
+      },
+      "allowed_actions": [
+        "inspect",
+        "classify",
+        "exclude_from_normal_send"
+      ],
+      "disabled_actions": [
+        "spend",
+        "sign",
+        "broadcast",
+        "mint"
+      ]
+    },
+    {
+      "template_id": "kcc20_reference_viewer_v1",
+      "template_name": "KCC20 Reference Viewer",
+      "template_version": "1.0.0",
+      "contract_type": "kcc20_reference_viewer",
+      "network_support": [
+        "mainnet",
+        "testnet-10"
+      ],
+      "classification": "reference_only",
+      "asset_kind": "reference_only",
+      "token": false,
+      "normal_send_eligible": false,
+      "live_action_enabled": false,
+      "signing_enabled": false,
+      "broadcasting_enabled": false,
+      "minting_enabled": false,
+      "proof_status": "reference_only_live_bootstrap_blocked",
+      "warning_class": "compatibility_display_only",
+      "warning": "KCC20 remains a reference/display profile until a source-aligned live bootstrap path is proven or the token/controller design is changed.",
+      "source_proof_hashes": {
+        "kcc20_readonly_source_ledger_js": "fb5121386022e860a5c100dd5aa5a478ca24935c9cbb93f6f8f21a5994d7f325",
+        "kcc20_readonly_mint_plan_ledger_js": "9ead71c6a4ce1f33e72a560d302494aca6d8dd75a5bbc083082edcf3cf7bc39d",
+        "kcc20_offline_compile_artifact_proof_js": "b52e8bc87a14316180079225c154269c25d4a8b2a3e618043da68d3eba529216",
+        "kcc20_offline_live_bootstrap_feasibility_proof_js": "55e1e4fa2e5e5bb721c4cbe6a8e63166b29b0394f81937eadede97c9b964e1ab"
+      },
+      "allowed_actions": [
+        "inspect_source",
+        "display_reference_state",
+        "show_live_bootstrap_blocker"
+      ],
+      "disabled_actions": [
+        "deploy",
+        "init",
+        "mint",
+        "sign",
+        "broadcast"
+      ]
+    },
+    {
+      "template_id": "simple_vault_v1",
+      "template_name": "Simple Vault",
+      "template_version": "0.1.0",
+      "contract_type": "vault_kas",
+      "network_support": [
+        "mainnet",
+        "testnet-10"
+      ],
+      "classification": "vault_kas",
+      "asset_kind": "kas_under_contract",
+      "token": false,
+      "normal_send_eligible": false,
+      "live_action_enabled": false,
+      "proof_status": "planned_offline_builder_required",
+      "warning_class": "planned_template_disabled",
+      "required_roles": [
+        "owner"
+      ],
+      "allowed_actions": [
+        "preview_only"
+      ]
+    },
+    {
+      "template_id": "recovery_vault_v1",
+      "template_name": "Recovery Vault",
+      "template_version": "0.1.0",
+      "contract_type": "recovery_vault_kas",
+      "network_support": [
+        "mainnet",
+        "testnet-10"
+      ],
+      "classification": "vault_kas",
+      "asset_kind": "kas_under_contract",
+      "token": false,
+      "normal_send_eligible": false,
+      "live_action_enabled": false,
+      "proof_status": "planned_offline_builder_required",
+      "warning_class": "planned_template_disabled",
+      "required_roles": [
+        "owner",
+        "recovery_key"
+      ],
+      "allowed_actions": [
+        "preview_only"
+      ]
+    },
+    {
+      "template_id": "escrow_refund_v1",
+      "template_name": "Escrow / Refund",
+      "template_version": "0.1.0",
+      "contract_type": "escrow_kas",
+      "network_support": [
+        "mainnet",
+        "testnet-10"
+      ],
+      "classification": "escrow_kas",
+      "asset_kind": "kas_under_contract",
+      "token": false,
+      "normal_send_eligible": false,
+      "live_action_enabled": false,
+      "proof_status": "planned_offline_builder_required",
+      "warning_class": "planned_template_disabled",
+      "required_roles": [
+        "payer",
+        "payee",
+        "refund_path"
+      ],
+      "allowed_actions": [
+        "preview_only"
+      ]
+    },
+    {
+      "template_id": "allowed_destination_lock_v1",
+      "template_name": "Allowed Destination Lock",
+      "template_version": "0.1.0",
+      "contract_type": "policy_locked_kas",
+      "network_support": [
+        "mainnet",
+        "testnet-10"
+      ],
+      "classification": "policy_locked_kas",
+      "asset_kind": "kas_under_contract",
+      "token": false,
+      "normal_send_eligible": false,
+      "live_action_enabled": false,
+      "proof_status": "planned_offline_builder_required",
+      "warning_class": "planned_template_disabled",
+      "required_roles": [
+        "owner"
+      ],
+      "allowed_actions": [
+        "preview_only"
+      ]
+    },
+    {
+      "template_id": "oma_l1_issuer_token_v1",
+      "legacy_aliases": [
+        "issuer_controlled_l1_token_v1"
+      ],
+      "template_name": "OMA L1 Covenant Token Profile v0.1",
+      "template_version": "0.1.0",
+      "standard_id": "oma_l1_covenant_token_profile_v0_1",
+      "contract_type": "l1_covenant_token",
+      "network_support": [
+        "mainnet",
+        "testnet-10"
+      ],
+      "classification": "oma_l1_covenant_token_state",
+      "asset_kind": "l1_covenant_token",
+      "token": true,
+      "canonical_token_id": "asset_covenant_id",
+      "normal_send_eligible": false,
+      "token_transition_required": true,
+      "live_action_enabled": false,
+      "signing_enabled": false,
+      "broadcasting_enabled": false,
+      "minting_enabled": false,
+      "proof_status": "profile_standard_proposed_builder_required",
+      "warning_class": "oma_l1_token_profile_preview_only",
+      "warning": "OMA L1 tokens require recognized covenant token state and controller state. This profile is preview-only until deploy, issue/mint, transfer, and post-submit state scan proofs pass.",
+      "carrier_policy": {
+        "carrier_asset": "KAS",
+        "carrier_amount_role": "standard UTXO value / dust and fee carrier only",
+        "token_amount_source": "decoded token state amount_raw, not carrier KAS amount"
+      },
+      "state_schemas": {
+        "token_state_schema": "oma_l1_token_state_v1",
+        "controller_state_schema": "oma_l1_token_controller_state_v1"
+      },
+      "token_state_schema_v1": {
+        "state_schema": "oma_l1_token_state_v1",
+        "asset_covenant_id": "canonical token ID",
+        "owner_identifier_type": [
+          "pubkey",
+          "address",
+          "script_hash"
+        ],
+        "owner_identifier": "recipient owner identifier",
+        "amount_raw": "integer token units",
+        "decimals": "display decimals",
+        "token_transition_required": true
+      },
+      "controller_state_schema_v1": {
+        "state_schema": "oma_l1_token_controller_state_v1",
+        "asset_covenant_id": "canonical token ID",
+        "issuer_identifier": "issuer authority identifier",
+        "max_supply_raw": "finite cap",
+        "issued_supply_raw": "issued supply counter",
+        "minting_enabled": true,
+        "burning_enabled": false,
+        "policy_hash": "metadata/policy hash or URI hash"
+      },
+      "transitions": {
+        "deploy_genesis": {
+          "status": "planned_builder_required",
+          "input_roles": [
+            "native_kas_funding_input",
+            "issuer_authority_preview"
+          ],
+          "output_roles": [
+            "token_controller_covenant_output",
+            "optional_initial_holder_token_output",
+            "native_change_output"
+          ],
+          "invariants": [
+            "asset_covenant_id becomes canonical token ID",
+            "controller state initializes supply cap",
+            "normal KAS change output has no covenant"
+          ]
+        },
+        "issue_mint": {
+          "status": "planned_builder_required",
+          "input_roles": [
+            "controller_state_input",
+            "issuer_authority"
+          ],
+          "output_roles": [
+            "next_controller_state_output",
+            "recipient_token_state_output",
+            "native_change_output"
+          ],
+          "invariants": [
+            "issued_supply_after=issued_supply_before+minted_amount",
+            "issued_supply_after<=max_supply_raw",
+            "recipient token state amount_raw equals minted amount"
+          ]
+        },
+        "transfer": {
+          "status": "planned_builder_required",
+          "input_roles": [
+            "holder_token_state_input",
+            "owner_authority"
+          ],
+          "output_roles": [
+            "recipient_token_state_output",
+            "optional_sender_token_change_output"
+          ],
+          "invariants": [
+            "sum input token amount_raw equals sum output token amount_raw",
+            "asset_covenant_id is preserved",
+            "normal KAS send cannot spend token UTXOs"
+          ]
+        }
+      },
+      "required_roles": [
+        "issuer",
+        "controller",
+        "mint_authority",
+        "token_owner"
+      ],
+      "required_proofs": [
+        "deploy_genesis_builder_proof",
+        "issue_mint_builder_proof",
+        "transfer_builder_proof",
+        "normal_send_exclusion_proof",
+        "post_submit_state_scan_proof"
+      ],
+      "allowed_actions": [
+        "preview_profile",
+        "export_proof_packet"
+      ],
+      "disabled_actions": [
+        "deploy",
+        "issue",
+        "mint",
+        "transfer",
+        "burn",
+        "sign",
+        "broadcast"
+      ]
+    },
+    {
+      "template_id": "regulated_wrapped_asset_controller_v1",
+      "template_name": "Regulated Wrapped Asset Controller",
+      "template_version": "0.1.0",
+      "contract_type": "regulated_asset_controller",
+      "network_support": [
+        "mainnet",
+        "testnet-10"
+      ],
+      "classification": "controller_state",
+      "asset_kind": "controller_state",
+      "token": false,
+      "normal_send_eligible": false,
+      "live_action_enabled": false,
+      "proof_status": "offline_builder_required",
+      "warning_class": "admin_power_template_disabled_until_live_proof",
+      "required_roles": [
+        "issuer_admin",
+        "compliance_admin",
+        "freeze_authority",
+        "seize_authority",
+        "burn_redeem_authority"
+      ],
+      "allowed_actions": [
+        "preview_only"
+      ],
+      "disabled_actions": [
+        "pause",
+        "unpause",
+        "freeze",
+        "seize",
+        "burn",
+        "redeem",
+        "rotate_role",
+        "sign",
+        "broadcast"
+      ]
+    },
+    {
+      "template_id": "regulated_wrapped_asset_token_v1",
+      "template_name": "Regulated Wrapped Asset Token",
+      "template_version": "0.1.0",
+      "contract_type": "regulated_asset_token",
+      "network_support": [
+        "mainnet",
+        "testnet-10"
+      ],
+      "classification": "regulated_asset_token_state",
+      "asset_kind": "regulated_asset_token",
+      "token": true,
+      "normal_send_eligible": false,
+      "live_action_enabled": false,
+      "proof_status": "offline_builder_required",
+      "warning_class": "admin_power_template_disabled_until_live_proof",
+      "required_roles": [
+        "owner",
+        "controller",
+        "compliance_policy"
+      ],
+      "allowed_actions": [
+        "preview_only"
+      ],
+      "disabled_actions": [
+        "transfer",
+        "freeze",
+        "seize",
+        "burn",
+        "redeem",
+        "sign",
+        "broadcast"
+      ]
+    },
+    {
+      "template_id": "burn_redeem_controller_v1",
+      "template_name": "Burn / Redeem Controller",
+      "template_version": "0.1.0",
+      "contract_type": "burn_redeem_controller",
+      "network_support": [
+        "mainnet",
+        "testnet-10"
+      ],
+      "classification": "controller_state",
+      "asset_kind": "controller_state",
+      "token": false,
+      "normal_send_eligible": false,
+      "live_action_enabled": false,
+      "proof_status": "offline_builder_required",
+      "warning_class": "planned_template_disabled",
+      "required_roles": [
+        "issuer",
+        "redeem_authority"
+      ],
+      "allowed_actions": [
+        "preview_only"
+      ],
+      "disabled_actions": [
+        "burn",
+        "redeem",
+        "sign",
+        "broadcast"
+      ]
+    }
+  ],
+  "token_standards": [
+    {
+      "standard_id": "oma_l1_covenant_token_profile_v0_1",
+      "standard_name": "OMA L1 Covenant Token Profile v0.1",
+      "standard_status": "proposed_local_profile_preview_only",
+      "standard_scope": "finite_supply_issuer_controlled_fungible_token",
+      "canonical_token_id": "asset_covenant_id",
+      "carrier": "kaspa_utxo_with_required_carrier_kas_amount",
+      "token_definition": "A recognized covenant-bearing Kaspa UTXO carrying token state under oma_l1_token_state_v1. The token is not the carrier KAS amount; the asset covenant ID and decoded token state define the token.",
+      "not_a_token_conditions": [
+        "native KAS without covenant ID",
+        "unknown covenant ID without recognized template/state schema",
+        "low-level covenanted KAS without token state schema",
+        "KRC20 indexer/interpreter asset without OMA L1 token covenant state"
+      ],
+      "classification_required_fields": [
+        "covenant_present=true",
+        "covenant_id exists",
+        "template_id=oma_l1_issuer_token_v1 or compatible recognized token template",
+        "state_schema=oma_l1_token_state_v1",
+        "asset_covenant_id exists",
+        "owner_identifier exists",
+        "amount_raw exists",
+        "normal_send_eligible=false",
+        "token_transition_required=true",
+        "registry token=true"
+      ],
+      "required_transitions_before_product_ready": [
+        "deploy_genesis",
+        "issue_mint",
+        "transfer",
+        "normal_send_exclusion",
+        "post_submit_state_scan"
+      ],
+      "live_action_status": "disabled_until_CC10C_CC10H_builder_sign_submit_proofs_pass"
+    }
+  ]
+}

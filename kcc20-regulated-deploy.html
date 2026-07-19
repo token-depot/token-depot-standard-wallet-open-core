@@ -1,0 +1,1135 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>OMA KCC20 Compliance Regulated</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+  <link rel="stylesheet" href="/static/css/style.css">
+  <script defer src="/static/js/skin_shared.js"></script>
+  <style>
+    .muted { opacity: .92; color: var(--td-skin-text-soft); }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .cr-hero, .cr-section {
+      border: 1px solid rgba(var(--td-skin-teal-border-rgb), .68);
+      border-radius: 18px;
+      background: rgba(var(--td-skin-panel-rgb), .86);
+      box-shadow: 0 0 22px rgba(var(--td-skin-primary-rgb), .20);
+      overflow: hidden;
+    }
+    .cr-hero > header, .cr-section > header {
+      background: rgba(var(--td-skin-panel-rgb), .76) !important;
+      border-bottom: 1px solid rgba(var(--td-skin-teal-border-rgb), .30);
+      border-radius: 17px 17px 0 0;
+      color: var(--td-skin-text-strong);
+    }
+    .cr-hero > header h2, .cr-section > header h3,
+    .cr-hero > header p, .cr-section > header p {
+      color: inherit;
+    }
+    .cr-pill-row { display:flex; flex-wrap:wrap; gap:.5rem; margin:.8rem 0 0; }
+    .cr-pill {
+      border:1px solid rgba(var(--td-skin-teal-border-rgb), .65);
+      border-radius:999px;
+      padding:.3rem .7rem;
+      background:rgba(var(--td-skin-panel-rgb), .82);
+      color:var(--td-skin-text-soft);
+      font-size:.86rem;
+    }
+    .cr-alert {
+      margin-top:1rem;
+      padding:1rem;
+      border-left:4px solid var(--td-skin-primary);
+      border-radius:12px;
+      background:rgba(var(--td-skin-primary-rgb), .10);
+    }
+    .cr-tabs {
+      display:grid;
+      grid-template-columns:repeat(6, minmax(0, 1fr));
+      gap:.55rem;
+      margin:1rem 0;
+    }
+    .cr-tab {
+      min-height:3rem;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:.55rem;
+      border:1px solid rgba(var(--td-skin-teal-border-rgb), .65);
+      border-radius:12px;
+      background:rgba(var(--td-skin-panel-rgb), .74);
+      color:var(--td-skin-text-strong);
+      font-weight:700;
+      text-align:center;
+      cursor:pointer;
+    }
+    .cr-tab[aria-selected="true"] {
+      background:rgba(var(--td-skin-primary-rgb), .20);
+      box-shadow:0 0 15px rgba(var(--td-skin-primary-rgb), .28);
+    }
+    .cr-panel[hidden] { display:none; }
+    .cr-grid { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:1rem; }
+    .cr-info {
+      padding:1rem;
+      border:1px solid rgba(var(--td-skin-white-rgb), .14);
+      border-radius:14px;
+      background:rgba(var(--td-skin-panel-rgb), .68);
+    }
+    .cr-locked { opacity:.78; }
+    .cr-status-row { display:flex; flex-wrap:wrap; align-items:center; gap:.65rem; margin:.25rem 0 1rem; }
+    .cr-status-badge {
+      display:inline-flex;
+      align-items:center;
+      gap:.4rem;
+      border:1px solid rgba(var(--td-skin-white-rgb), .18);
+      border-radius:999px;
+      padding:.34rem .72rem;
+      background:rgba(var(--td-skin-panel-rgb), .76);
+      color:var(--td-skin-text-soft);
+      font-weight:700;
+    }
+    .cr-status-badge[data-state="verified"] { border-color:rgba(var(--td-skin-teal-border-rgb), .82); }
+    .cr-status-badge[data-state="failed"] { border-color:rgba(210, 70, 70, .78); }
+    .cr-status-badge[data-state="loading"] { opacity:.84; }
+    .cr-overview-value { display:block; margin-top:.45rem; overflow-wrap:anywhere; }
+    .cr-overview-value.mono { font-size:.84rem; }
+    .cr-safety-list { margin:.55rem 0 0; padding-left:1.1rem; }
+    .cr-safety-list li { margin:.24rem 0; }
+    .cr-refresh-button { width:auto; margin:0; padding:.42rem .8rem; }
+    .cr-lab-form label { font-weight:700; }
+    .cr-lab-form textarea, .cr-lab-form input { font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .cr-lab-form textarea { min-height:8rem; resize:vertical; }
+    .cr-lab-actions { display:flex; flex-wrap:wrap; gap:.65rem; margin-top:1rem; }
+    .cr-lab-actions button { width:auto; margin:0; }
+    .cr-lab-result { margin-top:1rem; }
+    .cr-lab-decision { font-weight:800; }
+    .cr-lab-decision[data-state="allowed"] { color:var(--td-skin-primary); }
+    .cr-lab-decision[data-state="blocked"] { color:#ef8f8f; }
+    .cr-lab-decision[data-state="not-governed"] { color:var(--td-skin-text-soft); }
+    .cr-lab-json { min-height:12rem; white-space:pre-wrap; overflow-wrap:anywhere; }
+    .two-col { display:grid; grid-template-columns:1fr 1fr; gap:16px; align-items:start; }
+    .stack > label { display:block; margin-bottom:12px; }
+    .hidden { display:none; }
+    .logbox {
+      background:
+        radial-gradient(circle at top left, rgba(var(--td-skin-primary-rgb), .20), rgba(var(--td-skin-panel-rgb), .98));
+      border:1px solid rgba(var(--td-skin-teal-border-rgb), .70);
+      border-radius:16px;
+      padding:12px;
+      white-space:pre-wrap;
+      overflow:auto;
+      max-height:280px;
+      color:var(--td-skin-text-field);
+      box-shadow:
+        0 0 0 1px rgba(var(--td-skin-panel-rgb), 1),
+        0 0 18px rgba(var(--td-skin-primary-rgb), .65);
+    }
+    .dot-list dt { font-weight:600; }
+    .dot-list dd { margin:0 0 .5rem 0; }
+    .kcc20-proof-grid { display:grid; grid-template-columns:1fr 1fr; gap:.75rem; margin:.75rem 0; }
+    .kcc20-proof-card {
+      border:1px solid rgba(var(--td-skin-white-rgb), .14);
+      border-radius:14px;
+      padding:.75rem;
+      background:rgba(var(--td-skin-panel-rgb), .72);
+    }
+    .cr-audit-summary {
+      display:grid;
+      grid-template-columns:repeat(3, minmax(0,1fr));
+      gap:.75rem;
+    }
+    .cr-audit-metric {
+      min-height:7rem;
+      display:flex;
+      flex-direction:column;
+      justify-content:space-between;
+      padding:1rem;
+      border:1px solid rgba(var(--td-skin-white-rgb), .14);
+      border-radius:14px;
+      background:rgba(var(--td-skin-panel-rgb), .68);
+    }
+    .cr-audit-metric strong {
+      font-size:1.55rem;
+      line-height:1.1;
+      overflow-wrap:anywhere;
+    }
+    .cr-audit-filter-grid {
+      display:grid;
+      grid-template-columns:repeat(3, minmax(0,1fr));
+      gap:.85rem;
+    }
+    .cr-audit-filter-grid label { margin:0; }
+    .cr-audit-actions {
+      display:flex;
+      flex-wrap:wrap;
+      gap:.65rem;
+      margin-top:1rem;
+    }
+    .cr-audit-actions button { width:auto; margin:0; }
+    [data-cr-panel="audit"],
+    [data-cr-panel="audit"] .cr-info,
+    .cr-audit-timeline,
+    .cr-audit-event,
+    .cr-audit-event details {
+      min-width:0;
+      max-width:100%;
+      box-sizing:border-box;
+    }
+    .cr-audit-timeline {
+      display:grid;
+      width:100%;
+      gap:.8rem;
+      margin-top:1rem;
+    }
+    .cr-audit-event {
+      width:100%;
+      overflow:hidden;
+      border:1px solid rgba(var(--td-skin-white-rgb), .14);
+      border-left:4px solid rgba(var(--td-skin-teal-border-rgb), .82);
+      border-radius:14px;
+      padding:1rem;
+      background:rgba(var(--td-skin-panel-rgb), .68);
+    }
+    .cr-audit-event[data-outcome="rejected"] { border-left-color:#d95050; }
+    .cr-audit-event[data-outcome="pending"] { border-left-color:#d6a640; }
+    .cr-audit-event-head {
+      display:flex;
+      flex-wrap:wrap;
+      justify-content:space-between;
+      align-items:flex-start;
+      gap:.75rem;
+    }
+    .cr-audit-event-title { margin:0; }
+    .cr-audit-event-meta {
+      display:flex;
+      flex-wrap:wrap;
+      gap:.45rem .8rem;
+      margin:.65rem 0;
+      color:var(--td-skin-text-soft);
+      font-size:.9rem;
+    }
+    .cr-audit-event details {
+      width:100%;
+      margin-top:.65rem;
+      overflow:hidden;
+    }
+    .cr-audit-event summary {
+      cursor:pointer;
+      color:var(--td-skin-text-strong);
+      font-weight:700;
+    }
+    .cr-audit-empty {
+      padding:1.25rem;
+      border:1px dashed rgba(var(--td-skin-white-rgb), .24);
+      border-radius:14px;
+      text-align:center;
+      color:var(--td-skin-text-soft);
+    }
+    .cr-audit-pending {
+      border-left:4px solid #d6a640;
+      background:rgba(214, 166, 64, .10);
+    }
+    .cr-audit-timeline-details > summary {
+      display:flex;
+      flex-wrap:wrap;
+      align-items:center;
+      gap:.65rem;
+      margin:0;
+      cursor:pointer;
+      color:var(--td-skin-text-strong);
+    }
+    .cr-audit-timeline-details > summary:focus-visible {
+      outline:2px solid rgba(var(--td-skin-teal-border-rgb), .92);
+      outline-offset:4px;
+      border-radius:8px;
+    }
+    .cr-audit-timeline-heading {
+      color:inherit;
+      font-size:1.1rem;
+      font-weight:700;
+    }
+    .cr-audit-evidence {
+      display:block;
+      width:100%;
+      min-width:0;
+      max-width:100%;
+      min-height:8rem;
+      max-height:320px;
+      box-sizing:border-box;
+      white-space:pre;
+      overflow-x:auto;
+      overflow-y:auto;
+      overscroll-behavior-inline:contain;
+    }
+    @media (max-width: 720px) {
+      .two-col, .kcc20-proof-grid, .cr-audit-summary, .cr-audit-filter-grid { grid-template-columns:1fr; }
+    }
+    @media (max-width: 900px) {
+      .cr-tabs { grid-template-columns:repeat(3, minmax(0,1fr)); }
+    }
+    @media (max-width: 640px) {
+      .cr-tabs { grid-template-columns:repeat(2, minmax(0,1fr)); }
+      .cr-grid { grid-template-columns:1fr; }
+      nav.container-fluid{ display:flex !important; flex-wrap:wrap !important; justify-content:flex-start !important; align-items:stretch !important; gap:.75rem 1rem !important; }
+      nav.container-fluid > ul:first-child{ width:100% !important; display:flex !important; justify-content:center !important; }
+      nav.container-fluid > ul:first-child img{ height:52px !important; }
+      nav.container-fluid > ul:nth-of-type(2){ width:100% !important; display:flex !important; flex-wrap:wrap !important; justify-content:center !important; gap:.35rem .9rem !important; }
+    }
+  </style>
+</head>
+<body data-skin="classic_teal">
+<script>
+(function () {
+  var key = 'td_active_skin_id';
+  var allowed = { classic_teal: true, pink: true, pink_black: true, gold: true, gold_black: true, blue: true, blue_black: true, green: true, green_black: true, red: true, red_black: true, yellow: true, yellow_black: true, cyan: true, cyan_black: true, orange: true, orange_black: true };
+  try {
+    var skinId = String(sessionStorage.getItem(key) || '').trim();
+    if (allowed[skinId]) document.body.setAttribute('data-skin', skinId);
+  } catch (_) {}
+})();
+</script>
+<main class="container">
+  <nav class="container-fluid">
+    <ul><li><a href="/wallet.html"><img src="static/icon/logo.png" alt="Token Depot logo" style="height:60px; display:block;"></a></li></ul>
+    <ul>
+      <li><a href="/deploy.html" aria-current="page">Deploy</a></li>
+      <li><a href="/issue.html">Issue</a></li>
+      <li><a href="/covenants.html">Cov Tools</a></li>
+      <li><a href="/redeem.html">Redeem</a></li>
+      <li><a href="/energy.html">Energy</a></li>
+      <li><a href="/manage.html">Settings</a></li>
+      <li><a href="#" id="btnLogout">Logout</a></li>
+    </ul>
+  </nav>
+  <script type="module" src="/static/js/nav_choice_modal.js"></script>
+
+  <article class="cr-hero">
+    <header>
+      <h2>KCC20 Compliance Regulated Workspace</h2>
+      <p class="muted">A professional Testnet-10 environment for learning, designing, verifying, and proving non-custodial regulated-token governance.</p>
+      <div class="cr-pill-row">
+        <span class="cr-pill">Testnet-10 evaluation</span>
+        <span class="cr-pill">Not included with OMA PRO mainnet access</span>
+        <span class="cr-pill">Licensed operator mainnet service</span>
+        <span class="cr-pill">No broker custody</span>
+      </div>
+    </header>
+    <div class="cr-alert">
+      <strong>Licensed Operator Tool</strong>
+      <p class="muted" style="margin:.35rem 0 0;">Regular OMA users may evaluate this workspace on Testnet-10. Mainnet deployment, issuance, freeze, seize, and forced-burn controls require an approved licensed MSB/fintech operator, dedicated Compliance Wallet and Compliance Node infrastructure, and a separate Token Depot software lease.</p>
+    </div>
+  </article>
+
+  <div class="cr-tabs" role="tablist" aria-label="KCC20 Compliance Regulated workspace sections">
+    <button class="cr-tab" type="button" role="tab" aria-selected="true" data-cr-tab="overview">Overview</button>
+    <button class="cr-tab" type="button" role="tab" aria-selected="false" data-cr-tab="rulebook">Rulebook Lab</button>
+    <button class="cr-tab" type="button" role="tab" aria-selected="false" data-cr-tab="deploy">Deploy</button>
+    <button class="cr-tab" type="button" role="tab" aria-selected="false" data-cr-tab="issue">Issue</button>
+    <button class="cr-tab" type="button" role="tab" aria-selected="false" data-cr-tab="controls">Controls</button>
+    <button class="cr-tab" type="button" role="tab" aria-selected="false" data-cr-tab="audit">Audit</button>
+  </div>
+
+  <article class="cr-section cr-panel" role="tabpanel" data-cr-panel="overview">
+    <header>
+      <h3>Overview</h3>
+      <p class="muted">Start here. Load your saved Demo Policy, confirm its current epoch and root, then continue to Rulebook Lab to configure the rules that will govern your new Testnet-10 token.</p>
+    </header>
+    <div class="cr-alert" style="margin-bottom:1rem;">
+      <strong>Policy source mode</strong>
+      <p class="muted" style="margin:.35rem 0 0;"><span id="crPolicySourceMode">Testnet-10 Local Demo Policy</span> — user-scoped, non-production, and separate from the dedicated Compliance Node required for licensed mainnet operation.</p>
+    </div>
+
+    <section class="cr-info" style="margin-bottom:1rem;">
+      <div class="cr-status-row">
+        <strong>Saved Demo Policy</strong>
+        <span id="crDemoPolicyStatus" class="cr-status-badge" data-state="pending">Checking saved policy…</span>
+      </div>
+      <p id="crDemoPolicyMessage" class="muted" style="margin:.5rem 0 0;">Load the saved Demo Policy before editing or continuing.</p>
+      <div class="cr-grid" style="margin-top:1rem;">
+        <section class="cr-info"><strong>Mode</strong><span id="crDemoPolicyMode" class="cr-overview-value">Testnet-10 Local Demo Policy</span></section>
+        <section class="cr-info"><strong>Policy epoch</strong><span id="crDemoPolicyEpoch" class="cr-overview-value">—</span></section>
+        <section class="cr-info"><strong>Source snapshot</strong><span id="crDemoPolicySnapshot" class="cr-overview-value mono">—</span></section>
+        <section class="cr-info"><strong>Rulebook root</strong><span id="crDemoPolicyRoot" class="cr-overview-value mono">—</span></section>
+        <section class="cr-info"><strong>Registry publication</strong><span id="crDemoPolicyPublication" class="cr-overview-value">Not evaluated</span></section>
+        <section class="cr-info"><strong>Updated</strong><span id="crDemoPolicyUpdatedAt" class="cr-overview-value">—</span></section>
+      </div>
+      <label style="display:flex;align-items:flex-start;gap:.6rem;margin-top:1rem;">
+        <input id="crDemoPolicyIncludeActiveWallet" type="checkbox">
+        <span>Include the active Testnet-10 wallet in the allowlist when explicitly creating or resetting the Demo Policy.</span>
+      </label>
+      <div class="cr-lab-actions" style="margin-top:1rem;">
+        <button id="crDemoPolicyLoadBtn" type="button" class="secondary outline">Load Demo Policy</button>
+        <button id="crDemoPolicyCreateBtn" type="button" disabled>Create Demo Policy</button>
+        <button id="crDemoPolicyResetBtn" type="button" class="secondary outline" disabled>Reset to Blank Template</button>
+        <button id="crDemoPolicyExportBtn" type="button" class="secondary outline" disabled>Export Saved Policy</button>
+      </div>
+    </section>
+
+    <h4>How the setup controls work</h4>
+    <div class="cr-grid">
+      <section class="cr-info"><strong>Load Demo Policy</strong><p class="muted">Loads your current saved policy, epoch, root, and list values into Overview and Rulebook Lab.</p></section>
+      <section class="cr-info"><strong>Create / Reset</strong><p class="muted">Create starts your first saved policy. Reset to Blank Template clears the saved rule lists and creates a new epoch after confirmation.</p></section>
+      <section class="cr-info"><strong>Calculate / Save</strong><p class="muted">In Rulebook Lab, Calculate Changes validates and previews the draft. Save New Epoch commits a materially changed policy.</p></section>
+      <section class="cr-info"><strong>Continue to Deploy</strong><p class="muted">After saving, open Deploy. Your saved policy root, epoch, active wallet, and network are loaded automatically for registry deployment.</p></section>
+    </div>
+    <div class="cr-alert" style="margin-top:1rem;">
+      <strong>Next step — configure your rulebook</strong>
+      <p class="muted" style="margin:.35rem 0 0;">Open Rulebook Lab, enter the recipient addresses and rules you need, click Calculate Changes, then click Save New Epoch.</p>
+    </div>
+
+    <div hidden aria-hidden="true">
+      <span id="crRulebookStatus" data-state="pending">Reference policy not displayed in local demo mode</span>
+      <button id="crRulebookRefresh" type="button">Refresh reference policy</button>
+      <span id="crRulebookCheckedAt"></span>
+      <div id="crRulebookError" hidden><span id="crRulebookErrorText"></span></div>
+      <span id="crRulebookNetwork"></span>
+      <span id="crRulebookConnection"></span>
+      <span id="crRulebookSnapshot"></span>
+      <span id="crRulebookVerification"></span>
+      <span id="crRulebookVerificationDetail"></span>
+      <span id="crRulebookCnRoot"></span>
+      <span id="crRulebookCwRoot"></span>
+      <span id="crCountRegulatedAssets"></span>
+      <span id="crCountAllowlist"></span>
+      <span id="crCountBlacklist"></span>
+      <span id="crCountFrozenHolders"></span>
+      <span id="crCountFrozenOutpoints"></span>
+      <span id="crCountLawfulOrders"></span>
+      <span id="crSafetyReadOnly"></span>
+      <span id="crSafetyNoMutation"></span>
+      <span id="crSafetyNoEnforcement"></span>
+      <span id="crSafetyNoTransaction"></span>
+    </div>
+  </article>
+
+  <article class="cr-section cr-panel" role="tabpanel" data-cr-panel="rulebook" hidden>
+    <header>
+      <h3>Rulebook Lab</h3>
+      <p class="muted">Configure the one saved Testnet-10 Demo Policy that will govern your registry and regulated token. Enter the required addresses and rules, calculate the draft, then save the next epoch before continuing to Deploy.</p>
+    </header>
+    <div class="cr-alert">
+      <strong>Policy field guide</strong>
+      <p class="muted" style="margin:.35rem 0 0;">Regulated assets are governed token covenant IDs. The allowlist permits recipients when enabled; the blacklist blocks recipients. Frozen holders and outpoints block ordinary transfers. Lawful-order actions remain unavailable until their deterministic schema is approved.</p>
+    </div>
+
+    <form id="crRulebookLabForm" class="cr-lab-form" autocomplete="off" style="margin-top:1.25rem;">
+      <h4>Policy commitment</h4>
+      <div class="cr-grid">
+        <label>Network
+          <input id="crLabNetwork" type="text" value="testnet-10" readonly>
+        </label>
+        <label>Source policy snapshot ID
+          <input id="crLabSnapshot" type="text" maxlength="64" placeholder="Calculated from normalized policy content" readonly>
+        </label>
+      </div>
+
+      <h4 style="margin-top:1.25rem;">Policy lists</h4>
+      <div class="cr-grid">
+        <label>Regulated asset covenant IDs
+          <textarea id="crLabRegulatedAssets" placeholder="One 64-hex covenant ID per line"></textarea>
+          <small class="muted">Tokens governed by this Demo Policy.</small>
+        </label>
+        <label>Recipient allowlist
+          <textarea id="crLabAllowlist" placeholder="One Kaspa address per line"></textarea>
+          <small class="muted">When non-empty and enabled, only listed recipients may receive governed tokens.</small>
+        </label>
+        <label>Recipient blacklist
+          <textarea id="crLabBlacklist" placeholder="One Kaspa address per line"></textarea>
+          <small class="muted">Listed recipients are blocked.</small>
+        </label>
+        <label>Frozen holders
+          <textarea id="crLabFrozenHolders" placeholder="One holder address per line"></textarea>
+          <small class="muted">Listed holders are blocked from ordinary transfer.</small>
+        </label>
+        <label>Frozen outpoints
+          <textarea id="crLabFrozenOutpoints" placeholder="One txid:index outpoint per line"></textarea>
+          <small class="muted">Listed token outputs are blocked from ordinary spend.</small>
+        </label>
+        <label>Lawful-order actions JSON (not enabled yet)
+          <textarea id="crLabLawfulActions" readonly aria-readonly="true">[]</textarea>
+          <small class="muted">Must remain empty until a deterministic lawful-order action schema is approved.</small>
+        </label>
+      </div>
+
+      <div class="cr-lab-actions">
+        <button id="crLabCalculate" type="submit">Calculate Changes</button>
+        <button id="crDemoPolicySaveBtn" type="button" disabled>Save New Epoch</button>
+        <button id="crLabReset" type="button" class="secondary outline">Reload Saved Values</button>
+        <button id="crLabExport" type="button" class="secondary outline" disabled>Export Calculated Draft</button>
+      </div>
+      <p class="muted" style="margin:.75rem 0 0;">Save New Epoch becomes available after Calculate Changes validates the draft. A materially changed save advances this same Demo Policy by one epoch; a no-op save keeps the current epoch.</p>
+    </form>
+
+    <div id="crLabError" class="cr-alert" hidden>
+      <strong>Draft validation failed</strong>
+      <p id="crLabErrorText" class="muted" style="margin:.35rem 0 0;">Correct the highlighted fields and calculate again.</p>
+    </div>
+
+    <div class="cr-grid cr-lab-result">
+      <section class="cr-info"><strong>Calculated rulebook root</strong><span id="crLabRoot" class="cr-overview-value mono">—</span></section>
+      <section class="cr-info"><strong>Reference root</strong><span id="crLabCurrentRoot" class="cr-overview-value mono">—</span></section>
+      <section class="cr-info"><strong>Comparison</strong><span id="crLabRootComparison" class="cr-overview-value">Not calculated</span></section>
+      <section class="cr-info"><strong>Policy counts</strong><span id="crLabCounts" class="cr-overview-value">—</span></section>
+    </div>
+    <div class="cr-info" style="margin-top:1rem;">
+      <strong>Canonical calculated JSON</strong>
+      <pre id="crLabCanonicalJson" class="cr-lab-json mono">Calculate a valid draft to view canonical JSON.</pre>
+    </div>
+
+    <div class="cr-info" style="margin-top:1rem;">
+      <strong>Before continuing to Deploy</strong>
+      <ul class="cr-safety-list muted">
+        <li>Click Calculate Changes after every edit.</li>
+        <li>Click Save New Epoch to commit the validated policy.</li>
+        <li>Reload Saved Values to confirm the saved addresses and rules persist.</li>
+        <li>Then open Deploy; the saved policy epoch and root will be loaded automatically.</li>
+      </ul>
+    </div>
+  </article>
+
+  <article class="cr-section cr-panel" role="tabpanel" data-cr-panel="deploy" hidden>
+    <header>
+      <h3>Deploy — Policy Registry and Regulated Token</h3>
+      <p class="muted">Deploy the saved Demo Policy registry first, then create a new zero-supply KCC20-Regulated token governed by that registry. Policy-derived values are loaded automatically.</p>
+      <div class="cr-pill-row">
+        <span class="cr-pill">Testnet-10 only</span>
+        <span class="cr-pill">Saved Demo Policy</span>
+        <span class="cr-pill">Local wallet signing</span>
+        <span class="cr-pill">Zero initial supply</span>
+      </div>
+    </header>
+
+    <section id="crDeploySuccessBanner" class="cr-alert" data-state="success" style="margin-bottom:1rem;" hidden>
+      <strong id="crDeploySuccessTitle">KCC20-Regulated deployment complete</strong>
+      <p id="crDeploySuccessMessage" class="muted" style="margin:.35rem 0 .65rem;">The zero-supply issuer controller is live and tracked on Testnet-10.</p>
+      <dl class="dot-list" style="margin:0;">
+        <dt>Asset Covenant ID</dt>
+        <dd id="crDeploySuccessAssetCovenantId" class="mono">—</dd>
+        <dt>Deployment Transaction</dt>
+        <dd id="crDeploySuccessTxid" class="mono">—</dd>
+        <dt>Next Step</dt>
+        <dd>Select the Issue tab to create regulated supply. Refresh this page only when intentionally deploying another token.</dd>
+      </dl>
+    </section>
+
+    <div class="cr-alert" style="margin-bottom:1rem;">
+      <strong>Step 1 — Deploy your Policy Registry</strong>
+      <p class="muted" style="margin:.35rem 0 0;">The saved Demo Policy root and epoch, active wallet authority, and Testnet-10 network are loaded automatically. Build, sign locally, and submit the registry before creating the token.</p>
+    </div>
+    <div class="cr-grid" style="margin-bottom:1.25rem;">
+      <section class="cr-info">
+        <strong>Selected Rulebook</strong>
+        <span id="crRegistryRulebookRoot" class="cr-overview-value mono">Waiting for selected rulebook…</span>
+        <small id="crRegistryRulebookMeta" class="muted">Load and save the Demo Policy first. Deploy will then use its current root and epoch automatically.</small>
+      </section>
+      <section class="cr-info">
+        <strong>Registry Authority</strong>
+        <span id="crRegistryAuthority" class="cr-overview-value mono">Waiting for READY Testnet-10 wallet…</span>
+        <small class="muted">The active wallet signs the genesis transaction locally.</small>
+      </section>
+      <label>Registry Carrier (KAS)
+        <input id="crRegistryCarrierKas" type="number" min="1" step="0.01" value="5">
+        <small class="muted">Native KAS carrier for the registry covenant UTXO.</small>
+      </label>
+      <label>Registry Fee Reserve (KAS)
+        <input id="crRegistryFeeReserveKas" type="number" min="0.01" step="0.01" value="0.02">
+      </label>
+      <section class="cr-info">
+        <strong>Live Registry Covenant ID</strong>
+        <span id="crRegistryCovenantId" class="cr-overview-value mono">Not deployed</span>
+        <small id="crRegistryStatus" class="muted">Build, sign, and submit the registry before deploying the token.</small>
+      </section>
+      <div class="stack">
+        <button id="crRegistryBuildBtn" type="button" disabled>Build Policy Registry</button>
+        <button id="crRegistrySignBtn" type="button" disabled>Sign Policy Registry Locally</button>
+        <button id="crRegistrySubmitBtn" type="button" disabled>Submit Policy Registry to TN10</button>
+      </div>
+    </div>
+    <div id="crRegistryProofWrap" class="cr-info" style="margin-bottom:1.25rem;" hidden>
+      <strong>Policy Registry Proof</strong>
+      <pre id="crRegistryProof" class="cr-lab-json mono"></pre>
+    </div>
+
+    <input id="kcc20RegulatedPreviewMode" type="hidden" value="1">
+    <input id="kcc20RegulatedProfileVersion" type="hidden" value="1">
+
+    <div class="two-col">
+      <section>
+        <p class="muted"><strong>Step 2 — Deploy your regulated token.</strong> Enter the token name, symbol, decimals, and maximum supply. The active wallet, network, policy registry covenant ID, policy epoch, control flags, and zero initial supply are supplied from the completed setup.</p>
+
+        <h6>Values supplied by the saved rulebook and registry</h6>
+        <dl class="dot-list">
+          <dt>Policy Registry Covenant ID / Reference</dt>
+          <dd>The real 64-character hexadecimal covenant ID produced by the Testnet-10 policy-registry deployment above.</dd>
+
+          <dt>Policy Epoch</dt>
+          <dd>The authoritative rulebook epoch committed to the regulated controller state.</dd>
+
+          <dt>Control Flags</dt>
+          <dd>A compact bitset: 1 transfer enforcement, 2 freeze, 4 seize, 8 forced burn, 16 allowlist, and 32 blacklist. Value 63 declares all known v1 capabilities; enforcement is completed in later Controls and Transfer modules.</dd>
+
+          <dt>Policy Hash / Reference</dt>
+          <dd>The existing optional generic KCC20 token field. It is separate from the regulated policy-registry reference and current CN rulebook root.</dd>
+
+          <dt>Actual Outputs</dt>
+          <dd>The build and submit proofs must show that the regulated controller is created on TN10, tracked as zero-supply issuer authority, and unavailable on mainnet.</dd>
+        </dl>
+
+        <div class="kcc20-proof-grid">
+          <div class="kcc20-proof-card">
+            <strong>Network and operator boundary</strong>
+            <p id="kcc20NetworkStatus" class="muted">Waiting for wallet status.</p>
+          </div>
+          <div class="kcc20-proof-card">
+            <strong>Live issuance boundary</strong>
+            <p id="kcc20LicenseStatus" class="muted">TN10 activation enabled. Build, Sign Locally, and Submit are available only with a Testnet-10 wallet.</p>
+          </div>
+        </div>
+
+        <div id="kcc20PreviewWrap" class="hidden" style="margin-top:1rem">
+          <h6>Regulated Build Preview</h6>
+          <pre id="kcc20Preview" class="logbox mono"></pre>
+        </div>
+
+        <div id="kcc20OutputWrap" class="hidden" style="margin-top:1rem">
+          <h6>Output</h6>
+          <pre id="kcc20Output" class="logbox mono"></pre>
+        </div>
+
+        <p id="kcc20Msg" class="muted" style="margin-top:.5rem">Ready.</p>
+      </section>
+
+      <section class="stack">
+        <label>
+          Active Wallet
+          <input id="kcc20ActiveWallet" type="text" class="mono" readonly placeholder="Load wallet status">
+          <small class="muted">Prefilled from the unlocked OMA wallet.</small>
+        </label>
+
+        <label>
+          Network
+          <input id="kcc20Network" type="text" class="mono" readonly placeholder="testnet-10">
+          <small class="muted">Regular-user KCC20-Regulated evaluation is restricted to Testnet-10.</small>
+        </label>
+
+        <label>
+          Token Name
+          <input id="kcc20TokenName" type="text" maxlength="64" placeholder="Regulated Test Token" autocomplete="off">
+          <small class="muted">Max 64 characters. Spaces allowed.</small>
+        </label>
+
+        <label>
+          Token Symbol
+          <input id="kcc20TokenSymbol" type="text" maxlength="16" placeholder="REGT" autocomplete="off">
+          <small class="muted">2–16 characters. A–Z and 0–9 only. No spaces.</small>
+        </label>
+
+        <label>
+          Decimals
+          <input id="kcc20Decimals" type="number" min="0" max="18" value="0">
+          <small class="muted">Allowed range: 0–18.</small>
+        </label>
+
+        <label>
+          Max Supply (RAW)
+          <input id="kcc20MaxSupplyRaw" type="text" inputmode="numeric" class="mono" placeholder="1000000">
+          <small class="muted">Positive unsigned integer. 0 is not unlimited.</small>
+        </label>
+
+        <label>
+          Initial Issue (RAW)
+          <input id="kcc20InitialIssueRaw" type="text" inputmode="numeric" class="mono" placeholder="0" value="0" readonly aria-readonly="true">
+          <small class="muted">Fixed at 0. Regulated supply can be created only through the authorized Issue workflow.</small>
+        </label>
+
+        <label>
+          Transfer Rules
+          <select id="kcc20TransferRule">
+            <option value="owner_signature_required" selected>Owner signature required</option>
+          </select>
+          <small class="muted">The existing proven KCC20 transfer rule remains unchanged.</small>
+        </label>
+
+        <label>
+          Policy Hash / Reference
+          <input id="kcc20PolicyHash" type="text" class="mono" maxlength="128" placeholder="optional legacy KCC20 field">
+        </label>
+
+        <label>
+          Policy Registry Covenant ID / Reference
+          <input id="kcc20PolicyRegistryCovenantId" type="text" class="mono" minlength="64" maxlength="64" pattern="[0-9a-fA-F]{64}" placeholder="64-hex Testnet-10 registry reference" autocomplete="off" required>
+          <small class="muted">Auto-filled after the Testnet-10 registry is submitted and visible. A fabricated reference is rejected by the server.</small>
+        </label>
+
+        <label>
+          Policy Epoch
+          <input id="kcc20PolicyEpoch" type="number" min="1" max="4294967295" step="1" value="1" readonly aria-readonly="true" required>
+        </label>
+
+        <label>
+          Control Flags
+          <input id="kcc20ControlFlags" type="number" min="1" max="63" step="1" value="63" required>
+          <small class="muted">Declared v1 control capabilities. Live control actions remain unavailable until their separate modules are proven.</small>
+        </label>
+
+        <label>
+          Controller Carrier (KAS)
+          <input id="kcc20ControllerCarrierKas" type="number" min="1" step="0.01" value="1">
+        </label>
+
+        <label>
+          Holder Carrier (KAS)
+          <input id="kcc20HolderCarrierKas" type="number" min="0" step="0.01" value="1">
+          <small class="muted">Unused for the required zero-supply regulated Deploy. Holder carrier is selected later during Issue.</small>
+        </label>
+
+        <input id="kcc20FeeReserveKas" type="hidden" value="0.01">
+        <div class="kcc20-proof-card">
+          <strong>Fee and mass preview</strong>
+          <p class="muted">OMA reuses the existing deploy fee reserve and returns calculated mass and fee in the build proof.</p>
+        </div>
+
+        <button id="kcc20BuildBtn" type="button">Build Regulated Deploy</button>
+        <button id="kcc20SignBtn" type="button" disabled>Sign Regulated Deploy Locally</button>
+        <button id="kcc20SubmitBtn" type="button" disabled>Submit Regulated Deploy to TN10</button>
+        <p class="muted"><strong>TN10 only:</strong> mainnet Build, Sign, and Submit are rejected by both the browser and server.</p>
+      </section>
+    </div>
+  </article>
+
+  <article class="cr-section cr-panel" role="tabpanel" data-cr-panel="issue" hidden>
+    <header>
+      <h3>Issue Regulated Tokens</h3>
+      <p class="muted">Create regulated Testnet-10 supply for a token governed by your saved Demo Policy and live Policy Registry. No external deposit is required for the Testnet-10 demo.</p>
+    </header>
+
+    <div class="cr-alert">
+      <strong>Testnet-10 Demo Issuance</strong>
+      <p class="muted" style="margin:.35rem 0 0;">A one-time demo authorization is created automatically, bound to this wallet, token, amount, recipient, policy epoch, rulebook root, and registry. It is consumed only after an accepted Issue transaction.</p>
+    </div>
+
+    <div class="cr-grid" style="margin-top:1rem;">
+      <section class="cr-info">
+        <h4>1. Select the regulated token</h4>
+        <label>
+          Issuer-Controlled KCC20-Regulated Token
+          <select id="crIssueAssetSelect" disabled>
+            <option value="">Waiting for regulated controller scan</option>
+          </select>
+          <small class="muted">Only live issuer-controlled KCC20-Regulated controllers governed by the current saved policy are eligible.</small>
+        </label>
+        <dl class="dot-list">
+          <dt>Asset Covenant ID</dt>
+          <dd id="crIssueAssetCovenantId" class="mono">—</dd>
+          <dt>Policy Registry</dt>
+          <dd id="crIssuePolicyRegistry" class="mono">—</dd>
+          <dt>Policy / Registry Status</dt>
+          <dd id="crIssuePolicyStatus">Waiting for saved policy and live registry</dd>
+        </dl>
+      </section>
+
+      <section class="cr-info">
+        <h4>2. Enter the Issue details</h4>
+        <label>
+          Issue Amount (RAW)
+          <input id="crIssueAmountRaw" type="text" inputmode="numeric" class="mono" placeholder="10000" value="10000" autocomplete="off" disabled>
+          <small class="muted">Enter a positive raw-token amount. Maximum supply is enforced by the controller.</small>
+        </label>
+        <label>
+          Recipient OMA Address
+          <input id="crIssueRecipientAddress" type="text" class="mono" placeholder="kaspatest:…" autocomplete="off" disabled>
+          <small class="muted">Defaults to the active issuer wallet. The recipient must be permitted by the saved Demo Policy.</small>
+        </label>
+        <label>
+          Holder Carrier (KAS)
+          <input id="crIssueHolderCarrierKas" type="number" min="0.01" step="0.01" value="1" disabled>
+          <small class="muted">Native KAS carried by the new P2SH holder UTXO. It is separate from the token amount.</small>
+        </label>
+        <input id="crIssueFeeReserveKas" type="hidden" value="0.01">
+        <button id="crIssueBuildBtn" type="button" disabled>Issue Regulated Tokens</button>
+        <p id="crIssueAuthorizationStatus" class="muted" aria-live="polite">Waiting for a READY Testnet-10 issuer wallet, governed token, and matching live registry.</p>
+      </section>
+    </div>
+
+    <div id="crIssueBuildProofWrap" hidden style="margin-top:1rem;">
+      <h5>Issue Result</h5>
+      <pre id="crIssueBuildProof" class="logbox mono"></pre>
+    </div>
+
+    <section id="crTokenMetadataCard" class="cr-info" style="margin-top:1rem;" aria-labelledby="crTokenMetadataTitle">
+      <h4 id="crTokenMetadataTitle">Token Metadata</h4>
+      <p class="muted">Explore the live controller, supply, Registry, policy, controls, and pending supply actions for the selected issuer-controlled token.</p>
+
+      <div class="cr-status-row">
+        <span id="crTokenMetadataStatusBadge" class="cr-status-badge" data-state="loading">Waiting for token selection</span>
+        <button id="crTokenMetadataRefreshBtn" class="cr-refresh-button" type="button" disabled>Refresh Metadata</button>
+      </div>
+      <p id="crTokenMetadataStatus" class="muted" aria-live="polite">Select an issuer-controlled KCC20-Regulated token above.</p>
+
+      <div id="crTokenMetadataContent" hidden>
+        <div class="cr-grid">
+          <section class="cr-info">
+            <h5>Identity and Supply</h5>
+            <dl class="dot-list">
+              <dt>Name / Symbol</dt>
+              <dd><span id="crMetaTokenName">—</span> / <span id="crMetaTokenSymbol">—</span></dd>
+              <dt>Asset Covenant ID</dt>
+              <dd id="crMetaAssetCovenantId" class="mono">—</dd>
+              <dt>Network / Decimals</dt>
+              <dd><span id="crMetaNetwork">—</span> / <span id="crMetaDecimals">—</span></dd>
+              <dt>Issuer</dt>
+              <dd id="crMetaIssuer" class="mono">—</dd>
+              <dt>Issued Supply</dt>
+              <dd id="crMetaIssuedSupply">—</dd>
+              <dt>Maximum Supply</dt>
+              <dd id="crMetaMaxSupply">—</dd>
+              <dt>Remaining Issuable</dt>
+              <dd id="crMetaRemainingSupply">—</dd>
+              <dt>Pending Burn Adjustment</dt>
+              <dd id="crMetaPendingBurnAmount">—</dd>
+              <dt>Projected Supply</dt>
+              <dd id="crMetaProjectedSupply">—</dd>
+            </dl>
+          </section>
+
+          <section class="cr-info">
+            <h5>Controller and Registry</h5>
+            <dl class="dot-list">
+              <dt>Controller Address</dt>
+              <dd id="crMetaControllerAddress" class="mono">—</dd>
+              <dt>Controller Outpoint</dt>
+              <dd id="crMetaControllerOutpoint" class="mono">—</dd>
+              <dt>Controller Carrier</dt>
+              <dd id="crMetaControllerCarrier">—</dd>
+              <dt>Controller Schema</dt>
+              <dd id="crMetaControllerSchema" class="mono">—</dd>
+              <dt>Controller Verification</dt>
+              <dd id="crMetaControllerVerification">—</dd>
+              <dt>Registry Covenant ID</dt>
+              <dd id="crMetaRegistryCovenantId" class="mono">—</dd>
+              <dt>Registry Outpoint</dt>
+              <dd id="crMetaRegistryOutpoint" class="mono">—</dd>
+              <dt>Registry Authority</dt>
+              <dd id="crMetaRegistryAuthority" class="mono">—</dd>
+              <dt>Registry / Policy Status</dt>
+              <dd id="crMetaRegistryPolicyStatus">—</dd>
+            </dl>
+          </section>
+
+          <section class="cr-info">
+            <h5>Policy and Controls</h5>
+            <dl class="dot-list">
+              <dt>Token Profile Epoch</dt>
+              <dd id="crMetaTokenProfileEpoch">—</dd>
+              <dt>Current Policy Epoch</dt>
+              <dd id="crMetaCurrentPolicyEpoch">—</dd>
+              <dt>Rulebook Root</dt>
+              <dd id="crMetaRulebookRoot" class="mono">—</dd>
+              <dt>Policy Snapshot</dt>
+              <dd id="crMetaPolicySnapshot" class="mono">—</dd>
+              <dt>Governance Status</dt>
+              <dd id="crMetaGovernanceStatus">—</dd>
+              <dt>Control Flags</dt>
+              <dd id="crMetaControlFlags">—</dd>
+              <dt>Enabled Capabilities</dt>
+              <dd id="crMetaControlCapabilities">—</dd>
+            </dl>
+          </section>
+
+          <section class="cr-info">
+            <h5>Pending Supply Actions</h5>
+            <dl class="dot-list">
+              <dt>Pending Receipt Count</dt>
+              <dd id="crMetaPendingBurnCount">—</dd>
+              <dt>Supply Accounting Status</dt>
+              <dd id="crMetaPendingSupplyStatus">—</dd>
+            </dl>
+            <pre id="crMetaPendingSupplyActions" class="logbox mono">No pending supply actions.</pre>
+          </section>
+        </div>
+
+        <details style="margin-top:1rem;">
+          <summary>Technical Metadata JSON</summary>
+          <p class="muted">Sanitized live metadata and hashes only. Signed transactions, signatures, redeem scripts, and submit tokens are never shown.</p>
+          <pre id="crMetaTechnicalJson" class="logbox mono"></pre>
+        </details>
+      </div>
+    </section>
+  </article>
+
+  <article class="cr-section cr-panel" role="tabpanel" data-cr-panel="controls" hidden>
+    <header>
+      <h3>Controls</h3>
+      <p class="muted">Testnet-10 policy controls for the active user-owned Demo Policy and Registry.</p>
+    </header>
+
+    <div class="cr-grid">
+      <section class="cr-card">
+        <h4>Freeze / Unfreeze</h4>
+        <p class="muted">Apply one holder-address or holder-outpoint control to every regulated asset governed by this Demo Policy. The action saves the next policy epoch and publishes the same Registry before transfer enforcement changes.</p>
+
+        <label>Control action
+          <select id="crControlAction" disabled>
+            <option value="freeze_holder">Freeze holder address</option>
+            <option value="unfreeze_holder">Unfreeze holder address</option>
+            <option value="freeze_outpoint">Freeze holder outpoint</option>
+            <option value="unfreeze_outpoint">Unfreeze holder outpoint</option>
+          </select>
+        </label>
+
+        <label>Holder address or outpoint
+          <input id="crControlTarget" type="text" class="mono" placeholder="kaspatest:... or 64hex:index" autocomplete="off" disabled>
+        </label>
+
+        <button id="crControlApplyBtn" type="button" disabled>Apply Control</button>
+        <p id="crControlStatus" class="muted" aria-live="polite">Waiting for a READY Testnet-10 wallet, saved Demo Policy, and live matching Registry.</p>
+      </section>
+
+      <section class="cr-card">
+        <h4>Current Control State</h4>
+        <dl class="cr-facts">
+          <div><dt>Policy epoch</dt><dd id="crControlPolicyEpoch">—</dd></div>
+          <div><dt>Registry</dt><dd id="crControlRegistry">—</dd></div>
+          <div><dt>Frozen holders</dt><dd id="crControlFrozenHolderCount">—</dd></div>
+          <div><dt>Frozen outpoints</dt><dd id="crControlFrozenOutpointCount">—</dd></div>
+        </dl>
+        <p class="muted">Freeze and unfreeze are policy-and-Registry actions. They do not move or burn token units. A successful control is proven by the next real transfer being blocked or allowed under the published epoch.</p>
+      </section>
+    </div>
+
+    <div id="crControlProofWrap" hidden style="margin-top:1rem;">
+      <h5>Control Result</h5>
+      <pre id="crControlProof" class="logbox mono"></pre>
+    </div>
+
+    <div class="cr-grid" style="margin-top:1rem;">
+      <section class="cr-card">
+        <h4>Seize / Forced Transfer</h4>
+        <p class="muted">Execute a real Testnet-10 forced transfer without the holder signature. The target holder must already be frozen. The active Registry-authority wallet signs the Registry and native-fee inputs, and the selected amount moves to an issuer-owned or evidence-owned wallet in this user account.</p>
+
+        <div class="cr-info">
+          <strong>DEMO ONLY — Lawful-Order Unlock</strong>
+          <p class="muted">This button represents verified lawful-order authority for Testnet-10 evaluation only. It does not claim legal validity and is not production eligible.</p>
+          <button id="crSeizeUnlockBtn" type="button" disabled>Unlock Demo Lawful Order</button>
+          <p id="crSeizeUnlockStatus" class="muted" aria-live="polite">Locked.</p>
+        </div>
+
+        <label>Regulated token
+          <select id="crSeizeAsset" disabled>
+            <option value="">Select a control-enabled token</option>
+          </select>
+        </label>
+
+        <label>Target holder address
+          <input id="crSeizeTargetHolderAddress" type="text" class="mono" placeholder="kaspatest:..." autocomplete="off" disabled>
+          <small class="muted">The address must be frozen in the currently published Demo Policy.</small>
+        </label>
+
+        <label>Target holder outpoint (optional)
+          <input id="crSeizeTargetHolderOutpoint" type="text" class="mono" placeholder="64hex:index" autocomplete="off" disabled>
+          <small class="muted">Use an outpoint to target one specific holder UTXO. Leave blank to select compatible holders owned by the frozen address.</small>
+        </label>
+
+        <label>Seize Amount (RAW)
+          <input id="crSeizeAmountRaw" type="text" inputmode="numeric" class="mono" placeholder="100" autocomplete="off" disabled>
+        </label>
+
+        <label>Destination wallet address
+          <input id="crSeizeDestinationAddress" type="text" class="mono" placeholder="kaspatest:..." autocomplete="off" disabled>
+          <small class="muted">Must belong to this user account. Defaults to the active Registry-authority wallet; another user-owned evidence wallet may be entered.</small>
+        </label>
+
+        <label>Demo order reference
+          <input id="crSeizeOrderReference" type="text" class="mono" placeholder="DEMO-ORDER-001" maxlength="96" autocomplete="off" disabled>
+        </label>
+
+        <button id="crSeizeExecuteBtn" type="button" disabled>Seize Tokens</button>
+        <p id="crSeizeStatus" class="muted" aria-live="polite">Waiting for the Registry-authority wallet, a frozen holder, and Demo Lawful-Order unlock.</p>
+
+        <div id="crSeizeProofWrap" hidden style="margin-top:1rem;">
+          <h5>Seizure Result</h5>
+          <pre id="crSeizeProof" class="logbox mono"></pre>
+        </div>
+      </section>
+      <section class="cr-card">
+        <h4>Forced Burn</h4>
+        <p class="muted">Burn regulated Testnet-10 tokens under a verified Demo Lawful Order without the holder signature. A third-party target holder must be frozen in the currently published Demo Policy. The active issuer/controller wallet may burn regulated tokens held in its own wallet without freezing itself. The active Registry-authority wallet signs the control and fee inputs. Any unburned token remainder returns to the same target wallet, and the issuer controller supply is updated automatically after the forced-burn receipt is accepted.</p>
+
+        <div class="cr-info">
+          <strong>DEMO ONLY — Lawful-Order Unlock</strong>
+          <p class="muted">This button represents verified lawful-order authority for Testnet-10 evaluation only. It does not claim legal validity and is not production eligible.</p>
+          <button id="crForcedBurnUnlockBtn" type="button" disabled>Unlock Demo Lawful Order</button>
+          <p id="crForcedBurnUnlockStatus" class="muted" aria-live="polite">Locked.</p>
+        </div>
+
+        <label>Regulated token
+          <select id="crForcedBurnAsset" disabled>
+            <option value="">Select a forced-burn-enabled token</option>
+          </select>
+        </label>
+
+        <label>Target holder wallet address
+          <input id="crForcedBurnTargetHolderAddress" type="text" class="mono" placeholder="kaspatest:..." autocomplete="off" disabled>
+          <small class="muted">Enter either a frozen third-party holder wallet or the active issuer/controller wallet holding its own regulated tokens. A verified Demo Lawful Order is always required; only the issuer/controller self-custody case waives the freeze requirement. This action does not require the holder signature.</small>
+        </label>
+
+        <label>Burn Amount (RAW)
+          <input id="crForcedBurnAmountRaw" type="text" inputmode="numeric" class="mono" placeholder="100" autocomplete="off" disabled>
+          <small class="muted">A partial forced burn returns the remaining token amount to the same target holder wallet.</small>
+        </label>
+
+        <label>Demo order reference
+          <input id="crForcedBurnOrderReference" type="text" class="mono" placeholder="DEMO-BURN-001" maxlength="96" autocomplete="off" disabled>
+        </label>
+
+        <button id="crForcedBurnExecuteBtn" type="button" disabled>Force Burn Tokens</button>
+        <p id="crForcedBurnStatus" class="muted" aria-live="polite">Waiting for the Registry-authority wallet, an authorized target holder, and Demo Lawful-Order unlock.</p>
+
+        <div id="crForcedBurnProofWrap" hidden style="margin-top:1rem;">
+          <h5>Forced-Burn Result</h5>
+          <pre id="crForcedBurnProof" class="logbox mono"></pre>
+        </div>
+      </section>
+    </div>
+  </article>
+
+  <article class="cr-section cr-panel" role="tabpanel" data-cr-panel="audit" hidden>
+    <header>
+      <h3>Audit</h3>
+      <p class="muted">Chronological Testnet-10 policy, Registry, token, decision, and lawful-control evidence.</p>
+    </header>
+
+    <div id="crAuditScopeNotice" class="cr-alert" style="margin:0 0 1rem;">
+      <strong>TESTNET-10 DEMONSTRATION — NOT REGULATOR CERTIFICATION</strong>
+      <p class="muted" style="margin:.35rem 0 0;">This user-scoped report combines surviving canonical records with append-only Audit events recorded after Audit activation. It does not prove legal validity, production eligibility, or mainnet bypass resistance.</p>
+    </div>
+
+    <section class="cr-info" aria-labelledby="crAuditIntegrityHeading">
+      <div class="cr-status-row">
+        <h4 id="crAuditIntegrityHeading" style="margin:0;">Audit Status and Integrity</h4>
+        <span id="crAuditIntegrityBadge" class="cr-status-badge" data-state="loading">Not loaded</span>
+      </div>
+      <p id="crAuditStatus" class="muted" aria-live="polite">Open the Audit tab after AUDIT-3 is installed to load the current read-only evidence projection.</p>
+      <div class="cr-grid">
+        <section class="cr-info"><strong>Historical coverage</strong><span id="crAuditCoverage" class="cr-overview-value">—</span></section>
+        <section class="cr-info"><strong>Journal chain</strong><span id="crAuditChainStatus" class="cr-overview-value">—</span></section>
+        <section class="cr-info"><strong>Policy epoch</strong><span id="crAuditPolicyEpoch" class="cr-overview-value">—</span></section>
+        <section class="cr-info"><strong>Rulebook root</strong><span id="crAuditRulebookRoot" class="cr-overview-value mono">—</span></section>
+        <section class="cr-info"><strong>Active Registry</strong><span id="crAuditRegistryId" class="cr-overview-value mono">—</span></section>
+        <section class="cr-info"><strong>Source manifest</strong><span id="crAuditSourceManifestStatus" class="cr-overview-value">—</span></section>
+      </div>
+    </section>
+
+    <section id="crAuditPendingWrap" class="cr-info cr-audit-pending" hidden style="margin-top:1rem;" aria-labelledby="crAuditPendingHeading">
+      <div class="cr-status-row">
+        <h4 id="crAuditPendingHeading" style="margin:0;">Pending Supply Accounting</h4>
+        <span id="crAuditPendingBadge" class="cr-status-badge" data-state="pending">Action succeeded — follow-up pending</span>
+      </div>
+      <p id="crAuditPendingMessage" class="muted">A successful holder burn may still require the existing controller-supply accounting step. Do not repeat an accepted burn.</p>
+      <div class="cr-grid">
+        <section class="cr-info"><strong>Asset</strong><span id="crAuditPendingAsset" class="cr-overview-value">—</span></section>
+        <section class="cr-info"><strong>Amount (RAW)</strong><span id="crAuditPendingAmount" class="cr-overview-value mono">—</span></section>
+        <section class="cr-info"><strong>Burn transaction</strong><span id="crAuditPendingTxid" class="cr-overview-value mono">—</span></section>
+        <section class="cr-info"><strong>Status</strong><span id="crAuditPendingStatus" class="cr-overview-value">—</span></section>
+      </div>
+      <div class="cr-actions" style="margin-top:1rem;">
+        <button id="crAuditCompleteSupplyBtn" type="button" class="primary" disabled>Complete Pending Supply Update</button>
+        <span id="crAuditCompleteSupplyStatus" class="muted">Waiting for a verified pending burn receipt.</span>
+      </div>
+    </section>
+
+    <section class="cr-info" style="margin-top:1rem;" aria-labelledby="crAuditSummaryHeading">
+      <h4 id="crAuditSummaryHeading">Summary</h4>
+      <div class="cr-audit-summary">
+        <div class="cr-audit-metric"><span class="muted">Total events</span><strong id="crAuditTotalEvents">—</strong></div>
+        <div class="cr-audit-metric"><span class="muted">Live verified</span><strong id="crAuditLiveVerified">—</strong></div>
+        <div class="cr-audit-metric"><span class="muted">Rejected</span><strong id="crAuditRejected">—</strong></div>
+        <div class="cr-audit-metric"><span class="muted">Pending actions</span><strong id="crAuditPendingCount">—</strong></div>
+        <div class="cr-audit-metric"><span class="muted">Regulated assets</span><strong id="crAuditAssetCount">—</strong></div>
+        <div class="cr-audit-metric"><span class="muted">Current epoch</span><strong id="crAuditCurrentEpoch">—</strong></div>
+      </div>
+    </section>
+
+    <section class="cr-info" style="margin-top:1rem;" aria-labelledby="crAuditFiltersHeading">
+      <h4 id="crAuditFiltersHeading">Filters</h4>
+      <div class="cr-audit-filter-grid">
+        <label>Regulated asset
+          <select id="crAuditAssetFilter" disabled>
+            <option value="">All regulated assets</option>
+          </select>
+        </label>
+        <label>Action type
+          <select id="crAuditActionFilter" disabled>
+            <option value="">All actions</option>
+          </select>
+        </label>
+        <label>Lifecycle stage
+          <select id="crAuditStageFilter" disabled>
+            <option value="">All stages</option>
+          </select>
+        </label>
+        <label>Outcome
+          <select id="crAuditOutcomeFilter" disabled>
+            <option value="">All outcomes</option>
+          </select>
+        </label>
+        <label>From date
+          <input id="crAuditFromDate" type="date" disabled>
+        </label>
+        <label>Through date
+          <input id="crAuditToDate" type="date" disabled>
+        </label>
+      </div>
+      <label style="margin-top:.85rem;">Search evidence
+        <input id="crAuditSearch" type="search" class="mono" placeholder="Transaction ID, covenant ID, outpoint, address, or order reference" autocomplete="off" disabled>
+      </label>
+      <div class="cr-audit-actions">
+        <button id="crAuditRefreshBtn" type="button" disabled>Refresh Audit</button>
+        <button id="crAuditExportBtn" type="button" class="secondary" disabled>Export Testnet Report</button>
+        <button id="crAuditClearFiltersBtn" type="button" class="secondary" disabled>Clear Filters</button>
+      </div>
+    </section>
+
+    <details class="cr-info cr-audit-timeline-details" style="margin-top:1rem;" aria-labelledby="crAuditTimelineHeading">
+      <summary>
+        <span id="crAuditTimelineHeading" class="cr-audit-timeline-heading">Chronological Evidence</span>
+        <span id="crAuditVisibleCount" class="cr-status-badge" data-state="loading">0 events</span>
+      </summary>
+      <div id="crAuditTimeline" class="cr-audit-timeline" aria-live="polite">
+        <div id="crAuditEmpty" class="cr-audit-empty">Audit evidence has not been loaded.</div>
+      </div>
+    </details>
+
+    <details id="crAuditEvidenceDetails" class="cr-info" style="margin-top:1rem;">
+      <summary>Report integrity and source evidence</summary>
+      <p class="muted">The report must contain sanitized hashes and source references only. It must never expose keys, seeds, passphrases, signed transaction JSON, signature scripts, redeem scripts, submit tokens, Admin Tokens, API keys, signer material, or custody material.</p>
+      <pre id="crAuditEvidence" class="logbox mono cr-audit-evidence">No report evidence loaded.</pre>
+    </details>
+  </article>
+</main>
+<script src="/static/js/network_shared.js"></script>
+<script src="/static/js/logout_shared.js"></script>
+<script type="module" src="/static/js/kaspa-bridge.mjs"></script>
+<script type="module" src="/static/js/kcc20-deploy-ui.js"></script>
+<script type="module" src="/static/js/kcc20-regulated-deploy-ui.js"></script>
+<script>
+(function () {
+  var logout = document.getElementById('btnLogout');
+  if (logout) logout.addEventListener('click', async function (event) {
+    event.preventDefault();
+    await window.CwLogoutShared.logoutNow({ redirectTo: '/login.html' });
+  });
+
+  var tabs = Array.from(document.querySelectorAll('[data-cr-tab]'));
+  var panels = Array.from(document.querySelectorAll('[data-cr-panel]'));
+  tabs.forEach(function (tab) {
+    tab.addEventListener('click', function () {
+      var key = tab.getAttribute('data-cr-tab');
+      tabs.forEach(function (item) { item.setAttribute('aria-selected', String(item === tab)); });
+      panels.forEach(function (panel) { panel.hidden = panel.getAttribute('data-cr-panel') !== key; });
+    });
+  });
+})();
+</script>
+</body>
+</html>

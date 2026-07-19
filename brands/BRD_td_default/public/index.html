@@ -1,0 +1,816 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Token Depot — Tenant Subscriber Token Platform</title>
+  <link rel="icon" href="/static/icon/favicon.ico">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+  <link rel="stylesheet" href="/static/css/style.css">
+  <style>
+    :root {
+      --td-bg: #050910;
+      --td-bg-2: #08111b;
+      --td-panel: rgba(7, 12, 20, 0.84);
+      --td-panel-strong: rgba(7, 11, 18, 0.92);
+      --td-border: rgba(100, 222, 255, 0.40);
+      --td-border-strong: rgba(100, 222, 255, 0.56);
+      --td-border-warm: rgba(245, 188, 86, 0.40);
+      --td-cyan: #88f1ff;
+      --td-cyan-strong: #43d7ea;
+      --td-green: #96ffba;
+      --td-gold: #f4bf56;
+      --td-text-soft: rgba(234, 244, 255, 0.80);
+      --td-shadow: 0 22px 60px rgba(0, 0, 0, 0.42);
+      --td-glow: 0 0 0 1px rgba(100, 222, 255, 0.28), 0 0 20px rgba(67, 215, 234, 0.42), 0 0 64px rgba(67, 215, 234, 0.24), 0 18px 40px rgba(0, 0, 0, 0.30);
+      --td-glow-warm: 0 0 0 1px rgba(245, 188, 86, 0.24), 0 0 20px rgba(245, 188, 86, 0.34), 0 0 56px rgba(245, 188, 86, 0.18), 0 18px 40px rgba(0, 0, 0, 0.30);
+      --td-max: 1180px;
+    }
+
+    html, body {
+      background:
+        radial-gradient(circle at top, rgba(28, 104, 160, 0.18), transparent 34%),
+        linear-gradient(180deg, var(--td-bg) 0%, var(--td-bg-2) 100%);
+      color: #f3f7fb;
+      min-height: 100%;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background: url("/static/images/bg-blockchain-abstract.png") center/cover no-repeat;
+      opacity: 0.10;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    body > * {
+      position: relative;
+      z-index: 1;
+    }
+
+    main.container {
+      max-width: var(--td-max);
+      padding-top: 1rem;
+      padding-bottom: 4rem;
+    }
+
+    nav.topnav {
+      backdrop-filter: blur(14px);
+      background: rgba(3, 8, 14, 0.72);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 18px;
+      padding: 0.65rem 1rem;
+      margin-bottom: 1.4rem;
+      box-shadow: var(--td-glow);
+    }
+
+    nav.topnav [role="button"] {
+      box-shadow: 0 0 18px rgba(67, 215, 234, 0.18);
+    }
+
+    @media (max-width: 760px){
+      nav.topnav{
+        flex-wrap: wrap !important;
+        justify-content: flex-start !important;
+        align-items: stretch !important;
+        gap: .75rem 1rem !important;
+      }
+      nav.topnav > ul:first-child{
+        width: 100% !important;
+        display: flex !important;
+        justify-content: center !important;
+      }
+      nav.topnav > ul:first-child img{ height: 52px !important; }
+      nav.topnav > ul:nth-of-type(2){
+        width: 100% !important;
+        display: flex !important;
+        flex-wrap: wrap !important;
+        justify-content: center !important;
+        gap: .5rem .75rem !important;
+      }
+      nav.topnav > ul:nth-of-type(2) li{ flex: 0 0 auto !important; }
+    }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      border-radius: 28px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background:
+        linear-gradient(135deg, rgba(6, 11, 20, 0.90), rgba(9, 15, 25, 0.82)),
+        url("/static/images/bg-dark-panels.png") center/cover no-repeat;
+      box-shadow: var(--td-glow);
+      margin-bottom: 1.6rem;
+      padding: 2.1rem;
+    }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 1.05fr 0.95fr;
+      gap: 1.25rem;
+      align-items: center;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: .55rem;
+      padding: .45rem .8rem;
+      border-radius: 999px;
+      border: 1px solid rgba(127,232,247,.24);
+      background: rgba(12, 18, 28, 0.70);
+      color: var(--td-cyan);
+      font-size: .86rem;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      font-weight: 700;
+      margin-bottom: 1rem;
+    }
+
+    .hero h1 {
+      font-size: clamp(2.35rem, 4.8vw, 4.25rem);
+      line-height: 1.02;
+      margin-bottom: 1rem;
+      max-width: 11ch;
+    }
+
+    .hero p.lead {
+      max-width: 62ch;
+      color: var(--td-text-soft);
+      font-size: 1.10rem;
+      margin-bottom: 1.2rem;
+    }
+
+    .cta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .85rem;
+      margin-bottom: 1.35rem;
+    }
+
+    .cta-row .secondary-btn {
+      background: rgba(255,255,255,0.04);
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.14);
+    }
+
+    .hero-points {
+      display: grid;
+      gap: .65rem;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      max-width: 58ch;
+    }
+
+    .hero-points li {
+      display: flex;
+      gap: .7rem;
+      align-items: flex-start;
+      color: var(--td-text-soft);
+    }
+
+    .hero-points li::before {
+      content: "✦";
+      color: var(--td-gold);
+      margin-top: .05rem;
+    }
+
+    .hero-visual {
+      display: grid;
+      gap: 1rem;
+    }
+
+    .image-frame {
+      position: relative;
+      overflow: hidden;
+      border-radius: 22px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(8, 12, 18, 0.78);
+      min-height: 320px;
+      box-shadow: var(--td-glow);
+    }
+
+    .hero-visual .image-frame {
+      min-height: 420px;
+    }
+
+    .image-frame img {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: cover;
+    }
+
+    .hero-panel {
+      background: linear-gradient(180deg, rgba(11, 18, 29, 0.90), rgba(8, 13, 22, 0.95));
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 22px;
+      padding: 1.25rem;
+      box-shadow: var(--td-glow);
+    }
+
+    .hero-panel h3 {
+      margin-bottom: .4rem;
+      font-size: 1.1rem;
+    }
+
+    .hero-panel p {
+      color: var(--td-text-soft);
+      margin-bottom: 1rem;
+      font-size: .98rem;
+    }
+
+    .mini-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: .8rem;
+    }
+
+    .mini-card {
+      background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 16px;
+      padding: .9rem;
+      box-shadow: var(--td-glow);
+    }
+
+    .mini-card strong {
+      display: block;
+      margin-bottom: .35rem;
+      color: #fff;
+    }
+
+    .mini-card span {
+      color: var(--td-text-soft);
+      font-size: .94rem;
+    }
+
+    .section-card {
+      background: var(--td-panel);
+      border: 1px solid var(--td-border);
+      border-radius: 24px;
+      padding: 1.6rem;
+      box-shadow: var(--td-glow);
+      margin-bottom: 1.35rem;
+      overflow: hidden;
+    }
+
+    .section-card h2 {
+      margin-bottom: .5rem;
+    }
+
+    .section-card .section-lead {
+      color: var(--td-text-soft);
+      max-width: 74ch;
+      margin-bottom: 1.25rem;
+    }
+
+    .feature-grid,
+    .audience-grid,
+    .proof-grid,
+    .market-grid,
+    .product-split,
+    .visual-grid {
+      display: grid;
+      gap: 1rem;
+    }
+
+    .audience-grid,
+    .product-split,
+    .visual-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .proof-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .market-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+    .audience, .proof, .market, .product {
+      background: rgba(255,255,255,0.025);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 18px;
+      padding: 1rem;
+      box-shadow: var(--td-glow);
+    }
+
+    .audience h3, .market h3, .product h3 {
+      margin-bottom: .45rem;
+      font-size: 1.08rem;
+    }
+
+    .audience p, .market p, .product p, .proof p {
+      color: var(--td-text-soft);
+      font-size: .96rem;
+      margin-bottom: .65rem;
+    }
+
+    .audience ul, .market ul, .product ul {
+      margin-bottom: 0;
+      color: var(--td-text-soft);
+    }
+
+    .audience ul li, .market ul li, .product ul li {
+      margin-bottom: .28rem;
+    }
+
+    .energy-layout, .custom-layout {
+      display: grid;
+      grid-template-columns: 1.02fr 0.98fr;
+      gap: 1.2rem;
+      align-items: center;
+    }
+
+    .workflow-steps {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: .85rem;
+      margin-top: 1rem;
+    }
+
+    .step {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(127,232,247,0.18);
+      border-radius: 18px;
+      padding: .95rem;
+      box-shadow: var(--td-glow);
+    }
+
+    .step .kicker {
+      color: var(--td-cyan);
+      font-size: .78rem;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      margin-bottom: .3rem;
+    }
+
+    .badge-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .55rem;
+      margin-top: 1rem;
+    }
+
+    .tag {
+      padding: .42rem .72rem;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      color: var(--td-text-soft);
+      font-size: .88rem;
+    }
+
+    .tag.gold { border-color: rgba(244,191,86,0.30); color: #ffe5ae; }
+    .tag.green { border-color: rgba(143,247,181,0.28); color: #d6ffe4; }
+    .tag.cyan { border-color: rgba(127,232,247,0.28); color: #d9faff; }
+
+    .proof {
+      text-align: center;
+      min-height: 150px;
+      display: grid;
+      align-content: start;
+      gap: .35rem;
+    }
+
+    .proof strong {
+      color: var(--td-cyan);
+      font-size: 1.45rem;
+      line-height: 1.1;
+      display: block;
+      margin-bottom: .2rem;
+    }
+
+    .section-band {
+      position: relative;
+      border-radius: 24px;
+      overflow: hidden;
+      background:
+        linear-gradient(135deg, rgba(8, 13, 22, 0.84), rgba(7, 12, 18, 0.78)),
+        url("/static/images/bg-energy-grid.png") center/cover no-repeat;
+      border: 1px solid var(--td-border);
+      box-shadow: var(--td-glow);
+      padding: 1.6rem;
+      margin-bottom: 1.35rem;
+    }
+
+    .section-band.warm {
+      background:
+        linear-gradient(135deg, rgba(10, 11, 18, 0.84), rgba(9, 11, 18, 0.74)),
+        url("/static/images/bg-golden-network.png") center/cover no-repeat;
+      box-shadow: var(--td-glow-warm);
+    }
+
+    .section-band .overlay-copy {
+      max-width: 70ch;
+    }
+
+    .market-access-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.08fr) minmax(320px, 0.92fr);
+      gap: 1.2rem;
+      align-items: center;
+    }
+
+    .video-card {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.10);
+      border-radius: 22px;
+      padding: 1rem;
+      box-shadow: var(--td-glow);
+      backdrop-filter: blur(10px);
+    }
+
+    .video-embed {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      border-radius: 18px;
+      overflow: hidden;
+      background: rgba(0,0,0,0.55);
+      border: 1px solid rgba(255,255,255,0.08);
+      box-shadow: 0 0 0 1px rgba(100, 222, 255, 0.18), 0 0 18px rgba(67, 215, 234, 0.22);
+    }
+
+    .video-embed iframe {
+      width: 100%;
+      height: 100%;
+      display: block;
+      border: 0;
+    }
+
+    .video-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .7rem;
+      margin-top: .85rem;
+    }
+
+    .video-actions button {
+      margin-bottom: 0;
+    }
+
+
+    .visual-grid .image-frame {
+      min-height: 250px;
+    }
+
+    .cta-panel {
+      text-align: center;
+      background:
+        linear-gradient(135deg, rgba(11, 16, 26, 0.88), rgba(8, 12, 18, 0.90)),
+        url("/static/images/bg-dark-panels.png") center/cover no-repeat;
+    }
+
+    footer {
+      margin-top: 2rem;
+      background: rgba(0,0,0,0.72);
+      color: #fff;
+      padding: 22px 16px;
+      border-top: 1px solid rgba(255,255,255,0.12);
+      border-radius: 20px;
+      box-shadow: var(--td-glow);
+    }
+
+    @media (max-width: 980px) {
+      .hero-grid,
+      .energy-layout,
+      .custom-layout,
+      .product-split,
+      .audience-grid,
+      .market-grid,
+      .proof-grid,
+      .workflow-steps,
+      .mini-grid,
+      .visual-grid,
+      .market-access-layout {
+        grid-template-columns: 1fr;
+      }
+      .hero {
+        padding: 1.35rem;
+      }
+      .hero h1 {
+        max-width: none;
+      }
+      .hero-visual .image-frame {
+        min-height: 320px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <nav class="topnav" aria-label="Primary">
+      <ul>
+        <li>
+          <a href="/index.html" aria-label="Token Depot">
+            <img src="/static/icon/logo.png" alt="Token Depot logo" style="height:60px; display:block;">
+          </a>
+        </li>
+      </ul>
+      <ul>
+        <li><a href="/login.html" role="button">Login</a></li>
+        <li><a href="https://calendly.com/ncsolarelectric/token-depot-call" target="_blank" rel="noopener noreferrer" role="button" class="secondary">Request Access</a></li>
+        <li><a href="https://calendly.com/ncsolarelectric/token-depot-call" target="_blank" rel="noopener noreferrer" role="button" class="secondary-btn">Book a Demo</a></li>
+      </ul>
+    </nav>
+
+    <section class="hero" aria-label="Hero">
+      <div class="hero-grid">
+        <div>
+          <div class="eyebrow">Oracle Node &amp; OMA Wallet Subscriber Suite • Launch-ready product</div>
+          <h1>Launch tokenized subscriber workflows on Kaspa.</h1>
+          <p class="lead">
+            Token Depot gives businesses a working Oracle Node dashboard and OMA wallet suite for subscribers, tokens, coupon campaigns, Energy workflows, and swap activity on Kaspa.
+          </p>
+          <div class="cta-row">
+            <a href="https://calendly.com/ncsolarelectric/token-depot-call" target="_blank" rel="noopener noreferrer" role="button">Request Access</a>
+            <a href="https://calendly.com/ncsolarelectric/token-depot-call" target="_blank" rel="noopener noreferrer" role="button" class="secondary-btn">Talk to Us</a>
+            <a href="/login.html" role="button" class="secondary-btn">Login</a>
+          </div>
+          <ul class="hero-points">
+            <li>Tenant operators can onboard users, manage subscriber lists, and run tokenized business workflows.</li>
+            <li>Coupon Broadcaster lets tenants and subscribers send fixed coupon-token amounts to CSV recipient lists with preview and result tracking.</li>
+            <li>OMA wallets, token deploy/import/issue/burn, Energy issuance, Analyzer views, Direct Swaps, Open Swaps, and notifications are already working in the launch baseline.</li>
+          </ul>
+        </div>
+        <div class="hero-visual">
+          <div class="image-frame">
+            <img src="/static/images/hero-cw-cn.png" alt="Token Depot wallet and tenant operating platform visual ecosystem">
+          </div>
+          <aside class="hero-panel">
+            <h3>ON &amp; OMA tools for real operators</h3>
+            <p>
+              Oracle Node and OMA work together as the subscriber-business suite: users, wallets, tokens, CSV-based coupon distribution, measured-production workflows, and swap activity in one operating surface.
+            </p>
+            <div class="mini-grid">
+              <div class="mini-card">
+                <strong>Tenant subscribers</strong>
+                <span>Manage user communities, subscriber files, coupon campaigns, and tokenized business activity.</span>
+              </div>
+              <div class="mini-card">
+                <strong>OMA wallets</strong>
+                <span>Wallet flows, token lifecycle tools, Analyzer views, Direct Swaps, and Open Swaps.</span>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <section class="section-card" aria-label="Energy-first workflow">
+      <div class="energy-layout">
+        <div>
+          <h2>From signup to live ON &amp; OMA operations</h2>
+          <p class="section-lead">
+            Oracle Node and OMA are the launch product: tenants and subscribers can use wallet tools, token tools, Coupon Broadcasting, swap workflows, and Energy issuance when measured production is part of the operation.
+          </p>
+          <div class="workflow-steps">
+            <div class="step">
+              <div class="kicker">Step 1</div>
+              <strong>Sign up and create an OMA wallet</strong>
+              <p>Enter the product, create the working wallet, and establish the tenant or operator identity.</p>
+            </div>
+            <div class="step">
+              <div class="kicker">Step 2</div>
+              <strong>Deploy, import, issue, or burn tokens</strong>
+              <p>Run the token lifecycle from the wallet interface before adding subscriber or measured-production workflows.</p>
+            </div>
+            <div class="step">
+              <div class="kicker">Step 3</div>
+              <strong>Broadcast coupons, run swaps, or issue measured output</strong>
+              <p>Use CSV recipient lists for coupon campaigns, run Direct Swaps or Open Swaps, or connect measured sites and issue Energy-backed balances.</p>
+            </div>
+          </div>
+          <div class="badge-row">
+            <span class="tag green">Tenant-launchable</span>
+            <span class="tag cyan">Subscriber coupon workflows</span>
+            <span class="tag gold">Measured-output tokenization</span>
+          </div>
+        </div>
+        <div class="image-frame">
+          <img src="/static/images/energy-workflow.png" alt="Energy token workflow illustration">
+        </div>
+      </div>
+    </section>
+
+    <section class="section-card" aria-label="Who this is for">
+      <h2>Built for businesses that manage subscribers and real workflows</h2>
+      <p class="section-lead">
+        Token Depot is designed for operators who need more than wallet screenshots. ON and OMA support subscriber lists, coupon campaigns, token lifecycle actions, measured-output issuance, and swap activity from a working launch baseline.
+      </p>
+      <div class="audience-grid">
+        <article class="audience">
+          <h3>Tenant subscriber businesses</h3>
+          <p>These are operators that can turn customers, members, buyers, or subscribers into tokenized operating workflows.</p>
+          <ul>
+            <li>Coupon and loyalty operators</li>
+            <li>Membership communities</li>
+            <li>Subscriber businesses</li>
+            <li>Event and campaign operators</li>
+            <li>Tokenized service providers</li>
+          </ul>
+        </article>
+        <article class="audience">
+          <h3>Measured-output operators</h3>
+          <p>These are businesses that can connect real production data to tokenized balances and operating records.</p>
+          <ul>
+            <li>Solar installers</li>
+            <li>Energy monitoring providers</li>
+            <li>Solar farms</li>
+            <li>Crypto mining farms</li>
+            <li>Industrial-output pilots</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section class="section-card" aria-label="Product roadmap">
+      <div class="custom-layout">
+        <div>
+          <h2>Product Status &amp; Roadmap</h2>
+          <p class="section-lead">
+            The working product now is the Oracle Node &amp; OMA Wallet Subscriber Suite: OMA wallets, token operations, Coupon Broadcasting, Direct Swaps, Open Swaps, Analyzer views, notifications, tenant dashboard tools, and Energy issuance. The next engineering priorities are hosted server redundancy and compliance hardening.
+          </p>
+          <div class="badge-row">
+            <span class="tag cyan">ON &amp; OMA launch suite</span>
+            <span class="tag gold">Coupon Broadcasting</span>
+            <span class="tag green">Energy token workflows</span>
+            <span class="tag cyan">Tenant dashboard live</span>
+          </div>
+          <div class="workflow-steps">
+            <div class="step">
+              <div class="kicker">Now</div>
+              <strong>ON &amp; OMA Wallet Subscriber Suite</strong>
+              <p>Working OMA wallets, token deploy/import/issue/burn, Coupon Broadcasting, Direct Swaps, Open Swaps, notifications, tenant dashboard tools, and Energy issuance.</p>
+            </div>
+            <div class="step">
+              <div class="kicker">Next</div>
+              <strong>Server redundancy</strong>
+              <p>Hosted core redundancy and failover planning so the working tenant and subscriber platform can run with stronger production resilience.</p>
+            </div>
+            <div class="step">
+              <div class="kicker">Then</div>
+              <strong>Compliance hardening</strong>
+              <p>Compliance Node security, protected signing, custody hardening, and broker-grade features for regulated expansion and investment conversations.</p>
+            </div>
+          </div>
+        </div>
+        <div class="image-frame">
+          <img src="/static/images/product-roadmap.png" alt="Token Depot product roadmap illustration">
+        </div>
+      </div>
+    </section>
+
+    <section class="section-band warm" aria-label="Swaps and market access">
+      <div class="market-access-layout">
+        <div class="overlay-copy">
+          <h2>Analyzer-guided Direct Swaps and Open Swaps</h2>
+          <p class="section-lead">
+            OMA already supports Direct Swaps, Open Swaps, and canonical Analyzer views so users can review trade context before taking action. This makes the launch suite useful for tenant communities, token campaigns, and market-style participation without leading with broker-compliance complexity.
+          </p>
+          <div class="market-grid">
+            <article class="market">
+              <h3>Direct Swaps</h3>
+              <p>Targeted peer-to-peer swap activity with a clear counterparty path.</p>
+            </article>
+            <article class="market">
+              <h3>Open Swaps</h3>
+              <p>Broader market participation with OMA wallet users and clear taker review flows.</p>
+            </article>
+            <article class="market">
+              <h3>Analyzer views</h3>
+              <p>A consistent review surface before swap actions, so the user sees the relevant context before accepting.</p>
+            </article>
+          </div>
+        </div>
+        <aside class="video-card" aria-label="Homepage feature video">
+          <div class="video-embed">
+            <iframe
+              id="td-home-video"
+              src="https://www.youtube.com/embed/gC8Gy3SWCVI?enablejsapi=1&rel=0&modestbranding=1"
+              title="Token Depot homepage video"
+              loading="lazy"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              referrerpolicy="strict-origin-when-cross-origin"
+              allowfullscreen></iframe>
+          </div>
+          <div class="video-actions">
+            <button type="button" id="td-video-play">Play</button>
+            <button type="button" class="secondary" id="td-video-stop">Stop</button>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="section-card" aria-label="Measured tokenization">
+      <div class="custom-layout">
+        <div class="image-frame">
+          <img src="/static/images/measured-tokenization.png" alt="Tokenized energy and industrial asset systems illustration">
+        </div>
+        <div>
+          <h2>If it can be measured, we can design tokenization apps around it</h2>
+          <p class="section-lead">
+            Energy is one strong ON workflow because measured production can become a tokenized balance. The same ON and OMA platform can also support coupons, subscriber rewards, inventory, usage, throughput, memberships, and other business records that need a wallet-connected operating layer.
+          </p>
+          <div class="badge-row">
+            <span class="tag cyan">Measured production</span>
+            <span class="tag green">Industrial output</span>
+            <span class="tag gold">Subscriber distribution</span>
+            <span class="tag cyan">Operator-managed workflows</span>
+            <span class="tag green">Custom token apps</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section-card" aria-label="Working product proof">
+      <h2>Broker and compliance expansion path</h2>
+      <p class="section-lead">
+        The broker-compliance stack remains an important expansion path for demos, pilots, and investment conversations. Compliance Node features, protected signing, custody hardening, wrapped workflows, and broker-grade controls are planned as the next stage of the platform.
+      </p>
+      <div class="proof-grid">
+        <article class="proof">
+          <strong>Compliance Node</strong>
+          <p>Broker/admin policy, audit, user controls, and regulated-path demonstrations are available as a separate operating layer.</p>
+        </article>
+        <article class="proof">
+          <strong>BCW / CN demos</strong>
+          <p>Broker-custody and Compliance Only flows are demonstrated on TN10 while protected mainnet custody remains a security-hardening milestone.</p>
+        </article>
+        <article class="proof">
+          <strong>Wrapped and bridge queues</strong>
+          <p>Broker-managed wrapped buy intake, bridge queue review, and manual fulfillment workflows support the funding-stage platform narrative.</p>
+        </article>
+        <article class="proof">
+          <strong>Investment opportunity</strong>
+          <p>Compliance Node features, protected signer work, and broker-grade custody hardening are available as future expansion and investment opportunities.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section-card cta-panel" aria-label="Call to action">
+      <h2>See ON &amp; OMA live, launch a tenant pilot, or design your subscriber workflow</h2>
+      <p class="section-lead" style="margin-inline:auto;">
+        Request access, schedule a guided demo, or talk with us about Coupon Broadcasting, Energy-token pilots, subscriber campaigns, OMA swap workflows, or custom tokenization apps built around measurable real-world output.
+      </p>
+      <div class="cta-row" style="justify-content:center; margin-bottom:0;">
+        <a href="https://calendly.com/ncsolarelectric/token-depot-call" target="_blank" rel="noopener noreferrer" role="button">Request Access</a>
+        <a href="https://calendly.com/ncsolarelectric/token-depot-call" target="_blank" rel="noopener noreferrer" role="button" class="secondary-btn">Book a Demo</a>
+        <a href="/login.html" role="button" class="secondary-btn">Login</a>
+      </div>
+    </section>
+
+    <footer>
+      <div style="max-width: 1100px; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 18px 28px; align-items: center; justify-content: space-between;">
+        <div style="line-height: 1.35;">
+          <div style="font-weight: 700; letter-spacing: 0.06em;">TOKEN DEPOT CORP.</div>
+          <div style="opacity: 0.9;">Statesville, NC 28625</div>
+          <div style="opacity: 0.9;">Contact Us: <a href="https://t.me/Token_Depot" target="_blank" rel="noopener noreferrer" style="color:#fff; text-decoration: underline;">Telegram @Token_Depot</a></div>
+        </div>
+        <div style="text-align: right; line-height: 1.35;">
+          <div style="opacity: 0.9;">© <span id="td-footer-year">2026</span> Token Depot Corp. All rights reserved.</div>
+          <div style="opacity: 0.75; font-size: 0.92em;">Oracle Node and OMA subscriber workflows, coupon broadcasting, token operations, swaps, and measured-output apps on Kaspa.</div>
+        </div>
+      </div>
+      <script src="https://www.youtube.com/iframe_api"></script>
+      <script>
+        (function () {
+          var el = document.getElementById("td-footer-year");
+          if (el) el.textContent = String(new Date().getFullYear());
+        })();
+
+        var tdHomePlayer = null;
+
+        function onYouTubeIframeAPIReady() {
+          if (window.YT && typeof window.YT.Player === "function") {
+            tdHomePlayer = new window.YT.Player("td-home-video");
+          }
+        }
+
+        (function () {
+          var playBtn = document.getElementById("td-video-play");
+          var stopBtn = document.getElementById("td-video-stop");
+
+          if (playBtn) {
+            playBtn.addEventListener("click", function () {
+              if (tdHomePlayer && typeof tdHomePlayer.playVideo === "function") {
+                tdHomePlayer.playVideo();
+              }
+            });
+          }
+
+          if (stopBtn) {
+            stopBtn.addEventListener("click", function () {
+              if (tdHomePlayer && typeof tdHomePlayer.stopVideo === "function") {
+                tdHomePlayer.stopVideo();
+              }
+            });
+          }
+        })();
+      </script>
+    </footer>
+  </main>
+</body>
+</html>

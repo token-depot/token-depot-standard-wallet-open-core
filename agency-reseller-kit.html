@@ -1,0 +1,968 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Token Depot — Agency Reseller Kit</title>
+  <meta name="description" content="A Token Depot landing page for coupon publishers, local advertising agencies, and direct-mail providers who want digital coupon tokens and neighborhood rewards-stamp networks on Kaspa.">
+  <link rel="icon" href="/static/icon/favicon.ico">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+  <link rel="stylesheet" href="/static/css/style.css">
+  <style>
+    :root {
+      --td-bg: var(--td-home-bg);
+      --td-bg-2: var(--td-home-bg-2);
+      --td-panel: rgba(var(--td-home-panel-rgb), 0.84);
+      --td-panel-strong: rgba(var(--td-home-panel-strong-rgb), 0.92);
+      --td-border: rgba(var(--td-skin-border-rgb), 0.40);
+      --td-border-strong: rgba(var(--td-skin-border-rgb), 0.56);
+      --td-border-warm: rgba(var(--td-skin-warning-rgb), 0.40);
+      --td-cyan: var(--td-home-cyan);
+      --td-cyan-strong: var(--td-home-cyan-strong);
+      --td-green: var(--td-home-green);
+      --td-gold: var(--td-skin-gold);
+      --td-text-soft: rgba(var(--td-home-text-soft-rgb), 0.82);
+      --td-shadow: 0 22px 60px rgba(var(--td-skin-black-rgb), 0.42);
+      --td-glow: 0 0 0 1px rgba(var(--td-skin-border-rgb), 0.28), 0 0 20px rgba(var(--td-skin-primary-rgb), 0.42), 0 0 64px rgba(var(--td-skin-primary-rgb), 0.24), 0 18px 40px rgba(var(--td-skin-black-rgb), 0.30);
+      --td-glow-warm: 0 0 0 1px rgba(var(--td-skin-warning-rgb), 0.24), 0 0 20px rgba(var(--td-skin-warning-rgb), 0.34), 0 0 56px rgba(var(--td-skin-warning-rgb), 0.18), 0 18px 40px rgba(var(--td-skin-black-rgb), 0.30);
+      --td-max: 1180px;
+    }
+
+    html, body {
+      background:
+        radial-gradient(circle at top, rgba(var(--td-skin-primary-glow-rgb), 0.18), transparent 34%),
+        linear-gradient(180deg, var(--td-bg) 0%, var(--td-bg-2) 100%);
+      color: var(--td-home-text);
+      min-height: 100%;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background: url("/static/images/bg-blockchain-abstract.png") center/cover no-repeat;
+      opacity: 0.10;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    body > * { position: relative; z-index: 1; }
+
+    main.container {
+      max-width: var(--td-max);
+      padding-top: 1rem;
+      padding-bottom: 4rem;
+    }
+
+    nav.topnav {
+      backdrop-filter: blur(14px);
+      background: rgba(var(--td-skin-black-rgb), 0.72);
+      border: 1px solid rgba(var(--td-skin-white-rgb), 0.06);
+      border-radius: 18px;
+      padding: 0.65rem 1rem;
+      margin-bottom: 1.4rem;
+      box-shadow: var(--td-glow);
+    }
+
+    nav.topnav [role="button"] { box-shadow: 0 0 18px rgba(var(--td-skin-primary-rgb), 0.18); }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      border-radius: 28px;
+      border: 1px solid rgba(var(--td-skin-white-rgb), 0.08);
+      background:
+        linear-gradient(135deg, rgba(var(--td-home-panel-strong-rgb), 0.92), rgba(var(--td-skin-panel-rgb), 0.84)),
+        url("/static/images/bg-dark-panels.png") center/cover no-repeat;
+      box-shadow: var(--td-glow);
+      margin-bottom: 1.6rem;
+      padding: 2.1rem;
+    }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 1.05fr 0.95fr;
+      gap: 1.25rem;
+      align-items: center;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: .55rem;
+      padding: .45rem .8rem;
+      border-radius: 999px;
+      border: 1px solid rgba(var(--td-skin-border-rgb), .24);
+      background: rgba(var(--td-skin-panel-rgb), 0.70);
+      color: var(--td-cyan);
+      font-size: .86rem;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      font-weight: 700;
+      margin-bottom: 1rem;
+    }
+
+    .hero h1 {
+      font-size: clamp(2.2rem, 4.8vw, 4.25rem);
+      line-height: 1.02;
+      margin-bottom: 1rem;
+      max-width: 12ch;
+    }
+
+    .hero p.lead {
+      max-width: 68ch;
+      color: var(--td-text-soft);
+      font-size: 1.10rem;
+      margin-bottom: 1.2rem;
+    }
+
+    .cta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .85rem;
+      margin-bottom: 1.35rem;
+    }
+
+    .cta-row .secondary-btn {
+      background: rgba(var(--td-skin-white-rgb), 0.04);
+      color: var(--td-skin-white);
+      border: 1px solid rgba(var(--td-skin-white-rgb), 0.14);
+    }
+
+    .hero-points {
+      display: grid;
+      gap: .65rem;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      max-width: 62ch;
+    }
+
+    .hero-points li {
+      display: flex;
+      gap: .7rem;
+      align-items: flex-start;
+      color: var(--td-text-soft);
+    }
+
+    .hero-points li::before {
+      content: "✦";
+      color: var(--td-gold);
+      margin-top: .05rem;
+    }
+
+    .hero-panel, .section-card, .flow-card, .proof, .product, .market, .audience {
+      background: var(--td-panel);
+      border: 1px solid var(--td-border);
+      box-shadow: var(--td-glow);
+    }
+
+    .hero-panel {
+      border-radius: 22px;
+      padding: 1.25rem;
+    }
+
+    .hero-panel h3 { margin-bottom: .4rem; font-size: 1.1rem; }
+    .hero-panel p { color: var(--td-text-soft); margin-bottom: 1rem; font-size: .98rem; }
+
+    .stamp-visual {
+      position: relative;
+      min-height: 420px;
+      border-radius: 24px;
+      overflow: hidden;
+      border: 1px solid rgba(var(--td-skin-white-rgb), 0.08);
+      background:
+        radial-gradient(circle at 25% 20%, rgba(var(--td-home-text-soft-rgb), 0.20), transparent 24%),
+        radial-gradient(circle at 80% 30%, rgba(var(--td-skin-warning-rgb), 0.18), transparent 28%),
+        linear-gradient(145deg, rgba(var(--td-skin-panel-rgb), 0.94), rgba(var(--td-skin-black-rgb), 0.98));
+      box-shadow: var(--td-glow);
+      display: grid;
+      place-items: center;
+      padding: 1.1rem;
+    }
+
+    .stamp-stack {
+      width: min(94%, 430px);
+      display: grid;
+      gap: .85rem;
+      transform: rotate(-1deg);
+    }
+
+    .stamp-card {
+      border-radius: 22px;
+      padding: 1rem;
+      border: 1px dashed rgba(var(--td-skin-warning-rgb), 0.60);
+      background:
+        linear-gradient(135deg, rgba(var(--td-skin-panel-rgb), .96), rgba(var(--td-skin-panel-rgb), .92));
+      box-shadow: var(--td-glow-warm);
+    }
+
+    .stamp-card strong { display: block; font-size: 1.05rem; color: var(--td-skin-white); }
+    .stamp-card span { color: var(--td-text-soft); font-size: .94rem; }
+
+    .section-card {
+      border-radius: 24px;
+      padding: 1.6rem;
+      margin-bottom: 1.35rem;
+      overflow: hidden;
+    }
+
+    .section-card h2 { margin-bottom: .5rem; }
+    .section-card .section-lead { color: var(--td-text-soft); max-width: 78ch; margin-bottom: 1.25rem; }
+
+    .two-col, .three-col, .four-col, .workflow-grid {
+      display: grid;
+      gap: 1rem;
+    }
+
+    .two-col { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .three-col { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .four-col { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+    .product, .market, .audience, .proof, .flow-card {
+      border-radius: 18px;
+      padding: 1rem;
+      background: rgba(var(--td-skin-white-rgb), 0.025);
+    }
+
+    .product h3, .market h3, .audience h3, .flow-card h3 { margin-bottom: .45rem; font-size: 1.08rem; }
+    .product p, .market p, .audience p, .proof p, .flow-card p { color: var(--td-text-soft); font-size: .96rem; margin-bottom: .65rem; }
+    .product ul, .market ul, .audience ul, .flow-card ul { margin-bottom: 0; color: var(--td-text-soft); }
+    .product li, .market li, .audience li, .flow-card li { margin-bottom: .28rem; }
+
+    .workflow-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+
+    .step {
+      background: rgba(var(--td-skin-white-rgb), 0.03);
+      border: 1px solid rgba(var(--td-skin-border-rgb), 0.18);
+      border-radius: 18px;
+      padding: .95rem;
+      box-shadow: var(--td-glow);
+    }
+
+    .step .kicker {
+      color: var(--td-cyan);
+      font-size: .78rem;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      margin-bottom: .3rem;
+    }
+
+    .section-band {
+      position: relative;
+      border-radius: 24px;
+      overflow: hidden;
+      background:
+        linear-gradient(135deg, rgba(var(--td-skin-black-rgb), 0.86), rgba(var(--td-home-panel-rgb), 0.80)),
+        url("/static/images/bg-golden-network.png") center/cover no-repeat;
+      border: 1px solid var(--td-border-warm);
+      box-shadow: var(--td-glow-warm);
+      padding: 1.6rem;
+      margin-bottom: 1.35rem;
+    }
+
+    .badge-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .55rem;
+      margin-top: 1rem;
+    }
+
+    .tag {
+      padding: .42rem .72rem;
+      border-radius: 999px;
+      background: rgba(var(--td-skin-white-rgb), 0.04);
+      border: 1px solid rgba(var(--td-skin-white-rgb), 0.08);
+      color: var(--td-text-soft);
+      font-size: .88rem;
+    }
+
+    .tag.gold { border-color: rgba(var(--td-skin-warning-rgb), 0.30); color: var(--td-home-gold-text); }
+    .tag.green { border-color: rgba(var(--td-home-text-soft-rgb), 0.28); color: var(--td-home-green-text); }
+    .tag.cyan { border-color: rgba(var(--td-skin-border-rgb), 0.28); color: var(--td-home-cyan-text); }
+
+    .proof {
+      text-align: center;
+      min-height: 145px;
+      display: grid;
+      align-content: start;
+      gap: .35rem;
+    }
+
+    .proof strong {
+      color: var(--td-cyan);
+      font-size: 1.25rem;
+      line-height: 1.1;
+      display: block;
+      margin-bottom: .2rem;
+    }
+
+    .cta-panel {
+      text-align: center;
+      background:
+        linear-gradient(135deg, rgba(var(--td-skin-panel-rgb), 0.88), rgba(var(--td-skin-black-rgb), 0.90)),
+        url("/static/images/bg-dark-panels.png") center/cover no-repeat;
+    }
+
+    footer {
+      margin-top: 2rem;
+      background: rgba(var(--td-skin-black-rgb), 0.72);
+      color: var(--td-skin-white);
+      padding: 22px 16px;
+      border-top: 1px solid rgba(var(--td-skin-white-rgb), 0.12);
+      border-radius: 20px;
+      box-shadow: var(--td-glow);
+    }
+
+    @media (max-width: 980px) {
+      .hero-grid, .two-col, .three-col, .four-col, .workflow-grid { grid-template-columns: 1fr; }
+      .hero { padding: 1.35rem; }
+      .hero h1 { max-width: none; }
+      .stamp-visual { min-height: 320px; }
+    }
+
+    @media (max-width: 760px){
+      nav.topnav{
+        flex-wrap: wrap !important;
+        justify-content: flex-start !important;
+        align-items: stretch !important;
+        gap: .75rem 1rem !important;
+      }
+      nav.topnav > ul:first-child{
+        width: 100% !important;
+        display: flex !important;
+        justify-content: center !important;
+      }
+      nav.topnav > ul:first-child img{ height: 52px !important; }
+      nav.topnav > ul:nth-of-type(2){
+        width: 100% !important;
+        display: flex !important;
+        flex-wrap: wrap !important;
+        justify-content: center !important;
+        gap: .5rem .75rem !important;
+      }
+      nav.topnav > ul:nth-of-type(2) li{ flex: 0 0 auto !important; }
+    }
+
+    /* Broker public skin polish: scoped to this public page so app pages keep their proven styling. */
+    body[data-skin] {
+      --td-public-panel: rgba(var(--td-home-panel-rgb), 0.94);
+      --td-public-panel-strong: rgba(var(--td-home-panel-strong-rgb), 0.97);
+      --td-public-panel-soft: rgba(var(--td-skin-panel-rgb), 0.88);
+      --td-public-border: rgba(var(--td-skin-border-rgb), 0.64);
+      --td-public-border-strong: rgba(var(--td-skin-border-rgb), 0.88);
+      --td-public-glow: rgba(var(--td-skin-primary-glow-rgb), 0.32);
+      --td-public-text: var(--td-home-text);
+      --td-public-soft: rgba(var(--td-home-text-soft-rgb), 0.90);
+    }
+
+    body[data-skin] .hero,
+    body[data-skin] .section-card,
+    body[data-skin] .hero-panel,
+    body[data-skin] .mini-card,
+    body[data-skin] .proof,
+    body[data-skin] .market,
+    body[data-skin] .audience,
+    body[data-skin] .flow-card,
+    body[data-skin] .product,
+    body[data-skin] .stamp-card,
+    body[data-skin] .cta-panel,
+    body[data-skin] .video-card {
+      color: var(--td-public-text);
+      border-color: var(--td-public-border);
+      background:
+        linear-gradient(135deg, var(--td-public-panel-strong), var(--td-public-panel-soft));
+      box-shadow:
+        0 0 0 1px rgba(var(--td-skin-panel-rgb), 0.72),
+        0 18px 60px var(--td-public-glow);
+    }
+
+    body[data-skin] .hero,
+    body[data-skin] .section-band {
+      background:
+        linear-gradient(135deg, rgba(var(--td-home-panel-strong-rgb), 0.95), rgba(var(--td-home-panel-rgb), 0.91)),
+        url("/static/images/bg-dark-panels.png") center/cover no-repeat;
+      border-color: var(--td-public-border-strong);
+    }
+
+    body[data-skin] .section-band.warm {
+      background:
+        linear-gradient(135deg, rgba(var(--td-home-panel-strong-rgb), 0.95), rgba(var(--td-home-panel-rgb), 0.91)),
+        url("/static/images/bg-golden-network.png") center/cover no-repeat;
+      border-color: rgba(var(--td-skin-warning-rgb), 0.72);
+    }
+
+    body[data-skin] .hero h1,
+    body[data-skin] .hero h2,
+    body[data-skin] .hero h3,
+    body[data-skin] .section-band h2,
+    body[data-skin] .section-card h3,
+    body[data-skin] .hero-panel h3,
+    body[data-skin] .proof h3,
+    body[data-skin] .market h3,
+    body[data-skin] .audience h3,
+    body[data-skin] .flow-card h3,
+    body[data-skin] .product h3,
+    body[data-skin] .cta-panel h2 {
+      color: var(--td-skin-text-strong);
+    }
+
+    body[data-skin] p,
+    body[data-skin] li,
+    body[data-skin] .lead,
+    body[data-skin] .section-lead,
+    body[data-skin] .hero-panel p,
+    body[data-skin] .overlay-copy p,
+    body[data-skin] .proof p,
+    body[data-skin] .market p,
+    body[data-skin] .audience p,
+    body[data-skin] .product p,
+    body[data-skin] .flow-card p {
+      color: var(--td-skin-text-muted);
+    }
+
+    body[data-skin] .eyebrow,
+    body[data-skin] .kicker,
+    body[data-skin] .tag,
+    body[data-skin] .badge-row span,
+    body[data-skin] .hero-points li::before {
+      color: var(--td-skin-primary);
+    }
+
+    body[data-skin] .hero-points li {
+      border-color: rgba(var(--td-skin-border-rgb), 0.46);
+      background: rgba(var(--td-skin-panel-rgb), 0.54);
+    }
+
+    body[data-skin] .overlay-copy {
+      border-color: var(--td-public-border);
+      background: rgba(var(--td-home-panel-strong-rgb), 0.92);
+      color: var(--td-public-text);
+    }
+
+    body[data-skin] .cta-row .secondary-btn,
+    body[data-skin] a.secondary-btn,
+    body[data-skin] nav.topnav a[role="button"].secondary-btn {
+      color: var(--td-skin-button-text);
+      border-color: var(--td-public-border-strong);
+      background:
+        radial-gradient(circle at top left, rgba(var(--td-skin-primary-hover-rgb), 0.34), rgba(var(--td-skin-panel-rgb), 0.80));
+      box-shadow:
+        0 0 0 1px rgba(var(--td-skin-panel-rgb), 0.55),
+        0 0 20px rgba(var(--td-skin-primary-glow-rgb), 0.30);
+    }
+
+    body[data-skin] .cta-row .secondary-btn:hover,
+    body[data-skin] a.secondary-btn:hover,
+    body[data-skin] nav.topnav a[role="button"].secondary-btn:hover {
+      border-color: rgba(var(--td-skin-primary-hover-rgb), 0.96);
+      box-shadow:
+        0 0 0 1px rgba(var(--td-skin-border-rgb), 0.50),
+        0 0 28px rgba(var(--td-skin-primary-glow-rgb), 0.46);
+    }
+
+    body[data-skin] nav.topnav {
+      border-bottom-color: rgba(var(--td-skin-border-rgb), 0.22);
+    }
+
+    body[data-skin] nav.topnav a:not([role="button"]) {
+      color: var(--td-skin-link);
+    }
+
+    body[data-skin] nav.topnav a:not([role="button"]):hover {
+      color: var(--td-skin-link-hover);
+    }
+
+
+    /* Broker public skin clarity pass v3: page-local only; app pages keep shared style.css untouched. */
+    body[data-skin] nav.topnav img {
+      display: block !important;
+      width: auto !important;
+      max-width: 260px !important;
+      opacity: 1 !important;
+      filter: drop-shadow(0 0 10px rgba(var(--td-skin-primary-glow-rgb), 0.34));
+    }
+
+    body[data-skin]:not([data-skin="classic_teal"]):not([data-skin$="_black"]) {
+      --td-public-panel: rgba(var(--td-home-panel-rgb), 0.99);
+      --td-public-panel-strong: rgba(var(--td-home-panel-rgb), 1);
+      --td-public-panel-soft: rgba(var(--td-home-panel-strong-rgb), 0.95);
+      --td-public-border: rgba(var(--td-skin-border-rgb), 0.58);
+      --td-public-border-strong: rgba(var(--td-skin-border-rgb), 0.86);
+      --td-public-glow: rgba(var(--td-skin-primary-glow-rgb), 0.20);
+      --td-public-glow-strong: rgba(var(--td-skin-primary-glow-rgb), 0.34);
+      --td-public-text: var(--td-skin-text);
+      --td-public-soft: var(--td-skin-text-muted);
+      opacity: 1 !important;
+      background: linear-gradient(180deg, var(--td-skin-bg) 0%, var(--td-skin-bg-2) 100%) !important;
+      color: var(--td-skin-text) !important;
+    }
+
+    body[data-skin]:not([data-skin="classic_teal"]):not([data-skin$="_black"])::before {
+      opacity: 0 !important;
+    }
+
+    body[data-skin$="_black"] {
+      --td-public-panel: rgba(var(--td-skin-panel-rgb), 0.90);
+      --td-public-panel-strong: rgba(var(--td-home-panel-strong-rgb), 0.96);
+      --td-public-panel-soft: rgba(var(--td-home-panel-rgb), 0.82);
+      --td-public-border: rgba(var(--td-skin-border-rgb), 0.78);
+      --td-public-border-strong: rgba(var(--td-skin-border-rgb), 0.98);
+      --td-public-glow: rgba(var(--td-skin-primary-glow-rgb), 0.56);
+      --td-public-glow-strong: rgba(var(--td-skin-primary-glow-rgb), 0.86);
+      --td-public-text: var(--td-skin-text);
+      --td-public-soft: var(--td-skin-text-muted);
+      opacity: 1 !important;
+    }
+
+    body[data-skin$="_black"]::before {
+      opacity: 0.18 !important;
+    }
+
+    body[data-skin]:not([data-skin="classic_teal"]):not([data-skin$="_black"]) nav.topnav,
+    body[data-skin]:not([data-skin="classic_teal"]):not([data-skin$="_black"]) footer,
+    body[data-skin]:not([data-skin="classic_teal"]):not([data-skin$="_black"]) .hero,
+    body[data-skin]:not([data-skin="classic_teal"]):not([data-skin$="_black"]) .section-band,
+    body[data-skin]:not([data-skin="classic_teal"]):not([data-skin$="_black"]) .section-band.warm,
+    body[data-skin]:not([data-skin="classic_teal"]):not([data-skin$="_black"]) .cta-panel {
+      background: linear-gradient(135deg, var(--td-public-panel-strong), var(--td-public-panel-soft)) !important;
+      color: var(--td-skin-text) !important;
+      border: 1px solid var(--td-public-border-strong) !important;
+      box-shadow:
+        0 0 0 1px rgba(var(--td-skin-border-rgb), 0.20),
+        0 0 24px var(--td-public-glow),
+        0 18px 52px rgba(var(--td-skin-primary-glow-rgb), 0.12) !important;
+      backdrop-filter: blur(8px);
+    }
+
+    body[data-skin$="_black"] nav.topnav,
+    body[data-skin$="_black"] footer,
+    body[data-skin$="_black"] .hero,
+    body[data-skin$="_black"] .section-band,
+    body[data-skin$="_black"] .section-band.warm,
+    body[data-skin$="_black"] .cta-panel {
+      background:
+        radial-gradient(circle at top left, rgba(var(--td-skin-primary-glow-rgb), 0.18), rgba(var(--td-skin-panel-rgb), 0.90)),
+        linear-gradient(135deg, var(--td-public-panel-strong), var(--td-public-panel-soft)) !important;
+      color: var(--td-skin-text) !important;
+      border: 1px solid var(--td-public-border-strong) !important;
+      box-shadow:
+        0 0 0 1px rgba(var(--td-skin-primary-rgb), 0.44),
+        0 0 34px var(--td-public-glow),
+        0 0 92px rgba(var(--td-skin-primary-glow-rgb), 0.28) !important;
+      backdrop-filter: blur(10px);
+    }
+
+    body[data-skin]:not([data-skin="classic_teal"]) .section-card,
+    body[data-skin]:not([data-skin="classic_teal"]) .hero-panel,
+    body[data-skin]:not([data-skin="classic_teal"]) .mini-card,
+    body[data-skin]:not([data-skin="classic_teal"]) .proof,
+    body[data-skin]:not([data-skin="classic_teal"]) .market,
+    body[data-skin]:not([data-skin="classic_teal"]) .audience,
+    body[data-skin]:not([data-skin="classic_teal"]) .flow-card,
+    body[data-skin]:not([data-skin="classic_teal"]) .product,
+    body[data-skin]:not([data-skin="classic_teal"]) .stamp-card,
+    body[data-skin]:not([data-skin="classic_teal"]) .step,
+    body[data-skin]:not([data-skin="classic_teal"]) .video-card,
+    body[data-skin]:not([data-skin="classic_teal"]) .overlay-copy,
+    body[data-skin]:not([data-skin="classic_teal"]) .hero-points li,
+    body[data-skin]:not([data-skin="classic_teal"]) .tag,
+    body[data-skin]:not([data-skin="classic_teal"]) .badge-row span {
+      background: var(--td-public-panel) !important;
+      color: var(--td-public-text) !important;
+      border-color: var(--td-public-border) !important;
+      box-shadow:
+        0 0 0 1px rgba(var(--td-skin-border-rgb), 0.30),
+        0 0 22px var(--td-public-glow),
+        0 12px 42px rgba(var(--td-skin-primary-glow-rgb), 0.14) !important;
+    }
+
+    body[data-skin$="_black"] .section-card,
+    body[data-skin$="_black"] .hero-panel,
+    body[data-skin$="_black"] .mini-card,
+    body[data-skin$="_black"] .proof,
+    body[data-skin$="_black"] .market,
+    body[data-skin$="_black"] .audience,
+    body[data-skin$="_black"] .flow-card,
+    body[data-skin$="_black"] .product,
+    body[data-skin$="_black"] .stamp-card,
+    body[data-skin$="_black"] .step,
+    body[data-skin$="_black"] .video-card,
+    body[data-skin$="_black"] .overlay-copy,
+    body[data-skin$="_black"] .hero-points li,
+    body[data-skin$="_black"] .tag,
+    body[data-skin$="_black"] .badge-row span {
+      background:
+        radial-gradient(circle at top left, rgba(var(--td-skin-primary-glow-rgb), 0.16), rgba(var(--td-skin-panel-rgb), 0.88)) !important;
+      border-color: var(--td-public-border) !important;
+      box-shadow:
+        0 0 0 1px rgba(var(--td-skin-primary-rgb), 0.36),
+        0 0 26px rgba(var(--td-skin-primary-glow-rgb), 0.52),
+        0 0 58px rgba(var(--td-skin-primary-glow-rgb), 0.20) !important;
+    }
+
+    body[data-skin]:not([data-skin="classic_teal"]) .image-frame,
+    body[data-skin]:not([data-skin="classic_teal"]) .video-embed,
+    body[data-skin]:not([data-skin="classic_teal"]) .stamp-visual {
+      background: var(--td-public-panel) !important;
+      border-color: var(--td-public-border-strong) !important;
+      box-shadow:
+        0 0 0 1px rgba(var(--td-skin-border-rgb), 0.32),
+        0 0 30px var(--td-public-glow),
+        0 16px 54px rgba(var(--td-skin-primary-glow-rgb), 0.16) !important;
+    }
+
+    body[data-skin$="_black"] .image-frame,
+    body[data-skin$="_black"] .video-embed,
+    body[data-skin$="_black"] .stamp-visual {
+      box-shadow:
+        0 0 0 1px rgba(var(--td-skin-primary-rgb), 0.46),
+        0 0 34px rgba(var(--td-skin-primary-glow-rgb), 0.62),
+        0 0 72px rgba(var(--td-skin-primary-glow-rgb), 0.24) !important;
+    }
+
+    body[data-skin]:not([data-skin="classic_teal"]) h1,
+    body[data-skin]:not([data-skin="classic_teal"]) h2,
+    body[data-skin]:not([data-skin="classic_teal"]) h3,
+    body[data-skin]:not([data-skin="classic_teal"]) h4,
+    body[data-skin]:not([data-skin="classic_teal"]) strong {
+      color: var(--td-skin-text-strong) !important;
+    }
+
+    body[data-skin]:not([data-skin="classic_teal"]) p,
+    body[data-skin]:not([data-skin="classic_teal"]) li,
+    body[data-skin]:not([data-skin="classic_teal"]) .lead,
+    body[data-skin]:not([data-skin="classic_teal"]) .section-lead,
+    body[data-skin]:not([data-skin="classic_teal"]) .hero-panel p,
+    body[data-skin]:not([data-skin="classic_teal"]) .overlay-copy p,
+    body[data-skin]:not([data-skin="classic_teal"]) .proof p,
+    body[data-skin]:not([data-skin="classic_teal"]) .market p,
+    body[data-skin]:not([data-skin="classic_teal"]) .audience p,
+    body[data-skin]:not([data-skin="classic_teal"]) .product p,
+    body[data-skin]:not([data-skin="classic_teal"]) .flow-card p {
+      color: var(--td-public-soft) !important;
+    }
+
+    body[data-skin]:not([data-skin="classic_teal"]) .eyebrow,
+    body[data-skin]:not([data-skin="classic_teal"]) .kicker,
+    body[data-skin]:not([data-skin="classic_teal"]) .tag,
+    body[data-skin]:not([data-skin="classic_teal"]) .badge-row span,
+    body[data-skin]:not([data-skin="classic_teal"]) .hero-points li::before {
+      color: var(--td-skin-primary) !important;
+    }
+
+    body[data-skin]:not([data-skin="classic_teal"]) .cta-row .secondary-btn,
+    body[data-skin]:not([data-skin="classic_teal"]) a.secondary-btn,
+    body[data-skin]:not([data-skin="classic_teal"]) nav.topnav a[role="button"].secondary-btn,
+    body[data-skin]:not([data-skin="classic_teal"]) button {
+      color: var(--td-skin-button-text) !important;
+      border-color: var(--td-public-border-strong) !important;
+      background:
+        radial-gradient(circle at top left, rgba(var(--td-skin-primary-hover-rgb), 0.42), rgba(var(--td-skin-panel-rgb), 0.82)) !important;
+      box-shadow:
+        0 0 0 1px rgba(var(--td-skin-border-rgb), 0.36),
+        0 0 24px rgba(var(--td-skin-primary-glow-rgb), 0.44) !important;
+    }
+
+    body[data-skin]:not([data-skin="classic_teal"]) nav.topnav a:not([role="button"]),
+    body[data-skin]:not([data-skin="classic_teal"]) footer a {
+      color: var(--td-skin-link) !important;
+    }
+
+    body[data-skin]:not([data-skin="classic_teal"]) nav.topnav a:not([role="button"]):hover,
+    body[data-skin]:not([data-skin="classic_teal"]) footer a:hover {
+      color: var(--td-skin-link-hover) !important;
+    }
+
+    body[data-skin]:not([data-skin="classic_teal"]) .stamp-card span {
+      color: var(--td-public-soft) !important;
+    }
+
+    body[data-skin]:not([data-skin="classic_teal"]):not([data-skin$="_black"]) .stamp-card span {
+      color: var(--td-skin-text-muted) !important;
+    }
+
+  </style>
+</head>
+<body data-skin="classic_teal">
+  <main class="container">
+    <nav class="topnav" aria-label="Primary">
+      <ul>
+        <li>
+          <a href="/index.html" aria-label="Token Depot">
+            <img src="/static/icon/logo.png" alt="Token Depot logo" style="height:60px; display:block;">
+          </a>
+        </li>
+      </ul>
+      <ul>
+        <li><a href="/index.html">Home</a></li>
+        <li><a href="https://calendly.com/ncsolarelectric/token-depot-call" target="_blank" rel="noopener noreferrer" role="button">Book a Demo</a></li>
+        <li><a href="/login.html" role="button" class="secondary-btn">Login</a></li>
+      </ul>
+    </nav>
+
+    <section class="hero" aria-label="Agency Reseller Kit hero">
+      <div class="hero-grid">
+        <div>
+          <div class="eyebrow">For coupon publishers • direct-mail firms • local advertising agencies</div>
+          <h1>Turn coupon clients into digital reward networks.</h1>
+          <p class="lead">
+            Token Depot helps coupon and advertising providers sell a modern rewards product: retailer-specific digital coupon tokens today, and neighborhood Green-Stamp-style rewards networks when they are ready for the bigger opportunity.
+          </p>
+          <div class="cta-row">
+            <a href="https://calendly.com/ncsolarelectric/token-depot-call" target="_blank" rel="noopener noreferrer" role="button">Book a Demo</a>
+            <a href="#pilot" role="button" class="secondary-btn">See Pilot Plan</a>
+          </div>
+          <ul class="hero-points">
+            <li>Replace paper coupons with retailer-specific KRC-20 coupon tokens that customers can hold in a wallet and redeem through the retailer.</li>
+            <li>Launch a neighborhood stamp business where retailers buy your redeemable reward token and distribute it to customers with Coupon Broadcaster.</li>
+            <li>Keep the retailer-funded reserve, float, redemption catalog, reporting, and customer engagement inside your own local rewards business.</li>
+          </ul>
+        </div>
+        <div class="stamp-visual" aria-label="Digital reward stamp illustration">
+          <div class="stamp-stack">
+            <div class="stamp-card">
+              <strong>Retailer Digital Coupons</strong>
+              <span>Each merchant gets a campaign token that replaces paper coupons and tracks redemption with burn receipts.</span>
+            </div>
+            <div class="stamp-card">
+              <strong>Neighborhood Stamp Token</strong>
+              <span>Your agency sells one local reward token to retailers, then customers save it for prizes in your catalog.</span>
+            </div>
+            <div class="stamp-card">
+              <strong>Coupon Broadcaster</strong>
+              <span>Retailers distribute weekly rewards to customer wallet lists based on spend, visits, or campaign rules.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section-card" aria-label="What this is">
+      <h2>A new revenue product for the coupon business you already run</h2>
+      <p class="section-lead">
+        Your clients already pay for attention, repeat visits, coupons, flyers, direct mail, and local advertising. The Agency Reseller Kit gives you a digital rewards rail you can sell beside those services without asking every retailer to become a blockchain expert.
+      </p>
+      <div class="three-col">
+        <article class="audience">
+          <h3>For coupon publishers</h3>
+          <p>Upgrade paper offers into wallet-held digital coupons with proof of issuance and redemption.</p>
+          <ul>
+            <li>Less copy-and-share leakage</li>
+            <li>Better customer engagement</li>
+            <li>Campaign reporting and burn receipts</li>
+          </ul>
+        </article>
+        <article class="audience">
+          <h3>For local ad agencies</h3>
+          <p>Add a recurring rewards product to the same retailer relationships you already manage.</p>
+          <ul>
+            <li>Retailer campaign packages</li>
+            <li>Customer wallet onboarding</li>
+            <li>Local rewards network potential</li>
+          </ul>
+        </article>
+        <article class="audience">
+          <h3>For retailers</h3>
+          <p>Give customers something they can save, hold, and redeem instead of another disposable promo code.</p>
+          <ul>
+            <li>Weekly spend-based drops</li>
+            <li>Digital coupon campaigns</li>
+            <li>Prize catalog or store redemption</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section class="section-card" aria-label="Two product tracks">
+      <h2>Two ways to sell the kit</h2>
+      <p class="section-lead">
+        Start with the easy upgrade: retailer-specific digital coupons. Then add the larger S&amp;H-style model: your own neighborhood stamp token funded by retailers and redeemed through your catalog.
+      </p>
+      <div class="two-col">
+        <article class="product">
+          <h3>Track A — Retailer Digital Coupon Tokens</h3>
+          <p>Replace a retailer’s paper coupon with a branded KRC-20 coupon token. The retailer defines the discount rules, and the customer redeems the token through that retailer.</p>
+          <ul>
+            <li>One retailer or one campaign per token</li>
+            <li>Coupon Broadcaster for weekly distribution</li>
+            <li>Burn-on-redeem proof</li>
+            <li>Best first pilot for existing coupon clients</li>
+          </ul>
+        </article>
+        <article class="product">
+          <h3>Track B — Neighborhood Stamp Network</h3>
+          <p>Your agency operates a local rewards token. Retailers buy the tokens from you, distribute them to shoppers, and customers redeem them in your online prize catalog.</p>
+          <ul>
+            <li>Retailer-funded reward inventory</li>
+            <li>Catalog redemption center</li>
+            <li>Reserve and float model</li>
+            <li>Highest upside for recurring revenue</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section class="section-band" aria-label="Neighborhood stamp flow">
+      <div class="overlay-copy">
+        <h2>The neighborhood stamp flow</h2>
+        <p class="section-lead">
+          This is the digital version of the classic trading-stamp model: retailers fund the rewards, customers accumulate tokens over time, and your business operates the redemption catalog.
+        </p>
+      </div>
+      <div class="workflow-grid">
+        <div class="step">
+          <div class="kicker">1. Retailer buys</div>
+          <p>Retailers buy your branded stamp tokens as a loyalty and advertising expense.</p>
+        </div>
+        <div class="step">
+          <div class="kicker">2. Retailer distributes</div>
+          <p>Coupon Broadcaster sends token rewards to customer wallet lists based on weekly spend.</p>
+        </div>
+        <div class="step">
+          <div class="kicker">3. Customer saves</div>
+          <p>Customers see their reward balance grow in a KRC-20 wallet instead of a paper book.</p>
+        </div>
+        <div class="step">
+          <div class="kicker">4. Catalog redeems</div>
+          <p>Your prize catalog accepts only your stamp token for selected rewards and merchandise.</p>
+        </div>
+        <div class="step">
+          <div class="kicker">5. Token burns</div>
+          <p>Redeemed tokens are burned or retired so the same rewards cannot be used twice.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section-card" aria-label="What's included">
+      <h2>What the Agency Reseller Kit includes</h2>
+      <p class="section-lead">
+        Token Depot supplies the wallet-connected infrastructure. You bring the retailer relationships, campaign ideas, local sales channel, and reward catalog strategy.
+      </p>
+      <div class="four-col">
+        <article class="proof">
+          <strong>Tenant license</strong>
+          <p>Mainnet token access for your agency account and campaign operations.</p>
+        </article>
+        <article class="proof">
+          <strong>Coupon Broadcaster</strong>
+          <p>CSV preview, weekly token drops, and downloadable campaign result records.</p>
+        </article>
+        <article class="proof">
+          <strong>Wallet onboarding</strong>
+          <p>Customer wallet paths for receiving, holding, and redeeming KRC-20 rewards.</p>
+        </article>
+        <article class="proof">
+          <strong>Redemption proof</strong>
+          <p>Burn or receipt workflows that make campaign redemption easier to audit.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section-card" aria-label="Why retailers care">
+      <h2>Why retailers take the meeting</h2>
+      <p class="section-lead">
+        Retailers do not need to understand the chain first. They need a stronger loyalty offer, better repeat-visit incentive, and a reason for customers to keep paying attention after the weekly coupon expires.
+      </p>
+      <div class="three-col">
+        <article class="market">
+          <h3>More than a coupon</h3>
+          <p>Customers can accumulate value across visits, which gives retailers a reason to run recurring campaigns instead of one-off discounts.</p>
+        </article>
+        <article class="market">
+          <h3>Funded like advertising</h3>
+          <p>Retailers buy reward inventory up front as part of their marketing budget. The token drop becomes part of the campaign.</p>
+        </article>
+        <article class="market">
+          <h3>Easy first pilot</h3>
+          <p>Start with a small subscriber list, one retailer, one reward token, one campaign rule, and a simple redemption offer.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section-card" aria-label="Guardrails">
+      <h2>Rewards-first guardrails</h2>
+      <p class="section-lead">
+        The strongest starting model is rewards and catalog redemption, not cash-out or investment language. The kit is designed for coupons, stamps, loyalty, and prize catalogs. Legal and tax review should be completed before live rollout.
+      </p>
+      <div class="two-col">
+        <article class="flow-card">
+          <h3>Recommended</h3>
+          <ul>
+            <li>Redeem for catalog goods, services, discounts, or merchant-defined rewards.</li>
+            <li>Burn or retire tokens when redeemed.</li>
+            <li>Maintain a redemption reserve for outstanding rewards.</li>
+            <li>Publish clear campaign terms and reward availability.</li>
+          </ul>
+        </article>
+        <article class="flow-card">
+          <h3>Avoid at launch</h3>
+          <ul>
+            <li>Cash redemption or guaranteed cash value.</li>
+            <li>Promises that tokens will rise in value.</li>
+            <li>Operating the catalog like a crypto exchange.</li>
+            <li>Unlimited prize liability without reserve accounting.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section class="section-card" id="pilot" aria-label="Pilot plan">
+      <h2>Suggested 30-day pilot</h2>
+      <p class="section-lead">
+        The first goal is not to rebuild every coupon program. The first goal is to prove that retailers will buy a digital reward campaign and customers can receive, save, and redeem tokens without confusion.
+      </p>
+      <div class="four-col">
+        <article class="proof">
+          <strong>3 retailers</strong>
+          <p>Pick friendly merchants that already run coupons or customer specials.</p>
+        </article>
+        <article class="proof">
+          <strong>1 campaign</strong>
+          <p>Use one token drop rule, such as rewards based on weekly spend.</p>
+        </article>
+        <article class="proof">
+          <strong>50–250 users</strong>
+          <p>Start with an opt-in list before expanding to a broader local audience.</p>
+        </article>
+        <article class="proof">
+          <strong>1 redemption</strong>
+          <p>Offer one simple reward so the campaign is easy to explain and measure.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section-card cta-panel" aria-label="Call to action">
+      <h2>Bring a digital rewards-stamp demo to your agency or coupon network</h2>
+      <p class="section-lead" style="margin-inline:auto;">
+        See how Token Depot can help you turn existing coupon clients into digital coupon campaigns, local stamp networks, wallet-based rewards, and catalog redemption programs.
+      </p>
+      <div class="cta-row" style="justify-content:center; margin-bottom:0;">
+        <a href="https://calendly.com/ncsolarelectric/token-depot-call" target="_blank" rel="noopener noreferrer" role="button">Book a Demo</a>
+        <a href="https://t.me/Token_Depot" target="_blank" rel="noopener noreferrer" role="button" class="secondary-btn">Telegram @Token_Depot</a>
+      </div>
+    </section>
+
+    <footer>
+      <div style="max-width: 1100px; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 18px 28px; align-items: center; justify-content: space-between;">
+        <div style="line-height: 1.35;">
+          <div style="font-weight: 700; letter-spacing: 0.06em;">TOKEN DEPOT CORP.</div>
+          <div style="opacity: 0.9;">Statesville, NC 28625</div>
+          <div style="opacity: 0.9;">Contact Us: <a href="https://t.me/Token_Depot" target="_blank" rel="noopener noreferrer" style="color:var(--td-skin-white); text-decoration: underline;">Telegram @Token_Depot</a></div>
+        </div>
+        <div style="text-align: right; line-height: 1.35;">
+          <div style="opacity: 0.9;">© <span id="td-footer-year">2026</span> Token Depot Corp. All rights reserved.</div>
+          <div style="opacity: 0.75; font-size: 0.92em;">Agency Reseller Kit for digital coupon tokens, neighborhood stamp programs, Coupon Broadcaster, and KRC-20 reward workflows.</div>
+        </div>
+      </div>
+      <script>
+        (function () {
+          var el = document.getElementById("td-footer-year");
+          if (el) el.textContent = String(new Date().getFullYear());
+        })();
+      </script>
+    </footer>
+  </main>
+</body>
+</html>

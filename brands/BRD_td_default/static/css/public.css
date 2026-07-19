@@ -1,0 +1,291 @@
+:root {
+  --td-bg: #0f172a;
+  --td-panel: #ffffff;
+  --td-panel-soft: #f8fafc;
+  --td-text: #0f172a;
+  --td-text-soft: #475569;
+  --td-border: #e2e8f0;
+  --td-brand: #0f766e;
+  --td-brand-dark: #115e59;
+  --td-brand-soft: #ccfbf1;
+  --td-link: #0f766e;
+  --td-link-hover: #134e4a;
+  --td-shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
+  --td-radius: 18px;
+  --td-max: 1120px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  margin: 0;
+  padding: 0;
+  background: #e2e8f0;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  color: var(--td-text);
+  background:
+    radial-gradient(circle at top left, rgba(20, 184, 166, 0.16), transparent 28rem),
+    linear-gradient(180deg, #ecfeff 0%, #f8fafc 38%, #e2e8f0 100%);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  line-height: 1.5;
+}
+
+a {
+  color: var(--td-link);
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--td-link-hover);
+}
+
+img {
+  display: block;
+  max-width: 100%;
+}
+
+.td-shell-header,
+.td-support,
+.td-shell-footer,
+.td-hero,
+.td-home-sections,
+.td-login-shell {
+  width: min(calc(100% - 2rem), var(--td-max));
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.td-shell-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.25rem 0;
+}
+
+.td-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.85rem;
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: var(--td-text);
+}
+
+.td-brand img {
+  width: 42px;
+  height: 42px;
+  object-fit: contain;
+}
+
+.td-shell-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.td-shell-nav a {
+  font-weight: 600;
+}
+
+.td-hero {
+  display: grid;
+  gap: 1.25rem;
+  padding: 2rem 0 1rem;
+}
+
+.td-hero-copy,
+.td-login-copy,
+.td-login-panel,
+.td-card,
+.td-support,
+.td-shell-footer {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  box-shadow: var(--td-shadow);
+  backdrop-filter: blur(10px);
+}
+
+.td-hero-copy {
+  border-radius: calc(var(--td-radius) + 6px);
+  padding: 2rem;
+}
+
+.td-eyebrow {
+  margin: 0 0 0.75rem;
+  color: var(--td-brand);
+  font-size: 0.85rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.td-hero-copy h1,
+.td-login-copy h1 {
+  margin: 0;
+  font-size: clamp(2rem, 3vw, 3.25rem);
+  line-height: 1.08;
+  letter-spacing: -0.03em;
+}
+
+.td-lead {
+  margin: 1rem 0 0;
+  max-width: 48rem;
+  color: var(--td-text-soft);
+  font-size: 1.05rem;
+}
+
+.td-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+  margin-top: 1.5rem;
+}
+
+.td-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0.75rem 1.1rem;
+  border-radius: 999px;
+  font-weight: 700;
+  border: 1px solid transparent;
+  transition: transform 0.15s ease, background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.td-btn:hover {
+  transform: translateY(-1px);
+}
+
+.td-btn-primary {
+  color: #ffffff;
+  background: linear-gradient(135deg, var(--td-brand) 0%, var(--td-brand-dark) 100%);
+}
+
+.td-btn-primary:hover {
+  color: #ffffff;
+}
+
+.td-btn-secondary {
+  color: var(--td-brand-dark);
+  background: var(--td-brand-soft);
+  border-color: rgba(15, 118, 110, 0.18);
+}
+
+.td-home-sections {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  padding: 1rem 0 2rem;
+}
+
+.td-card {
+  border-radius: var(--td-radius);
+  padding: 1.35rem;
+}
+
+.td-card h2 {
+  margin: 0 0 0.65rem;
+  font-size: 1.15rem;
+}
+
+.td-card p {
+  margin: 0;
+  color: var(--td-text-soft);
+}
+
+.td-login-shell {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 1rem;
+  padding: 2rem 0;
+}
+
+.td-login-copy,
+.td-login-panel {
+  border-radius: calc(var(--td-radius) + 2px);
+  padding: 1.5rem;
+}
+
+.td-login-panel {
+  min-height: 320px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+[data-role="login-core-mount"] {
+  width: 100%;
+  min-height: 240px;
+  border: 1px dashed var(--td-border);
+  border-radius: 14px;
+  background: var(--td-panel-soft);
+}
+
+.td-support {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border-radius: var(--td-radius);
+  padding: 1rem 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.td-support p {
+  margin: 0;
+  font-weight: 600;
+}
+
+.td-shell-footer {
+  border-radius: var(--td-radius) var(--td-radius) 0 0;
+  padding: 1rem 1.25rem 1.5rem;
+  margin-bottom: 0;
+}
+
+.td-shell-footer p {
+  margin: 0;
+  color: var(--td-text-soft);
+  text-align: center;
+}
+
+@media (max-width: 960px) {
+  .td-home-sections,
+  .td-login-shell {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .td-shell-header,
+  .td-support {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .td-shell-nav,
+  .td-hero-actions {
+    width: 100%;
+  }
+
+  .td-shell-nav a,
+  .td-btn {
+    width: 100%;
+  }
+
+  .td-hero-copy,
+  .td-login-copy,
+  .td-login-panel,
+  .td-card {
+    padding: 1.25rem;
+  }
+}

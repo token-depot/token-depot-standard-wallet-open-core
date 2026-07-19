@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "branding_id": "BRD_td_default",
+  "brand_name": "Token Depot",
+  "public_title_suffix": "Token Depot",
+  "footer_legal_name": "Token Depot",
+  "support": {
+    "label": "Contact Web Administrator",
+    "url": "https://www.token-depot.co"
+  },
+  "links": {
+    "request_access_url": "https://www.token-depot.co",
+    "privacy_url": null,
+    "terms_url": null
+  },
+  "assets": {
+    "logo_src": "/brands/BRD_td_default/static/icon/logo.png",
+    "favicon_src": "/brands/BRD_td_default/static/icon/favicon.ico"
+  },
+  "styles": {
+    "public_css": "/brands/BRD_td_default/static/css/public.css",
+    "app_css": "/static/css/style.css"
+  },
+  "contracts": {
+    "public_shell_contract": "public-shell-v1",
+    "app_shell_contract": "app-shell-v1"
+  },
+  "pages": {
+    "public": [
+      "index",
+      "login"
+    ],
+    "app": [
+      "wallet",
+      "offers",
+      "manage",
+      "deploy",
+      "issue",
+      "redeem",
+      "energy"
+    ]
+  }
+}

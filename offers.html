@@ -1,0 +1,957 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>OMA Offers Board</title>
+  <!-- Same base styling as index.html -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+  <link rel="stylesheet" href="/static/css/style.css">
+  <script defer src="/static/js/skin_shared.js"></script>
+  <style>
+    .half { padding:.25rem .5rem; line-height:1.0 }
+    .toolbar { display:flex; gap:.5rem; flex-wrap:wrap; align-items:center }
+    .addr { word-break:break-all }
+    .muted { opacity:.7 }
+    html{ min-height:100%; }
+    body{ min-height:100vh; }
+
+    .topnav{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:12px;
+      margin-bottom:1rem;
+      flex-wrap:wrap;
+    }
+    .menu{ position:relative }
+    .dd-toggle{
+      appearance:none;
+      background:rgba(var(--td-skin-black-rgb), .45);
+      color:rgba(var(--td-home-text-soft-rgb), .95);
+      border:1px solid rgba(var(--td-skin-border-rgb), .28);
+      padding:8px 12px;
+      border-radius:10px;
+      cursor:pointer;
+      box-shadow:0 0 0 1px rgba(var(--td-skin-border-rgb), .10), 0 0 18px rgba(var(--td-skin-border-rgb), .12);
+    }
+    .dd-panel{
+      position:absolute;
+      inset-block-start:100%;
+      inset-inline-start:0;
+      background:rgba(var(--td-skin-black-rgb), .72);
+      border:1px solid rgba(var(--td-skin-border-rgb), .22);
+      border-radius:12px;
+      padding:6px 0;
+      min-width:220px;
+      z-index:50;
+      box-shadow:0 0 0 1px rgba(var(--td-skin-border-rgb), .10), 0 0 22px rgba(var(--td-skin-border-rgb), .12);
+      display:none;
+      backdrop-filter: blur(6px);
+    }
+    .dd-panel a{
+      display:block;
+      padding:8px 12px;
+      text-decoration:none;
+      color:rgba(var(--td-home-text-soft-rgb), .92);
+      font-size:0.95rem;
+    }
+    .dd-panel a:hover{
+      background:rgba(var(--td-skin-border-rgb), .10);
+    }
+
+    .dd-toggle[aria-expanded="true"] + .dd-panel{
+      display:block;
+    }
+
+    /* Offer board layout */
+    .offers-header{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      flex-wrap:wrap;
+      gap:.5rem;
+      margin-bottom:.75rem;
+    }
+    .offer-list{
+      display:flex;
+      flex-direction:column;
+      gap:.75rem;
+    }
+    .offer-card{
+      border:1px solid rgba(var(--td-skin-border-rgb), .22);
+      border-radius:14px;
+      padding:0.9rem 1.0rem;
+      display:flex;
+      flex-direction:column;
+      gap:0.5rem;
+      background:rgba(var(--td-skin-black-rgb), .55);
+      box-shadow:0 0 0 1px rgba(var(--td-skin-border-rgb), .10), 0 0 24px rgba(var(--td-skin-border-rgb), .12);
+      backdrop-filter: blur(6px);
+    }
+    .offer-title{
+      font-weight:650;
+      font-size:1.05rem;
+      letter-spacing:.2px;
+    }
+    .offer-sub{
+      font-size:0.95rem;
+      opacity:1;
+      color:rgba(var(--td-home-text-soft-rgb), .72);
+    }
+    .td-switch-row{
+      display:inline-flex;
+      align-items:center;
+      gap:.5rem;
+      cursor:pointer;
+      user-select:none;
+      color:rgba(var(--td-home-text-soft-rgb), .82);
+    }
+    .td-switch-row input{
+      position:absolute;
+      opacity:0;
+      width:1px;
+      height:1px;
+      pointer-events:none;
+    }
+    .td-switch-track{
+      position:relative;
+      display:inline-block;
+      width:34px;
+      height:18px;
+      border-radius:999px;
+      border:1px solid rgba(var(--td-skin-border-rgb), .55);
+      background:rgba(var(--td-skin-border-rgb), .18);
+      flex:0 0 auto;
+      transition:background .15s ease, border-color .15s ease;
+    }
+    .td-switch-track::after{
+      content:"";
+      position:absolute;
+      top:2px;
+      left:2px;
+      width:14px;
+      height:14px;
+      border-radius:999px;
+      background:rgba(var(--td-home-text-soft-rgb), .96);
+      box-shadow:0 1px 3px rgba(0,0,0,.28);
+      transition:transform .15s ease;
+    }
+    .td-switch-row input:checked + .td-switch-track{
+      background:rgba(15, 118, 110, .95);
+      border-color:rgba(15, 118, 110, .95);
+    }
+    .td-switch-row input:checked + .td-switch-track::after{
+      transform:translateX(16px);
+    }
+    .td-switch-row input:focus-visible + .td-switch-track{
+      outline:2px solid rgba(var(--td-skin-border-rgb), .55);
+      outline-offset:2px;
+    }
+    .offer-meta{
+      display:flex;
+      flex-wrap:wrap;
+      gap:0.9rem;
+      font-size:0.95rem;
+      opacity:1;
+      color:rgba(var(--td-home-text-soft-rgb), .80);
+    }
+    .offer-actions button{
+      padding:.55rem 1.05rem;
+      font-size:0.95rem;
+      border-radius:12px;
+    }
+
+    .offer-section-toggle{
+      margin:1rem 0;
+      border:1px solid rgba(var(--td-skin-border-rgb), .22);
+      border-radius:16px;
+      background:rgba(var(--td-skin-black-rgb), .38);
+      box-shadow:0 0 0 1px rgba(var(--td-skin-border-rgb), .08), 0 0 20px rgba(var(--td-skin-border-rgb), .10);
+      overflow:hidden;
+    }
+    .offer-section-toggle > summary{
+      list-style:none;
+      cursor:pointer;
+      padding:.85rem 1rem;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:.75rem;
+      flex-wrap:wrap;
+    }
+    .offer-section-toggle > summary::-webkit-details-marker{
+      display:none;
+    }
+    .offer-section-toggle > summary::after{
+      content:"Expand";
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      border:1px solid rgba(var(--td-skin-border-rgb), .28);
+      border-radius:999px;
+      padding:.25rem .65rem;
+      font-size:.85rem;
+      color:rgba(var(--td-home-text-soft-rgb), .88);
+      background:rgba(var(--td-skin-white-rgb), .05);
+    }
+    .offer-section-toggle[open] > summary::after{
+      content:"Collapse";
+    }
+    .offer-section-toggle .section-body{
+      padding:0 1rem 1rem;
+    }
+    #mySwapsStatus{
+      font-weight:650;
+      color:rgba(var(--td-home-text-soft-rgb), .92);
+    }
+    .grouped-offers-shell{
+      display:flex;
+      flex-direction:column;
+      gap:.35rem;
+    }
+    .grouped-offers-table{
+      width:100%;
+      border:1px solid rgba(var(--td-skin-border-rgb), .18);
+      border-radius:10px;
+      overflow:hidden;
+      background:rgba(var(--td-skin-black-rgb), .30);
+    }
+    .grouped-offers-header,
+    .grouped-offer-row{
+      display:grid;
+      grid-template-columns:minmax(88px,.7fr) minmax(180px,2fr) minmax(80px,.55fr) minmax(62px,.45fr) minmax(58px,auto);
+      gap:.35rem;
+      align-items:center;
+      padding:.32rem .5rem;
+      font-size:.82rem;
+      line-height:1.2;
+    }
+    .grouped-offers-header{
+      font-size:.72rem;
+      font-weight:700;
+      letter-spacing:.04em;
+      text-transform:uppercase;
+      color:rgba(var(--td-home-text-soft-rgb), .68);
+      background:rgba(var(--td-skin-white-rgb), .05);
+    }
+    .grouped-offer-row{
+      border-top:1px solid rgba(var(--td-skin-border-rgb), .14);
+    }
+    .grouped-offer-row > div{
+      min-width:0;
+      overflow-wrap:anywhere;
+    }
+    .grouped-offer-row > div:nth-child(2),
+    .grouped-offer-row > div:nth-child(3),
+    .grouped-offer-row > div:nth-child(4){
+      font-size:.88rem;
+    }
+    .grouped-offer-row details{
+      grid-column:1 / -1;
+      margin-top:0;
+      font-size:.88rem;
+      line-height:1.2;
+      color:rgba(var(--td-home-text-soft-rgb), .78);
+    }
+    .grouped-offer-row details summary{
+      cursor:pointer;
+      display:inline-block;
+      padding:.05rem 0;
+      color:rgba(var(--td-accent-rgb), .92);
+    }
+    .grouped-offer-empty{
+      border:1px dashed rgba(var(--td-skin-border-rgb), .24);
+      border-radius:10px;
+      padding:.5rem .65rem;
+      color:rgba(var(--td-home-text-soft-rgb), .78);
+      background:rgba(var(--td-skin-black-rgb), .28);
+      font-size:.82rem;
+    }
+    @media (max-width: 900px){
+      .grouped-offers-header{
+        display:none;
+      }
+      .grouped-offer-row{
+        grid-template-columns:1fr;
+        gap:.18rem;
+        padding:.28rem .45rem;
+        font-size:.78rem;
+      }
+      .grouped-offer-row details{
+        font-size:.68rem;
+      }
+    }
+    .bw-card{
+      padding:.7rem .85rem;
+      gap:.45rem;
+    }
+    .bw-topline{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:.75rem;
+      flex-wrap:wrap;
+    }
+    .bw-strip{
+      display:grid;
+      grid-template-columns:minmax(180px,1.2fr) minmax(120px,.8fr) minmax(260px,1.8fr) minmax(280px,1.8fr) auto;
+      gap:.6rem;
+      align-items:end;
+    }
+    .bw-strip label{
+      display:flex;
+      flex-direction:column;
+      gap:.3rem;
+      font-size:.9rem;
+    }
+    .bw-strip .bw-quote{
+      grid-column:1 / -1;
+      padding:.55rem .7rem;
+      border:1px solid rgba(var(--td-skin-white-rgb), .08);
+      border-radius:12px;
+      background:rgba(var(--td-skin-white-rgb), .03);
+      min-height:42px;
+      display:grid;
+      grid-template-columns:repeat(3, minmax(0, 1fr));
+      gap:.75rem;
+      align-items:center;
+    }
+    .bw-strip .bw-quote > div{
+      min-width:0;
+    }
+    .bw-strip .bw-action{
+      grid-column:5;
+      display:flex;
+      justify-content:flex-end;
+      align-items:end;
+    }
+    .bw-strip .bw-action button{
+      white-space:nowrap;
+      padding:.5rem .95rem;
+      font-size:.95rem;
+      border-radius:12px;
+    }
+    .bw-strip .bw-msg{
+      grid-column:1 / -1;
+      min-height:0;
+      font-size:.95rem;
+    }
+    @media (max-width: 1200px){
+      .bw-strip{
+        grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));
+      }
+      .bw-strip .bw-quote{
+        grid-template-columns:1fr;
+      }
+      .bw-strip .bw-action,
+      .bw-strip .bw-msg{
+        grid-column:1 / -1;
+      }
+    }
+
+    /* Fill preview modal overlay (covers long offer lists) */
+    #fillSection,
+    #openFillSection{
+      position:fixed;
+      inset:0;
+      padding:1rem;
+      background:rgba(var(--td-skin-black-rgb), .74);
+      backdrop-filter: blur(6px);
+      z-index:1000;
+      overflow:auto;
+    }
+    #fillSection .offer-card,
+    #openFillSection .offer-card{
+      max-width:980px;
+      margin:0 auto;
+    }
+    #fillSection h3,
+    #openFillSection h3{
+      font-size:1.15rem;
+    }
+    #fillSection details summary,
+    #openFillSection details summary{
+      font-size:1.0rem;
+    }
+    #fillSection pre,
+    #openFillSection pre{
+      white-space:pre-wrap;
+      font-size:0.95rem;
+      background:rgba(var(--td-skin-black-rgb), .45);
+      color:rgba(var(--td-home-text-soft-rgb), .95);
+      padding:.85rem;
+      border:1px solid rgba(var(--td-skin-border-rgb), .28);
+      border-radius:12px;
+      box-shadow:0 0 0 1px rgba(var(--td-skin-border-rgb), .08), 0 0 18px rgba(var(--td-skin-border-rgb), .10);
+    }
+    #fillSection,
+    #openFillSection{
+      background:rgba(var(--td-skin-black-rgb), .42);
+    }
+    #fillSection .offer-card,
+    #openFillSection .offer-card{
+      background:
+        radial-gradient(circle at top left, rgba(var(--td-skin-primary-glow-rgb), .20), rgba(var(--td-skin-panel-rgb), .96));
+      color:var(--td-skin-text);
+      border:1px solid rgba(var(--td-skin-border-rgb), .90);
+      box-shadow:
+        0 0 0 1px rgba(var(--td-skin-panel-rgb), 1),
+        0 0 28px rgba(var(--td-skin-teal-rgb), .55),
+        0 0 80px rgba(var(--td-skin-primary-rgb), .55);
+    }
+    #fillSection .offer-card > header,
+    #fillSection .offer-card > footer,
+    #openFillSection .offer-card > header,
+    #openFillSection .offer-card > footer{
+      background:transparent !important;
+      color:var(--td-skin-text);
+    }
+    #fillSection .offer-card > footer div,
+    #openFillSection .offer-card > footer div{
+      color:var(--td-skin-text-muted) !important;
+    }
+    #fillSection h3,
+    #openFillSection h3{
+      color:var(--td-skin-text-strong);
+    }
+    #fillSection .muted,
+    #fillSection .offer-sub,
+    #openFillSection .muted,
+    #openFillSection .offer-sub{
+      color:var(--td-skin-text-muted);
+      opacity:1;
+    }
+    #fillSection pre,
+    #openFillSection pre{
+      background:rgba(var(--td-skin-table-row-rgb), .96);
+      color:var(--td-skin-text-field);
+      border:1px solid rgba(var(--td-skin-border-rgb), .34);
+      box-shadow:0 0 0 1px rgba(var(--td-skin-border-rgb), .08), 0 0 18px rgba(var(--td-skin-primary-glow-rgb), .10);
+    }
+    #fillSection details summary,
+    #openFillSection details summary{
+      color:var(--td-skin-text-strong);
+    }
+    #fillSection .panel,
+    #fillSection .analyzer-panel,
+    #fillSection .analyzer-meta-panel,
+    #openFillSection .panel,
+    #openFillSection .analyzer-panel,
+    #openFillSection .analyzer-meta-panel{
+      background:rgba(var(--td-skin-table-bg-rgb), .72);
+      color:var(--td-skin-text);
+      border-color:rgba(var(--td-skin-border-rgb), .55);
+    }
+    #fillStatus.fill-success,
+    #openFillStatus.open-fill-success{
+      margin-top:.45rem;
+      padding:.75rem .85rem;
+      border:1px solid var(--td-skin-success);
+      border-radius:12px;
+      background:rgba(var(--td-skin-table-row-rgb), .98);
+      color:var(--td-skin-text-strong) !important;
+      box-shadow:0 0 0 1px rgba(var(--td-skin-border-rgb), .12), 0 0 18px rgba(var(--td-skin-primary-glow-rgb), .14);
+      font-weight:850;
+      word-break:break-word;
+      overflow-wrap:anywhere;
+    }
+    #fillStatus.fill-success strong,
+    #openFillStatus.open-fill-success strong{
+      color:var(--td-skin-text-strong) !important;
+      font-weight:900;
+    }
+    #fillCloseBtn,
+    #openFillCloseBtn{
+      padding:.55rem 1.0rem;
+      font-size:0.95rem;
+      border-radius:12px;
+    }
+
+    @media (max-width:640px){
+      .offer-main{
+        align-items:flex-start;
+      }
+    }
+
+    .offers-advisory{
+      margin:1rem 0 .9rem;
+      padding:.7rem .9rem;
+      border:1px solid rgba(var(--td-skin-warning-rgb), .35);
+      border-radius:12px;
+      background:rgba(var(--td-skin-warning-rgb), .08);
+      color:rgba(var(--td-skin-warning-rgb), .96);
+      box-shadow:0 0 0 1px rgba(var(--td-skin-warning-rgb), .10), 0 0 18px rgba(var(--td-skin-warning-rgb), .08);
+    }
+    .offers-advisory strong{
+      color:rgba(var(--td-skin-warning-rgb), 1);
+    }
+
+    /* Offers nav mobile fix: keep logo visible above wrapped links and Refresh control */
+    @media (max-width: 760px){
+      nav.topnav{
+        flex-wrap: wrap !important;
+        justify-content: flex-start !important;
+        align-items: stretch !important;
+        gap: .75rem 1rem !important;
+      }
+      nav.topnav > ul:first-child{
+        width: 100% !important;
+        display: flex !important;
+        justify-content: center !important;
+      }
+      nav.topnav > ul:first-child img{
+        height: 52px !important;
+      }
+      nav.topnav > ul:nth-of-type(2){
+        width: 100% !important;
+        display: flex !important;
+        flex-wrap: wrap !important;
+        justify-content: center !important;
+        gap: .35rem .9rem !important;
+      }
+      nav.topnav > ul:nth-of-type(2) li{
+        flex: 0 0 auto !important;
+      }
+      nav.topnav .menu{
+        width: 100% !important;
+        display: flex !important;
+        justify-content: center !important;
+      }
+      nav.topnav .dd-toggle{
+        width: auto !important;
+        max-width: 100% !important;
+        white-space: normal !important;
+      }
+      nav.topnav .dd-panel{
+        left: 50% !important;
+        right: auto !important;
+        transform: translateX(-50%) !important;
+        max-width: min(92vw, 320px) !important;
+      }
+    }
+  </style>
+</head>
+<body data-skin="classic_teal">
+<script>
+(function () {
+  var key = 'td_active_skin_id';
+  var allowed = { classic_teal: true, pink: true, pink_black: true, gold: true, gold_black: true, blue: true, blue_black: true, green: true, green_black: true, red: true, red_black: true, yellow: true, yellow_black: true, cyan: true, cyan_black: true, orange: true, orange_black: true };
+  try {
+    var skinId = String(sessionStorage.getItem(key) || '').trim();
+    if (allowed[skinId]) document.body.setAttribute('data-skin', skinId);
+  } catch (_) {}
+})();
+</script>
+  <main class="container">
+    <nav class="topnav" aria-label="Primary">
+      <ul>
+        <li>
+          <a href="/wallet.html" aria-label="Token Depot">
+            <img src="static/icon/logo.png" alt="Token Depot logo" style="height:60px; display:block;">
+          </a>
+        </li>
+      </ul>
+      <ul>
+        <li><a href="/deploy.html">Deploy</a></li>
+        <li><a href="/issue.html">Issue</a></li>
+        <li><a href="/covenants.html">Cov Tools</a></li>
+        <li><a href="/redeem.html">Redeem</a></li>
+        <li><a href="/energy.html">Energy</a></li>
+        <li><a href="/manage.html">Settings</a></li>
+        <li><a href="#" id="btnLogout">Logout</a></li>
+      </ul>
+
+      <div class="menu">
+        <button class="dd-toggle" data-dd="offers" aria-haspopup="true" aria-expanded="true">
+          Refresh Offers ▾
+        </button>
+        <div class="dd-panel" id="dd-offers" role="menu" aria-label="Refresh Offers">
+          <a role="menuitem" href="/offers.html">Offers Board</a>
+        </div>
+      </div>
+    </nav>
+    <script type="module" src="/static/js/nav_choice_modal.js"></script>
+    <script>
+      (function () {
+        var a = document.getElementById('btnLogout');
+        if (!a) return;
+        a.addEventListener('click', async function (e) {
+          e.preventDefault();
+          await window.CwLogoutShared.logoutNow({ redirectTo: '/login.html' });
+        });
+      })();
+    </script>
+
+    <div class="offers-advisory" role="note" aria-label="Compliance advisory">
+      <strong>Compliance Only offers</strong> are highlighted <strong>Registered Securities</strong> offers that may be purchased with an active, unlocked compliance wallet only.
+    </div>
+
+    <section aria-label="Broker Wrapped Offers">
+      <header class="offers-header" style="margin-top:1rem;">
+        <div>
+          <h2 style="margin-bottom:.1rem;">Broker Wrapped Offers</h2>
+          <p class="muted" id="brokerWrappedStatus">Loading broker inventory…</p>
+        </div>
+      </header>
+
+      <div id="brokerWrappedMount" class="offer-list" aria-live="polite"></div>
+    </section>
+
+    <section id="sponsoredUpgradeOffersSection" aria-label="Sponsored and Upgrade Offers">
+      <header class="offers-header" style="margin-top:1rem;">
+        <div>
+          <h2 style="margin-bottom:.1rem;">Sponsored / Upgrade Offers</h2>
+          <p class="muted" id="sponsoredOffersStatus">Grouped upgrade, coupon, and merchant offers will appear here.</p>
+        </div>
+      </header>
+
+      <div id="sponsoredOffersList" class="grouped-offers-shell" aria-live="polite">
+        <div class="grouped-offer-empty">
+          Sponsored inventory rows will appear here after live Open Swap offers are grouped by token, price, seller, and terms.
+        </div>
+      </div>
+    </section>
+
+    <section id="directOffersSection" aria-label="Direct Swap Offers">
+      <details class="offer-section-toggle">
+        <summary>
+          <div>
+            <h2 style="margin-bottom:.1rem;">Direct Swap Offers</h2>
+            <p class="muted" id="offersStatus">Loading direct swap offers…</p>
+          </div>
+        </summary>
+        <div class="section-body">
+          <div id="offersList" class="offer-list" aria-live="polite"></div>
+
+      <section id="fillSection" aria-label="Selected offer"
+               style="display:none;">
+        <article class="offer-card">
+          <header style="display:flex; justify-content:space-between; align-items:flex-start; gap:.75rem; flex-wrap:wrap;">
+            <div>
+              <h3 style="margin-bottom:.25rem;">Fill preview</h3>
+              <p class="muted" id="fillStatus">
+                Select an offer and click Buy to preview the PSKT fill.
+              </p>
+            </div>
+            <button id="fillCloseBtn" class="secondary">Close</button>
+          </header>
+          <p class="offer-sub" id="fillSummary"></p>
+
+          <section id="fillAnalyzerPanel" class="analyzer-panel" style="margin-top:1rem; display:none">
+            <div id="fillAnalyzerSummary" class="analyzer-summary"></div>
+            <div id="fillAnalyzerHints" class="analyzer-hints note"></div>
+
+            <div id="fillSwapSummaryPanel" class="panel" style="margin-top:1rem">
+              <div><strong>Offer structure</strong></div>
+              <div class="overflow-auto">
+                <table id="fillSwapSummaryTable" role="grid">
+                  <thead>
+                    <tr>
+                      <th style="width:160px">Role</th>
+                      <th>Asset</th>
+                      <th>Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>Offered asset</td>
+                      <td id="fillSummarySellAsset">—</td>
+                      <td id="fillSummarySellAmount">—</td>
+                    </tr>
+                    <tr>
+                      <td>Settlement asset</td>
+                      <td id="fillSummaryBuyAsset">—</td>
+                      <td id="fillSummaryBuyAmount">—</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div id="fillAnalyzerStatusRow" class="analyzer-status-row">
+              <div id="fillAnalyzerStatusBadge" class="analyzer-status-badge"></div>
+              <div id="fillAnalyzerBlockers" class="analyzer-blockers"></div>
+              <div id="fillAnalyzerNotes" class="analyzer-notes note"></div>
+            </div>
+
+            <div id="fillAssetMetaPanel" class="analyzer-meta-panel" style="margin-top:.75rem">
+              <div class="row" style="gap:.75rem;align-items:flex-start">
+                <div style="flex:1">
+                  <strong id="fillAssetMetaSellHeader">Offered asset</strong>
+                  <div><small>Ticker:</small> <span id="fillAssetMetaSellTicker">—</span></div>
+                  <div><small>Name:</small> <span id="fillAssetMetaSellName">—</span></div>
+                  <div><small>Type:</small> <span id="fillAssetMetaSellType">—</span></div>
+                  <div><small>Decimals:</small> <span id="fillAssetMetaSellDecimals">—</span></div>
+                  <div><small>Contract address:</small> <span id="fillAssetMetaSellContractAddress">—</span></div>
+                  <div><small>Total minted:</small> <span id="fillAssetMetaSellTotalMinted">—</span></div>
+                  <div><small>Max supply:</small> <span id="fillAssetMetaSellMaxSupply">—</span></div>
+                  <div><small>Holders:</small> <span id="fillAssetMetaSellHolders">—</span></div>
+                  <div><small>Transfers:</small> <span id="fillAssetMetaSellTransfers">—</span></div>
+                  <div><small>Mints:</small> <span id="fillAssetMetaSellMints">—</span></div>
+                  <div style="margin-top:.35rem">
+                    <a id="fillAssetMetaSellExplorerLink" href="#" target="_blank" rel="noopener noreferrer" style="display:none">View on explorer</a>
+                  </div>
+                </div>
+                <div style="flex:1">
+                  <strong id="fillAssetMetaBuyHeader">Settlement asset</strong>
+                  <div><small>Ticker:</small> <span id="fillAssetMetaBuyTicker">—</span></div>
+                  <div><small>Name:</small> <span id="fillAssetMetaBuyName">—</span></div>
+                  <div><small>Type:</small> <span id="fillAssetMetaBuyType">—</span></div>
+                  <div><small>Decimals:</small> <span id="fillAssetMetaBuyDecimals">—</span></div>
+                  <div style="margin-top:.35rem">
+                    <a id="fillAssetMetaBuyExplorerLink" href="#" target="_blank" rel="noopener noreferrer" style="display:none">View on explorer</a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <div id="fillDebugDetails" style="display:none;" aria-hidden="true">
+            <pre id="fillPskt"></pre>
+            <pre id="fillSendCtx"></pre>
+          </div>
+
+          <footer style="margin-top:0.75rem; display:flex; gap:0.75rem; flex-wrap:wrap; align-items:flex-end;">
+            <div style="flex:1; min-width:260px;">
+              <div style="font-size:0.95rem; color:rgba(var(--td-home-text-soft-rgb), .95);">Signing uses your unlocked keyfile</div>
+              <div style="font-size:0.9rem; color:rgba(var(--td-home-text-soft-rgb), .75); margin-top:0.25rem;">Unlock your keyfile in the Wallet tab (same browser tab), then confirm.</div>
+            </div>
+            <button id="fillConfirmBtn" class="secondary">
+              Confirm &amp; Sign Swap
+            </button>
+          </footer>
+        </article>
+          </section>
+        </div>
+      </details>
+    </section>
+
+    <section id="mySwapsSection" aria-label="My Swaps">
+      <details class="offer-section-toggle">
+        <summary>
+          <div>
+            <h2 style="margin-bottom:.1rem;">My Swaps</h2>
+            <p class="muted" id="mySwapsStatus">Manage Direct Swap offers created by your active wallet.</p>
+          </div>
+        </summary>
+        <div class="section-body">
+          <label class="td-switch-row" style="margin-bottom:.75rem;">
+            <input id="mySwapsShowHistory" type="checkbox">
+            <span class="td-switch-track" aria-hidden="true"></span>
+            <span>Show history</span>
+          </label>
+          <div id="mySwapsList" class="grouped-offers-shell" aria-live="polite">
+            <div class="grouped-offer-empty">
+              Direct Swap offers created by your active wallet will appear here.
+            </div>
+          </div>
+        </div>
+      </details>
+    </section>
+
+    <section id="openOffersSection" aria-label="Open Swap Offers">
+      <header class="offers-header">
+        <div>
+          <h2 style="margin-bottom:.1rem;">Open Swap Offers</h2>
+          <p class="muted" id="openOffersStatus">Open swap offers will appear here.</p>
+        </div>
+      </header>
+
+      <div id="openOffersList" class="offer-list" aria-live="polite"></div>
+
+      <section id="openFillSection" aria-label="Selected open swap"
+               style="display:none;">
+        <article class="offer-card">
+          <header style="display:flex; justify-content:space-between; align-items:flex-start; gap:.75rem; flex-wrap:wrap;">
+            <div>
+              <h3 style="margin-bottom:.25rem;">Fill preview</h3>
+              <p class="muted" id="openFillStatus">
+                Select an open swap and click Buy to preview the fill.
+              </p>
+            </div>
+            <button id="openFillCloseBtn" class="secondary">Close</button>
+          </header>
+          <p class="offer-sub" id="openFillSummary"></p>
+
+          <section id="openAnalyzerPanel" class="analyzer-panel" style="margin-top:1rem; display:none">
+            <div id="openAnalyzerSummary" class="analyzer-summary"></div>
+            <div id="openAnalyzerHints" class="analyzer-hints note"></div>
+
+            <div id="openSwapSummaryPanel" class="panel" style="margin-top:1rem">
+              <div><strong>Offer structure</strong></div>
+              <div class="overflow-auto">
+                <table id="openSwapSummaryTable" role="grid">
+                  <thead>
+                    <tr>
+                      <th style="width:160px">Role</th>
+                      <th>Asset</th>
+                      <th>Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>Offered asset</td>
+                      <td id="openSummarySellAsset">—</td>
+                      <td id="openSummarySellAmount">—</td>
+                    </tr>
+                    <tr>
+                      <td>Settlement asset</td>
+                      <td id="openSummaryBuyAsset">—</td>
+                      <td id="openSummaryBuyAmount">—</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div id="openAnalyzerStatusRow" class="analyzer-status-row">
+              <div id="openAnalyzerStatusBadge" class="analyzer-status-badge"></div>
+              <div id="openAnalyzerBlockers" class="analyzer-blockers"></div>
+              <div id="openAnalyzerNotes" class="analyzer-notes note"></div>
+            </div>
+
+            <div id="openAssetMetaPanel" class="analyzer-meta-panel" style="margin-top:.75rem">
+              <div class="row" style="gap:.75rem;align-items:flex-start">
+                <div style="flex:1">
+                  <strong id="openAssetMetaSellHeader">Offered asset</strong>
+                  <div><small>Ticker:</small> <span id="openAssetMetaSellTicker">—</span></div>
+                  <div><small>Name:</small> <span id="openAssetMetaSellName">—</span></div>
+                  <div><small>Type:</small> <span id="openAssetMetaSellType">—</span></div>
+                  <div><small>Decimals:</small> <span id="openAssetMetaSellDecimals">—</span></div>
+                  <div><small>Contract address:</small> <span id="openAssetMetaSellContractAddress">—</span></div>
+                  <div><small>Total minted:</small> <span id="openAssetMetaSellTotalMinted">—</span></div>
+                  <div><small>Max supply:</small> <span id="openAssetMetaSellMaxSupply">—</span></div>
+                  <div><small>Holders:</small> <span id="openAssetMetaSellHolders">—</span></div>
+                  <div><small>Transfers:</small> <span id="openAssetMetaSellTransfers">—</span></div>
+                  <div><small>Mints:</small> <span id="openAssetMetaSellMints">—</span></div>
+                  <div style="margin-top:.35rem">
+                    <a id="openAssetMetaSellExplorerLink" href="#" target="_blank" rel="noopener noreferrer" style="display:none">View on explorer</a>
+                  </div>
+                </div>
+                <div style="flex:1">
+                  <strong id="openAssetMetaBuyHeader">Settlement asset</strong>
+                  <div><small>Ticker:</small> <span id="openAssetMetaBuyTicker">—</span></div>
+                  <div><small>Name:</small> <span id="openAssetMetaBuyName">—</span></div>
+                  <div><small>Type:</small> <span id="openAssetMetaBuyType">—</span></div>
+                  <div><small>Decimals:</small> <span id="openAssetMetaBuyDecimals">—</span></div>
+                  <div style="margin-top:.35rem">
+                    <a id="openAssetMetaBuyExplorerLink" href="#" target="_blank" rel="noopener noreferrer" style="display:none">View on explorer</a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <div id="openFillDebugDetails" style="display:none;" aria-hidden="true">
+            <pre id="openFillPskt"></pre>
+            <pre id="openFillSendCtx"></pre>
+          </div>
+
+          <footer style="margin-top:0.75rem; display:flex; gap:0.75rem; flex-wrap:wrap; align-items:flex-end;">
+            <div style="flex:1; min-width:260px;">
+              <div style="font-size:0.95rem; color:rgba(var(--td-home-text-soft-rgb), .95);">Signing uses your unlocked keyfile</div>
+              <div style="font-size:0.9rem; color:rgba(var(--td-home-text-soft-rgb), .75); margin-top:0.25rem;">Unlock your keyfile in the Wallet tab (same browser tab), then confirm.</div>
+            </div>
+            <button id="openFillConfirmBtn" class="secondary">
+              Confirm &amp; Sign Swap
+            </button>
+          </footer>
+        </article>
+      </section>
+
+      <div id="openSwapV2OffersMount" style="display:none" aria-hidden="true"></div>
+    </section>
+
+  <script type="module" src="/static/js/kaspa-bridge.mjs"></script>
+  <script src="/static/js/swap_analyzer_shared.js" defer></script>
+  <script src="/static/js/network_shared.js" defer></script>
+  <script src="/static/js/logout_shared.js" defer></script>
+  <script>
+    window.TD_SPONSORED_OFFERS_PAGE_PLACEMENT = 'offers_page';
+  </script>
+  <script src="/static/js/sponsored_offers_shared.js" defer></script>
+  <script src="/static/js/offers.js" defer></script>
+  <script src="/static/js/offers_open.js" defer></script>
+  <script>
+  (function(){
+    // simple dropdown behavior reused from index.html style
+    document.addEventListener('click', function (ev) {
+      var toggle = ev.target.closest('.dd-toggle');
+      var panels = document.querySelectorAll('.dd-panel');
+      if (toggle) {
+        var dd = toggle.getAttribute('data-dd');
+        var panel = document.getElementById('dd-' + dd);
+        var expanded = toggle.getAttribute('aria-expanded') === 'true';
+        toggle.setAttribute('aria-expanded', expanded ? 'false' : 'true');
+        panels.forEach(function(p){
+          var btn = document.querySelector('.dd-toggle[data-dd="' + (p.id.replace('dd-','')) + '"]');
+          if (!btn) return;
+          if (p === panel && !expanded) {
+            btn.setAttribute('aria-expanded','true');
+            p.style.display='block';
+          } else {
+            btn.setAttribute('aria-expanded','false');
+            p.style.display='none';
+          }
+        });
+        return;
+      }
+      // click outside closes all
+      panels.forEach(function(p){
+        var btn = document.querySelector('.dd-toggle[data-dd="' + (p.id.replace('dd-','')) + '"]');
+        if (btn) btn.setAttribute('aria-expanded','false');
+        p.style.display='none';
+      });
+    });
+  })();
+  </script>
+      <footer style="
+      margin-top: 48px;
+      background: var(--td-skin-black);
+      color: var(--td-skin-white);
+      padding: 22px 16px;
+      border-top: 1px solid rgba(var(--td-skin-white-rgb), 0.12);
+    ">
+      <div style="
+        max-width: 1100px;
+        margin: 0 auto;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 18px 28px;
+        align-items: center;
+        justify-content: space-between;
+      ">
+        <div style="line-height: 1.35;">
+          <div style="font-weight: 700; letter-spacing: 0.06em;">
+            TOKEN DEPOT CORP.
+          </div>
+          <div style="opacity: 0.9;">
+            Statesville, NC 28625
+          </div>
+          <div style="opacity: 0.9;">
+            Contact Us: <a href="tel:+17046037347" style="color:var(--td-skin-white); text-decoration: underline;">(704) 603-7347</a>
+          </div>
+        </div>
+
+        <div style="text-align: right; line-height: 1.35;">
+          <div style="opacity: 0.9;">
+            © <span id="td-footer-year">2026</span> Token Depot Corp. All rights reserved.
+          </div>
+          <div style="opacity: 0.75; font-size: 0.92em;">
+            Secure digital asset operations • Compliance-first workflows
+          </div>
+        </div>
+      </div>
+
+      <script>
+        // Safe, tiny enhancement: keep the year current
+        (function () {
+          var el = document.getElementById("td-footer-year");
+          if (el) el.textContent = String(new Date().getFullYear());
+        })();
+      </script>
+    </footer>
+  </main>
+</body>
+</html>

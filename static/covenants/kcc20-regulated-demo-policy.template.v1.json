@@ -1,0 +1,12 @@
+{
+  "schema_kind": "kcc20_regulated_demo_policy_v1",
+  "schema_version": 1,
+  "network": "testnet-10",
+  "policy_epoch": 1,
+  "regulated_asset_covenant_ids": [],
+  "recipient_allowlist": [],
+  "recipient_blacklist": [],
+  "frozen_holders": [],
+  "frozen_outpoints": [],
+  "lawful_order_actions": []
+}

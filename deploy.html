@@ -1,0 +1,971 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Token Depot KRC-20 Asset Registration</title>
+  <!-- Match existing pages exactly -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+  <link rel="stylesheet" href="/static/css/style.css">
+  <script defer src="/static/js/skin_shared.js"></script>
+  <style>
+    .two-col { display:grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items:start; }
+    @media (max-width: 720px) { .two-col { grid-template-columns: 1fr; } }
+    .stack > label { display:block; margin-bottom:12px; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .muted {
+      opacity: 0.92;
+      color: var(--td-skin-text-soft); /* brighter muted text on dark background */
+    }
+    .hidden { display:none; }
+
+    .logbox {
+      background:
+        radial-gradient(circle at top left, rgba(var(--td-skin-primary-rgb), 0.20), rgba(var(--td-skin-panel-rgb), 0.98));
+      border: 1px solid rgba(var(--td-skin-teal-border-rgb), 0.7);
+      border-radius: 16px;
+      padding: 12px;
+      white-space: pre-wrap;
+      overflow: auto;
+      max-height: 280px;
+      color: var(--td-skin-text-field);
+      box-shadow:
+        0 0 0 1px rgba(var(--td-skin-panel-rgb), 1),
+        0 0 18px rgba(var(--td-skin-primary-rgb), 0.65);
+    }
+
+    .dot-list dt { font-weight:600; }
+    .dot-list dd { margin:0 0 .5rem 0; }
+
+    /* Ensure long CAs/addresses in the Deploy instructions wrap inside the card */
+    .deploy-instructions-inner {
+      max-width: 40rem;
+      margin-inline: auto;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+
+    /* Safety: allow any card content to break instead of forcing horizontal scroll */
+    .card {
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+
+    /* Deploy nav mobile fix: keep logo visible above wrapped links */
+    @media (max-width: 760px){
+      nav.container-fluid{
+        display: flex !important;
+        flex-wrap: wrap !important;
+        justify-content: flex-start !important;
+        align-items: stretch !important;
+        gap: .75rem 1rem !important;
+      }
+      nav.container-fluid > ul:first-child{
+        width: 100% !important;
+        display: flex !important;
+        justify-content: center !important;
+      }
+      nav.container-fluid > ul:first-child img{
+        height: 52px !important;
+      }
+      nav.container-fluid > ul:nth-of-type(2){
+        width: 100% !important;
+        display: flex !important;
+        flex-wrap: wrap !important;
+        justify-content: center !important;
+        gap: .35rem .9rem !important;
+      }
+      nav.container-fluid > ul:nth-of-type(2) li{
+        flex: 0 0 auto !important;
+      }
+    }
+  </style>
+</head>
+<body data-skin="classic_teal">
+<script>
+(function () {
+  var key = 'td_active_skin_id';
+  var allowed = { classic_teal: true, pink: true, pink_black: true, gold: true, gold_black: true, blue: true, blue_black: true, green: true, green_black: true, red: true, red_black: true, yellow: true, yellow_black: true, cyan: true, cyan_black: true, orange: true, orange_black: true };
+  try {
+    var skinId = String(sessionStorage.getItem(key) || '').trim();
+    if (allowed[skinId]) document.body.setAttribute('data-skin', skinId);
+  } catch (_) {}
+})();
+</script>
+  <main class="container">
+    <nav class="container-fluid">
+      <ul>
+        <li>
+          <a href="/wallet.html">
+            <img src="static/icon/logo.png" alt="Token Depot logo" style="height:60px; display:block;">
+          </a>
+        </li>
+      </ul>
+      <ul>
+        <li><a href="/deploy.html" aria-current="page">Deploy</a></li>
+        <li><a href="/issue.html">Issue</a></li>
+        <li><a href="/covenants.html">Cov Tools</a></li>
+        <li><a href="/redeem.html">Redeem</a></li>
+        <li><a href="/energy.html">Energy</a></li>
+        <li><a href="/manage.html">Settings</a></li>
+        <li><a href="#" id="btnLogout">Logout</a></li>
+      </ul>
+    </nav>
+    <script type="module" src="/static/js/nav_choice_modal.js"></script>
+    <script>
+      (function () {
+        var a = document.getElementById('btnLogout');
+        if (!a) return;
+        a.addEventListener('click', async function (e) {
+          e.preventDefault();
+          await window.CwLogoutShared.logoutNow({ redirectTo: '/login.html' });
+        });
+      })();
+    </script>
+    <article class="card">
+      <section id="deploy">
+        <p></p>
+      </section>
+      <h3>KRC-20 Asset Registration</h3>
+      <div class="two-col">
+      
+      <!-- LEFT: instructions -->
+      <section class="deploy-instructions">
+        <div class="deploy-instructions-inner">
+          <p class="muted">
+            Use this page to either <strong>deploy a new token</strong> or <strong>import an existing CA</strong> into the Compliance Wallet registration system.
+          </p>
+          <ol>
+            <li>Deploy mode spends <strong>1000 KAS</strong> and requires sufficient KAS balance.</li>
+            <li>Mainnet deploy still requires the wallet holdings license token gate already enforced by the app.</li>
+            <li>Import mode does <strong>not</strong> deploy on-chain; it registers an existing CA for local wallet use and later broker mapping.</li>
+            <li><strong>Energy Token Lock</strong> reserves a token for the Energy page. On deploy, checking it forces <strong>Pre-Issue Amount (RAW)</strong> to <strong>0</strong>. On import, checking it requests a post-import Energy lock test; import still succeeds even if the lock test fails.</li>
+          </ol>
+
+          <h6>Definition of Terms</h6>
+          <dl class="dot-list">
+            <dt>Page Mode</dt>
+            <dd><strong>Deploy New Token</strong> creates a new issue-mode token. <strong>Import Existing CA</strong> registers an already-existing contract address.</dd>
+
+            <dt>Name (A–Z), 4–6 Characters</dt>
+            <dd>Used only for deploy mode. Issue-mode allows duplicate names; the CA remains unique.</dd>
+
+            <dt>Decimals (0–18)</dt>
+            <dd>How many decimal places the token supports. RAW = human × 10^dec.</dd>
+
+            <dt>Max Supply (RAW)</dt>
+            <dd>Total supply cap in RAW units (human × 10^dec).</dd>
+
+            <dt>Pre-Issue Amount (RAW)</dt>
+            <dd>Optional initial amount to issue at deploy time, in RAW units. If <strong>Energy Token Lock</strong> is checked during deploy, pre-issue is forced to <strong>0</strong>.</dd>
+
+            <dt>Energy Token Lock</dt>
+            <dd>Requests that the token be reserved to the Energy page. For deploy, the lock is applied directly after successful deploy/registration. For import, the token is imported normally first, then a post-import Energy lock eligibility test is run; if that test fails, the import still succeeds and only the lock is not applied.</dd>
+
+            <dt>Issue-To Address</dt>
+            <dd>Optional Kaspa address that receives the pre-issued amount when pre &gt; 0.</dd>
+
+            <dt>Contract Address (CA)</dt>
+            <dd>Used only for import mode. Must be the existing 64-character CA you want to register.</dd>
+
+            <dt>Owner / Issue Address</dt>
+            <dd>Optional for import mode. If provided, the imported asset may participate in in-app issuable behavior; if omitted, it remains non-issuable in-app.</dd>
+
+            <dt>Network</dt>
+            <dd>Target Kaspa network for deploy or import.</dd>
+          </dl>
+      
+          <p id="msg" class="muted" style="margin-top:.5rem">Ready.</p>
+      
+          <div id="previewWrap" class="hidden" style="margin-top:1rem">
+            <h6>Deploy JSON Preview</h6>
+            <pre id="cmdPreview" class="logbox mono"></pre>
+          </div>
+      
+          <div id="outputWrap" class="hidden" style="margin-top:1rem">
+            <h6>Output</h6>
+            <pre id="out" class="logbox mono"></pre>
+          </div>
+        </div>
+      </section>
+
+        <!-- RIGHT: inputs -->
+        <section class="stack">
+          <label>
+            Page Mode
+            <select id="deployKind">
+              <option value="deploy" selected>Deploy New Token</option>
+              <option value="import">Import Existing CA</option>
+            </select>
+            <small class="muted">Deploy creates a new token. Import registers an existing CA for wallet use and later broker mapping. In import mode, Preview Request and Submit both resolve CA metadata.</small>
+          </label>
+
+          <div id="deployOnlyFields">
+            <label>
+              Network
+              <select id="kaspaNetwork">
+                <option value="tn10" selected>Testnet-10</option>
+                <option value="mainnet">Mainnet</option>
+              </select>
+              <small class="muted">Select the target Kaspa network for this action.</small>
+            </label>
+
+            <label>
+              Name (A–Z), 4–6 Characters
+              <input id="name" type="text" maxlength="6" placeholder="MWHK" autocomplete="off">
+              <small class="muted">Used for deploy mode. Uppercase only. Duplicates allowed in Issue-Mode.</small>
+            </label>
+
+            <label>
+              Decimals (0–18)
+              <input id="dec" type="number" min="0" max="18" value="6">
+              <small class="muted">RAW = human × 10^dec</small>
+            </label>
+
+            <label>
+              Max Supply (RAW)
+              <input id="max" type="text" inputmode="numeric" class="mono" value="0">
+              <small class="muted">Digits only.</small>
+            </label>
+
+            <label style="margin-top:.25rem">
+              <input id="deployEnergyLock" type="checkbox">
+              Energy Token Lock
+              <small class="muted" style="display:block;margin-top:.25rem">If checked, this deploy is reserved to the Energy page and <strong>Pre-Issue Amount (RAW)</strong> will be forced to <strong>0</strong>.</small>
+            </label>
+
+            <label>
+              Pre-Issue Amount (RAW)
+              <input id="pre" type="text" inputmode="numeric" class="mono" placeholder="0">
+              <small class="muted">Optional. Digits only.</small>
+            </label>
+
+            <label>
+              Issue-To Address
+              <input id="to" type="text" class="mono" placeholder="kaspa:... or kaspatest:...">
+              <small class="muted">Optional. Required only when pre &gt; 0.</small>
+            </label>
+
+            <label style="margin-top:.5rem">
+              <input id="agree" type="checkbox">
+              I understand deploy mode will spend <strong>1000 KAS</strong> to deploy <span class="mono" id="nameEcho">—</span>.
+            </label>
+          </div>
+
+          <div id="importFields" class="hidden">
+            <label>
+              Contract Address (CA)
+              <input id="importCa" type="text" class="mono" placeholder="64-character hex contract address" autocomplete="off">
+              <small class="muted">Required for import mode.</small>
+            </label>
+
+            <label style="margin-top:.25rem">
+              <input id="importEnergyLock" type="checkbox">
+              Energy Token Lock
+              <small class="muted" style="display:block;margin-top:.25rem">If checked, import still proceeds normally, then a post-import Energy lock eligibility test is attempted. If that test fails, the import remains successful and only the lock is not applied.</small>
+            </label>
+
+            <label>
+              Owner / Issue Address (optional)
+              <input id="importOwnerAddress" type="text" class="mono" placeholder="kaspa:... or kaspatest:...">
+              <small class="muted">Optional. If provided, the imported asset can participate in in-app issuable behavior.</small>
+            </label>
+          </div>
+
+          <div id="importMetadataFields" class="hidden">
+            <label>
+              Resolved Name
+              <input id="importMetaName" type="text" class="mono" readonly aria-readonly="true" placeholder="Resolved from CA metadata">
+              <small class="muted">Read-only metadata returned from the imported CA.</small>
+            </label>
+
+            <label>
+              Resolved Network
+              <input id="importMetaNetwork" type="text" class="mono" readonly aria-readonly="true" placeholder="Resolved from CA metadata">
+              <small class="muted">Must match the Active Wallet network.</small>
+            </label>
+
+            <label>
+              Resolved Decimals
+              <input id="importMetaDec" type="text" class="mono" readonly aria-readonly="true" placeholder="Resolved from CA metadata">
+              <small class="muted">Read-only metadata returned from the imported CA.</small>
+            </label>
+
+            <label>
+              Resolved Max Supply (RAW)
+              <input id="importMetaMax" type="text" class="mono" readonly aria-readonly="true" placeholder="Resolved from CA metadata">
+              <small class="muted">Read-only metadata returned from the imported CA.</small>
+            </label>
+          </div>
+
+          <div style="display:flex; gap:.5rem; margin-top:.5rem">
+            <button id="btnPreview" class="secondary">Preview Request</button>
+            <button id="btnDeploy">Submit</button>
+          </div>
+        </section>
+      </div>
+    </article>
+
+ <script src="/static/js/network_shared.js"></script>
+ <script src="/static/js/logout_shared.js"></script>
+ <script>
+   window.TD_SPONSORED_OFFERS_PAGE_PLACEMENT = 'deploy_page';
+ </script>
+ <script src="/static/js/sponsored_offers_shared.js" defer></script>
+ <script type="module" src="/static/js/deploy-ui.js"></script>
+
+  <script type="text/plain" data-disabled="1">
+  (async () => {
+    const $ = (id) => document.getElementById(id);
+    const UI = {
+      name: $("name"), dec: $("dec"), max: $("max"), pre: $("pre"), to: $("to"),
+      deployKind: $("deployKind"), wrappedDeployFields: $("wrappedDeployFields"),
+      wrappedAssetRef: $("wrappedAssetRef"), wrappedVaultChain: $("wrappedVaultChain"), wrappedVaultAddress: $("wrappedVaultAddress"), wrappedVaultAddressSepolia: $("wrappedVaultAddressSepolia"),
+      wrappedAdminTokenFields: $("wrappedAdminTokenFields"), wrappedAdminToken: $("wrappedAdminToken"),
+      priorityFee: $("priorityFee"), timeout: $("timeout"),
+      logLevel: $("logLevel"), network: $("kaspaNetwork"),
+      agree: $("agree"), nameEcho: $("nameEcho"),
+      btnPreview: $("btnPreview"), btnDeploy: $("btnDeploy"),
+      msg: $("msg"), previewWrap: $("previewWrap"), outputWrap: $("outputWrap"),
+      cmdPreview: $("cmdPreview"), out: $("out"),
+      issueMsg: $("issueMsg"),
+      issueCa: $("issueCa"), issueAmt: $("issueAmt"), issueTo: $("issueTo"),
+      issuePreviewWrap: $("issuePreviewWrap"), issueJsonPreview: $("issueJsonPreview"),
+      btnIssuePreview: $("btnIssuePreview"), btnIssue: $("btnIssue"),
+    };
+
+    function initKaspaNetworkSelect() {
+      const sel = UI.network;
+      if (!sel) return;
+
+      if (!sel.options.length) {
+        const ids = ["testnet-10", "testnet-11", "mainnet"];
+        for (const id of ids) {
+          const opt = document.createElement("option");
+          opt.value = id;
+          opt.textContent = id;
+          sel.appendChild(opt);
+        }
+      }
+
+      const defaultNet = "testnet-10";
+      if (Array.from(sel.options).some(o => o.value === defaultNet)) {
+        sel.value = defaultNet;
+      }
+
+      applyWrappedAdminTokenUI();
+
+      sel.addEventListener("change", () => {
+        // clear pending UI output for safety
+        if (UI.outputWrap) UI.outputWrap.classList.add("hidden");
+        if (UI.issuePreviewWrap) UI.issuePreviewWrap.classList.add("hidden");
+        setMsg("Network changed. Pending previews cleared.", "muted");
+        applyWrappedAdminTokenUI();
+      });
+    }
+
+
+    initKaspaNetworkSelect();
+
+    let _wrappedConfigOk = false;
+    async function ensureWrappedConfigLoaded() {
+      try {
+        await loadWrappedConfigV1FromServer();
+        _wrappedConfigOk = true;
+      } catch (e) {
+        _wrappedConfigOk = false;
+        console.warn("[td] wrapped config load failed", e);
+      }
+      return _wrappedConfigOk;
+    }
+
+    const cleanName = (s) => (s || "").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 6);
+    const validName = (s) => /^[A-Z]{4,6}$/.test(s || "");
+    const validDigits = (s) => /^\d{1,64}$/.test(s || "");
+    const validKaspaAddr = (s) => /^kaspa[a-z0-9:]{1,100}$/i.test(s || "");
+
+    function gather() {
+      const name = cleanName(UI.name.value);
+      const dec = String(Math.max(0, Math.min(18, Number(UI.dec.value) || 0)));
+      const max = (UI.max.value || "").trim();
+
+      const deployKind = (UI.deployKind?.value || "new").trim();
+      const isWrapped = deployKind === "wrapped";
+
+      const pre = isWrapped ? "0" : (UI.pre.value || "").trim();
+      const to = isWrapped ? "" : (UI.to.value || "").trim();
+
+      const wrappedAssetRef = (UI.wrappedAssetRef?.value || "").trim();
+      const wrappedVaultChain = (UI.wrappedVaultChain?.value || "").trim();
+      const wrappedVaultAddress = (UI.wrappedVaultAddress?.value || "").trim();
+      const wrappedVaultAddressSepolia = (UI.wrappedVaultAddressSepolia?.value || "").trim();
+      const adminToken = String(UI.wrappedAdminToken?.value || "").trim();
+
+      const priorityFee = (UI.priorityFee.value || "1.0").trim();
+      const timeout = (UI.timeout.value || "120000").trim();
+      const logLevel = (UI.logLevel.value || "INFO").trim();
+      const network = (UI.network.value || "mainnet").trim();
+
+      UI.nameEcho.textContent = name || "—";
+      return {
+        name, dec, max, pre, to,
+        deployKind, wrappedAssetRef, wrappedVaultChain, wrappedVaultAddress, wrappedVaultAddressSepolia,
+        adminToken,
+        priorityFee, timeout, logLevel, network
+      };
+    }
+
+    function setMsg(html, cls = "") {
+      UI.msg.className = cls || "muted";
+      UI.msg.innerHTML = html;
+    }
+
+    function setIssueMsg(html, cls = "") {
+      if (!UI.issueMsg) return;
+      UI.issueMsg.className = cls || "muted";
+      UI.issueMsg.innerHTML = html;
+    }
+
+    await ensureWrappedConfigLoaded();
+
+    function buildPreview(p) {
+      const action = {
+        p: "krc-20",
+        op: "deploy",
+        mod: "issue",
+        name: p.name,
+        max: p.max,
+        dec: p.dec,
+      };
+      if (p.pre && String(p.pre) !== "0") {
+        action.pre = p.pre;
+      }
+      if (p.to) {
+        action.to = p.to;
+      }
+      return JSON.stringify(action, null, 2);
+    }
+
+    function validateBasic(p) {
+      const isWrapped = String(p.deployKind || "new").trim() === "wrapped";
+
+      if (!validName(p.name)) { setMsg("<strong>Invalid</strong>: name must be 4–6 uppercase letters."); return false; }
+      if (!validDigits(p.max)) { setMsg("<strong>Invalid</strong>: Max Supply (RAW) must be digits only."); return false; }
+
+      if (isWrapped) {
+        if (String(p.pre) !== "0") { setMsg("<strong>Invalid</strong>: Wrapped Asset Tokens require pre-issue=0."); return false; }
+        if (!p.wrappedAssetRef) { setMsg("<strong>Invalid</strong>: Asset Reference is required for Wrapped Asset Tokens."); return false; }
+        if (!p.wrappedVaultChain) { setMsg("<strong>Invalid</strong>: Vault Chain is required for Wrapped Asset Tokens."); return false; }
+        if (!p.wrappedVaultAddress) { setMsg("<strong>Invalid</strong>: Vault Address is required for Wrapped Asset Tokens."); return false; }
+
+        const netLc = String(p.network || "mainnet").trim().toLowerCase();
+        if (netLc === "mainnet" && !String(p.adminToken || "").trim()) {
+          setMsg("<strong>Invalid</strong>: Admin Token is required to deploy Wrapped Asset Tokens to Mainnet.");
+          return false;
+        }
+      } else {
+        if (p.pre && !validDigits(p.pre)) { setMsg("<strong>Invalid</strong>: Pre-Issue (RAW) must be digits only."); return false; }
+        if (p.pre && String(p.pre) !== "0" && !validKaspaAddr(p.to)) { setMsg("<strong>Invalid</strong>: Issue-To address required when pre>0."); return false; }
+      }
+
+      if (!UI.agree.checked) { setMsg("Please acknowledge the 1000 KAS fee."); return false; }
+      return true;
+    }
+
+    function applyDeployKindUI() {
+      const kind = (UI.deployKind?.value || "new").trim();
+      const isWrapped = kind === "wrapped";
+
+      if (UI.wrappedDeployFields) {
+        UI.wrappedDeployFields.classList.toggle("hidden", !isWrapped);
+      }
+
+      if (UI.pre) {
+        if (isWrapped) {
+          UI.pre.value = "0";
+          UI.pre.setAttribute("disabled", "");
+        } else {
+          UI.pre.removeAttribute("disabled");
+        }
+      }
+
+      if (UI.to) {
+        if (isWrapped) {
+          UI.to.value = "";
+          UI.to.setAttribute("disabled", "");
+        } else {
+          UI.to.removeAttribute("disabled");
+        }
+      }
+
+      applyWrappedAdminTokenUI();
+    }
+
+
+    function applyWrappedAdminTokenUI() {
+      const kind = (UI.deployKind?.value || "new").trim();
+      const isWrapped = kind === "wrapped";
+      const net = String(UI.network?.value || "mainnet").trim().toLowerCase();
+      const needsToken = isWrapped && net === "mainnet";
+
+      if (UI.wrappedAdminTokenFields) {
+        UI.wrappedAdminTokenFields.classList.toggle("hidden", !needsToken);
+      }
+      if (UI.wrappedAdminToken && !needsToken) {
+        UI.wrappedAdminToken.value = "";
+      }
+    }
+
+    if (UI.deployKind) {
+      UI.deployKind.addEventListener("change", applyDeployKindUI);
+      applyDeployKindUI();
+    }
+
+    UI.btnPreview.addEventListener("click", () => {
+      const p = gather();
+      if (!validateBasic(p)) return;
+      UI.cmdPreview.textContent = buildPreview(p);
+      UI.previewWrap.classList.remove("hidden");
+      setMsg("Preview ready.");
+    });
+
+    UI.btnDeploy.addEventListener("click", async () => {
+      const p = gather();
+      if (!validateBasic(p)) return;
+
+      const sdkBridge = window.tokenDepotSdk;
+      if (!sdkBridge || !sdkBridge.commitRevealWithAction) {
+        setMsg("Kastle bridge not available. Please ensure the SDK bundle is loaded.");
+        return;
+      }
+
+      const actionJson = buildPreview(p); // also refreshes JSON preview content
+      const network = (p.network || "mainnet").trim();
+      const priorityFeeKas = (p.priorityFee || "1").trim();
+
+      UI.cmdPreview.textContent = actionJson;
+      UI.previewWrap.classList.remove("hidden");
+
+      setMsg("Sending Issue-Mode deploy via Kastle…");
+      UI.out.textContent = "";
+      UI.outputWrap.classList.add("hidden");
+
+      try {
+        const result = await sdkBridge.commitRevealWithAction(network, actionJson, priorityFeeKas);
+        let output = result;
+
+        if (result.commitTxId && result.revealTxId && !result.error) {
+          const isWrapped = String(p.deployKind || "new").trim() === "wrapped";
+
+          if (isWrapped) {
+            const ca = String(result.revealTxId || "").trim();
+            const entry = {
+              ca,
+              name: p.name,
+              decimals: Number(p.dec),
+              assetRef: String(p.wrappedAssetRef || "").trim(),
+              vault: {
+                chain: String(p.wrappedVaultChain || "unknown").trim() || "unknown",
+                address: String(p.wrappedVaultAddress || "").trim()
+              },
+              delivery: "transfer_preferred"
+            };
+
+            const sepoliaVault = String(p.wrappedVaultAddressSepolia || "").trim();
+            if (sepoliaVault) {
+              entry.vaultTestnet = { chain: entry.vault.chain, address: sepoliaVault, net: "sepolia" };
+            }
+
+            let reg = { ok: false, reason: "wrapped_registration_not_attempted" };
+            const netLc = String(network || "mainnet").trim().toLowerCase();
+
+            try {
+              if (netLc !== "mainnet") {
+                reg = { ok: true, skipped: true, reason: "testnet_skip" };
+              } else {
+                const token = String(p.adminToken || "").trim();
+                if (!token) throw new Error("admin_token_required");
+
+                await ensureWrappedConfigLoaded();
+
+                const next = JSON.parse(JSON.stringify(TD_WRAPPED_CONFIG || {}));
+                next.allowListByNetwork = next.allowListByNetwork || {};
+                next.allowListByNetwork.mainnet = next.allowListByNetwork.mainnet || {};
+                next.allowListByNetwork.mainnet[entry.ca] = entry;
+
+                await saveWrappedConfigV1ToServer(next, token);
+                reg = { ok: true, network: "mainnet", ca: entry.ca };
+              }
+            } catch (e) {
+              reg = { ok: false, reason: e?.message || String(e) };
+            }
+
+            output = { ...result, wrappedRegistration: reg, wrappedRegistrationInput: entry };
+
+            if (reg && reg.ok && !reg.skipped) {
+              setMsg("Deploy commit + reveal completed, and wrapped CA registered to allow list.", "muted");
+            } else if (reg && reg.ok && reg.skipped) {
+              setMsg("Deploy commit + reveal completed. Testnet registration is skipped.", "muted");
+            } else {
+              setMsg("Deploy completed, but wrapped allow-list registration failed. Do not issue this CA until fixed.", "");
+            }
+          } else {
+            setMsg("Deploy commit + reveal completed via Kastle.", "muted");
+          }
+        } else if (result.commitTxId && !result.revealTxId && result.error) {
+          setMsg(
+            "Deploy commit broadcast; reveal is pending or did not complete. See details below.",
+            "muted"
+          );
+        } else if (result.error && !result.commitTxId) {
+          setMsg("Deploy blocked/failed before commit. See details below.");
+        } else {
+          setMsg("Deploy status unknown. See details below.", "muted");
+        }
+
+        UI.out.textContent = JSON.stringify(output, null, 2);
+        UI.outputWrap.classList.remove("hidden");
+      } catch (e) {
+        setMsg("Deploy error.");
+        UI.out.textContent = e?.message || String(e);
+        UI.outputWrap.classList.remove("hidden");
+      }
+    });
+
+    if (UI.btnIssuePreview && UI.issueCa && UI.issueAmt && UI.issueJsonPreview && UI.issuePreviewWrap) {
+      function gatherIssue() {
+        const ca = (UI.issueCa.value || "").trim();
+        const amt = (UI.issueAmt.value || "").trim();
+        const to = (UI.issueTo.value || "").trim();
+        return { ca, amt, to };
+      }
+
+      function buildIssueAction(p) {
+        const action = {
+          p: "krc-20",
+          op: "issue",
+          ca: p.ca,
+          amt: p.amt,
+        };
+        if (p.to) {
+          action.to = p.to;
+        }
+        return JSON.stringify(action, null, 2);
+      }
+
+      function validateIssue(p) {
+        if (!p.ca) {
+          setMsg("<strong>Issue</strong>: Contract Address (CA) is required.");
+          return false;
+        }
+
+        const netId = (UI.network?.value || "mainnet").trim();
+        if (!_wrappedConfigOk) {
+          setIssueMsg("<strong>WRAPPED CONFIG NOT LOADED.</strong> Cannot validate CA safety. Refresh and try again.");
+          return false;
+        }
+
+        let _isWrapped = false;
+        try {
+          _isWrapped = isWrappedCa(netId, p.ca);
+        } catch (e) {
+          setIssueMsg("<strong>WRAPPED CONFIG NOT LOADED.</strong> Cannot validate CA safety. Refresh and try again.");
+          return false;
+        }
+
+        if (_isWrapped) {
+          setIssueMsg("<strong>WRAPPED ASSETS CANNOT BE ISSUED HERE.</strong> ...");
+          return false;
+        }
+
+        if (!validDigits(p.amt)) {
+          setMsg("<strong>Issue</strong>: Amount (RAW) must be digits only.");
+          return false;
+        }
+        if (p.to && !validKaspaAddr(p.to)) {
+          setMsg("<strong>Issue</strong>: Issue-To address is invalid.");
+          return false;
+        }
+        return true;
+      }
+
+      UI.btnIssuePreview.addEventListener("click", () => {
+        const p = gatherIssue();
+        if (!validateIssue(p)) return;
+        UI.issueJsonPreview.textContent = buildIssueAction(p);
+        UI.issuePreviewWrap.classList.remove("hidden");
+        setIssueMsg("Issue JSON preview ready.");
+      });
+
+      if (UI.btnIssue) {
+        // Enable Issue button
+        UI.btnIssue.disabled = false;
+        UI.btnIssue.removeAttribute("aria-disabled");
+
+        UI.btnIssue.addEventListener("click", async () => {
+          const p = gatherIssue();
+          if (!validateIssue(p)) return;
+
+          const sdkBridge = window.tokenDepotSdk;
+          if (!sdkBridge || !sdkBridge.commitRevealWithAction) {
+            setMsg("Kastle bridge not available. Please ensure the SDK bundle is loaded.");
+            return;
+          }
+
+          const actionJson = buildIssueAction(p);
+          const network = (UI.network.value || "mainnet").trim();
+          const priorityFeeKas = (UI.priorityFee.value || "1").trim();
+
+          UI.issueJsonPreview.textContent = actionJson;
+          UI.issuePreviewWrap.classList.remove("hidden");
+
+          setIssueMsg("Sending issue via Kastle…");
+          UI.out.textContent = "";
+          UI.outputWrap.classList.add("hidden");
+
+          try {
+            const result = await sdkBridge.commitRevealWithAction(network, actionJson, priorityFeeKas);
+
+            if (result.commitTxId && result.revealTxId && !result.error) {
+              setIssueMsg("Issue commit + reveal completed via Kastle.", "muted");
+            } else if (result.commitTxId && !result.revealTxId && result.error) {
+              setMsg(
+                "Issue commit broadcast; reveal is pending or did not complete. See details below.",
+                "muted"
+              );
+            } else if (result.error && !result.commitTxId) {
+              setMsg("Issue blocked/failed before commit. See details below.");
+            } else {
+              setMsg("Issue status unknown. See details below.", "muted");
+            }
+
+            UI.out.textContent = JSON.stringify(result, null, 2);
+            UI.outputWrap.classList.remove("hidden");
+          } catch (e) {
+            setMsg("Issue error.");
+            UI.out.textContent = e?.message || String(e);
+            UI.outputWrap.classList.remove("hidden");
+          }
+        });
+      }
+    }
+
+    ["input","change"].forEach(evt => {
+    ["name","dec","max","pre","to","priorityFee","timeout","logLevel","kaspaNetwork"].forEach(id => {
+        document.getElementById(id).addEventListener(evt, gather);
+      });
+    });
+    gather();
+  })();
+  </script>
+
+  <script>
+    (function () {
+      var KASTLE_ADDR_KEY = "td_kastle_addr_v1";
+
+      function $(id) {
+        return document.getElementById(id);
+      }
+
+      var statusEl = $("kastleStatus");
+      var connectBtn = null;
+      var disconnectBtn = null;
+      var networkSel = $("kaspaNetwork");
+
+      if (!statusEl || !connectBtn || !disconnectBtn || !networkSel) {
+        return;
+      }
+
+      var _kastleSdk = null;
+
+      async function getKastleSdk() {
+        if (_kastleSdk) return _kastleSdk;
+        _kastleSdk = await import("/sdk-bundle/kastle-sdk/dist/index.mjs");
+        return _kastleSdk;
+      }
+
+      function normalizeKastleSdkNetworkId(networkId) {
+        var n = String(networkId || "").trim();
+        if (n === "tn10") return "testnet-10";
+        return n;
+      }
+
+      function getKaspaNetworkId() {
+        var n = String(networkSel.value || "").trim();
+        return n || "testnet-10";
+      }
+
+      function renderKastleStatus() {
+        var addr = String(sessionStorage.getItem(KASTLE_ADDR_KEY) || "").trim();
+        disconnectBtn.disabled = !addr;
+        statusEl.textContent = addr ? ("Connected: " + addr) : "Not connected";
+      }
+
+      async function ensureKastleConnected(networkId) {
+        var sdk = await getKastleSdk();
+        var net = normalizeKastleSdkNetworkId(networkId);
+
+        var sleep = function (ms) {
+          return new Promise(function (r) { return setTimeout(r, ms); });
+        };
+
+        var waitForNet = async function (expected, label) {
+          var maxMs = 3000;
+          var stepMs = 250;
+          var active = String(await sdk.getNetwork() || "").trim();
+          for (var t = 0; t < maxMs && active !== expected; t += stepMs) {
+            await sleep(stepMs);
+            active = String(await sdk.getNetwork() || "").trim();
+          }
+          if (active !== expected) {
+            throw new Error("Kastle network not ready (" + label + "): expected \"" + expected + "\" got \"" + (active || "(empty)") + "\"");
+          }
+        };
+
+        await sdk.switchNetwork(net);
+        await waitForNet(net, "after switchNetwork");
+
+        var ok = await sdk.connect();
+        if (!ok) {
+          throw new Error("Kastle connect failed or cancelled for network \"" + net + "\".");
+        }
+
+        await waitForNet(net, "after connect");
+
+        var addr = String(await sdk.getWalletAddress() || "").trim();
+        if (!addr) {
+          throw new Error("Kastle did not return a wallet address.");
+        }
+
+        return { address: addr, network: net };
+      }
+
+      async function kastleConnectUi() {
+        try {
+          connectBtn.disabled = true;
+          connectBtn.setAttribute("aria-busy", "true");
+          statusEl.textContent = "Connecting";
+
+          var netId = getKaspaNetworkId();
+          var res = await ensureKastleConnected(netId);
+
+          sessionStorage.setItem(KASTLE_ADDR_KEY, res.address);
+          renderKastleStatus();
+        } catch (err) {
+          console.warn("[td] kastle connect failed", err);
+          sessionStorage.removeItem(KASTLE_ADDR_KEY);
+          renderKastleStatus();
+          statusEl.textContent = "Connect failed";
+        } finally {
+          connectBtn.disabled = false;
+          connectBtn.removeAttribute("aria-busy");
+        }
+      }
+
+      function kastleDisconnectUi() {
+        sessionStorage.removeItem(KASTLE_ADDR_KEY);
+        renderKastleStatus();
+      }
+
+      connectBtn.addEventListener("click", function () {
+        kastleConnectUi();
+      });
+
+      disconnectBtn.addEventListener("click", function () {
+        kastleDisconnectUi();
+      });
+
+      networkSel.addEventListener("change", function () {
+        kastleDisconnectUi();
+      });
+
+      renderKastleStatus();
+    })();
+  </script>
+
+<!-- CounterAPI browser library -->
+  <script src="https://cdn.jsdelivr.net/npm/counterapi/dist/counter.browser.min.js"></script>
+
+  <script>
+    // Simple global page-view counter using CounterAPI V1 (no auth)
+    document.addEventListener("DOMContentLoaded", function () {
+      var el = document.getElementById("view-counter");
+      if (!el || typeof Counter === "undefined") return;
+
+      // V1 client: namespace instead of workspace, no token needed
+      const counter = new Counter({
+        version: "v1",
+        namespace: "token-depot",  // any name you like for this site
+        debug: true                // log errors to console so we can see them
+      });
+
+      // "token-depot-views" is the counter name inside that namespace
+      counter
+        .up("token-depot-views")
+        .then(function (result) {
+          // V1 returns { namespace, name, value }
+          var value = (result && typeof result.value !== "undefined")
+            ? result.value
+            : (result && typeof result.count !== "undefined")
+              ? result.count
+              : "?";
+
+          el.textContent = value;
+        })
+        .catch(function (err) {
+          console.error("Visitor counter error:", err);
+          el.textContent = "—";
+        });
+    });
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/counterapi/dist/counter.browser.min.js"></script>
+
+      <footer style="
+      margin-top: 48px;
+      background: var(--td-skin-black);
+      color: var(--td-skin-white);
+      padding: 22px 16px;
+      border-top: 1px solid rgba(var(--td-skin-white-rgb), 0.12);
+    ">
+      <div style="
+        max-width: 1100px;
+        margin: 0 auto;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 18px 28px;
+        align-items: center;
+        justify-content: space-between;
+      ">
+        <div style="line-height: 1.35;">
+          <div style="font-weight: 700; letter-spacing: 0.06em;">
+            TOKEN DEPOT CORP.
+          </div>
+          <div style="opacity: 0.9;">
+            Statesville, NC 28625
+          </div>
+          <div style="opacity: 0.9;">
+            Contact Us: <a href="tel:+17046037347" style="color:var(--td-skin-white); text-decoration: underline;">(704) 603-7347</a>
+          </div>
+        </div>
+
+        <div style="text-align: right; line-height: 1.35;">
+          <div style="opacity: 0.9;">
+            © <span id="td-footer-year">2026</span> Token Depot Corp. All rights reserved.
+          </div>
+          <div style="opacity: 0.75; font-size: 0.92em;">
+            Secure digital asset operations • Compliance-first workflows
+          </div>
+        </div>
+      </div>
+
+      <script>
+        // Safe, tiny enhancement: keep the year current
+        (function () {
+          var el = document.getElementById("td-footer-year");
+          if (el) el.textContent = String(new Date().getFullYear());
+        })();
+      </script>
+    </footer>
+  </main>
+</body>
+</html>

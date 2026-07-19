@@ -1,0 +1,7 @@
+COMPLIANCE_WALLET_298_PUBLIC_RC1_SECURITY_SCAN
+forbidden_path_matches=0
+exact_private_identifier_matches=0
+generic_user_id_matches=0
+generic_wallet_id_matches=0
+secret_marker_matches=0
+result=PASS
