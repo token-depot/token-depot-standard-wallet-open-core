@@ -1,0 +1,3 @@
+address,label,email,subscriber_id,first_name,last_name,company,phone,source,signup_date,consent_email,consent_sms,notes
+kaspatest:replace_with_first_coupon_receive_address,Example Subscriber,subscriber@example.com,SUB-001,Example,Subscriber,Example Company,555-0101,website-form,2026-05-06,yes,no,Replace this row before broadcasting
+kaspatest:replace_with_second_coupon_receive_address,Example Customer,customer@example.com,SUB-002,Example,Customer,Example Company,555-0102,mailing-list,2026-05-06,yes,yes,Only the address column is required by the wallet

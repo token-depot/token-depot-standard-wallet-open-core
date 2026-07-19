@@ -1,0 +1,641 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Token Depot — Login</title>
+  <link rel="icon" href="/static/icon/favicon.ico">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+  <link rel="stylesheet" href="/static/css/style.css">
+  <style>
+    dialog article { margin: 0; }
+    .hint { opacity: 0.8; font-size: 0.95rem; }
+    .err { color: #ff6b6b; }
+    .ok { color: #51cf66; }
+
+    /* Login nav mobile fix: keep logo visible above action links */
+    @media (max-width: 760px){
+      nav.topnav{
+        flex-wrap: wrap !important;
+        justify-content: flex-start !important;
+        align-items: stretch !important;
+        gap: .75rem 1rem !important;
+      }
+      nav.topnav > ul:first-child{
+        width: 100% !important;
+        display: flex !important;
+        justify-content: center !important;
+      }
+      nav.topnav > ul:first-child img{
+        height: 52px !important;
+      }
+      nav.topnav > ul:nth-of-type(2){
+        width: 100% !important;
+        display: flex !important;
+        flex-wrap: wrap !important;
+        justify-content: center !important;
+        gap: .5rem .75rem !important;
+      }
+      nav.topnav > ul:nth-of-type(2) li{
+        flex: 0 0 auto !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <nav class="topnav" aria-label="Primary">
+      <ul>
+        <li>
+          <a href="/index.html" aria-label="Token Depot">
+            <img src="/static/icon/logo.png" alt="Token-Depot.com">
+          </a>
+        </li>
+      </ul>
+      <ul>
+        <li><a href="/index.html">Home</a></li>
+        <li><a href="https://calendly.com/ncsolarelectric/token-depot-call" id="btnOpenSignup" target="_blank" rel="noopener noreferrer">Request Access</a></li>
+      </ul>
+    </nav>
+
+    <article class="card" style="max-width: 760px; margin-inline: auto;">
+      <h1>Login</h1>
+      <p class="hint">Access requires an approved account. <strong>Request Access</strong> creates your account and emails a confirmation.</p>
+
+      <form id="loginForm" method="post" action="/api/v1/session/login">
+        <label>
+          Email
+          <input id="email" name="email" type="email" autocomplete="username" required>
+        </label>
+
+        <label>
+          Password
+          <input id="password" name="password" type="password" autocomplete="current-password" required>
+        </label>
+
+        <div class="grid">
+          <button type="submit" id="btnLogin">Login</button>
+          <button type="button" id="btnLogout" class="secondary">Logout</button>
+        </div>
+
+        <p class="hint" style="margin-top: 0.6rem;">
+          <a href="#" id="btnForgotPassword">Forgot Password?</a>
+        </p>
+
+        <p id="status" class="hint"></p>
+        <p id="error" class="err"></p>
+      </form>
+
+      <form id="loginVerifyForm" hidden>
+        <label>
+          Login Verification Code
+          <input id="loginVerifyCode" name="code" type="text" inputmode="numeric" pattern="[0-9]{8}" minlength="8" maxlength="8" autocomplete="one-time-code" required>
+        </label>
+
+        <p class="hint">
+          Enter the 8-digit login code sent to your email address.
+        </p>
+
+        <div class="grid">
+          <button type="submit" id="btnLoginVerify">Verify Login</button>
+          <button type="button" class="secondary" id="btnCancelLoginVerify">Cancel</button>
+        </div>
+
+        <p id="loginVerifyStatus" class="hint"></p>
+        <p id="loginVerifyError" class="err"></p>
+      </form>
+    </article>
+
+    <dialog id="signupDialog">
+      <article class="card">
+        <header>
+          <button aria-label="Close" rel="prev" id="btnCloseSignup"></button>
+          <h3>Request Access</h3>
+        </header>
+
+        <p class="hint">
+          Provide your contact info so we can review and provision your account.
+          <strong>Email</strong>, <strong>Phone</strong>, and <strong>Password</strong> are required.
+        </p>
+
+        <form id="signupForm">
+          <label>
+            Name
+            <input id="suName" name="name" type="text" required>
+          </label>
+
+          <label>
+            Email
+            <input id="suEmail" name="email" type="email" required>
+          </label>
+
+          <label>
+            Phone
+            <input id="suPhone" name="phone" type="tel" inputmode="tel" required>
+          </label>
+
+          <label>
+            Password
+            <input id="suPassword" name="password" type="password" autocomplete="new-password" minlength="10" required>
+          </label>
+
+          <p class="hint">
+            Password: at least 10 chars, includes 1 lowercase, 1 uppercase, 1 number.
+            Allowed specials: <strong>$ # @ * &amp; - ?</strong>
+          </p>
+
+          <label>
+            <input id="suLicense" name="license" type="checkbox">
+            Request TDPRO license token
+          </label>
+
+          <div class="grid">
+            <button type="submit">Submit Request</button>
+            <button type="button" class="secondary" id="btnCancelSignup">Cancel</button>
+          </div>
+
+          <p id="signupStatus" class="hint"></p>
+        </form>
+
+        <form id="signupVerifyForm" hidden>
+          <label>
+            Email Verification Code
+            <input id="signupVerifyCode" name="code" type="text" inputmode="numeric" pattern="[0-9]{8}" minlength="8" maxlength="8" autocomplete="one-time-code" required>
+          </label>
+
+          <p class="hint">
+            Enter the 8-digit code sent to your email address.
+          </p>
+
+          <div class="grid">
+            <button type="submit" id="btnSignupVerify">Verify Email</button>
+            <button type="button" class="secondary" id="btnCancelSignupVerify">Cancel</button>
+          </div>
+
+          <p id="signupVerifyStatus" class="hint"></p>
+        </form>
+      </article>
+    </dialog>
+
+    <dialog id="forgotDialog">
+      <article class="card">
+        <header>
+          <button aria-label="Close" rel="prev" id="btnCloseForgot"></button>
+          <h3>Forgot Password</h3>
+        </header>
+
+        <p class="hint">
+          Enter your account email. If it is registered, we will email an <strong>8-digit</strong> authorization code
+          valid for <strong>10 minutes</strong>.
+        </p>
+
+        <form id="pwResetRequestForm">
+          <label>
+            Email
+            <input id="fpEmail" name="email" type="email" autocomplete="username" required>
+          </label>
+
+          <div class="grid">
+            <button type="submit" id="btnSendResetCode">Send Code</button>
+          </div>
+
+          <p id="fpReqStatus" class="hint"></p>
+          <p id="fpReqErr" class="err"></p>
+        </form>
+
+        <hr>
+
+        <form id="pwResetConfirmForm">
+          <label>
+            Authorization Code
+            <input id="fpCode" name="code" type="text" inputmode="numeric" pattern="[0-9]{8}" minlength="8" maxlength="8" required>
+          </label>
+
+          <label>
+            New Password
+            <input id="fpNewPassword" name="new_password" type="password" autocomplete="new-password" minlength="10" required>
+          </label>
+
+          <p class="hint">
+            Password: at least 10 chars, includes 1 lowercase, 1 uppercase, 1 number.
+            Allowed specials: <strong>$ # @ * &amp; - ?</strong>
+          </p>
+
+          <div class="grid">
+            <button type="submit" id="btnResetPassword">Reset Password</button>
+            <button type="button" class="secondary" id="btnCancelForgot">Close</button>
+          </div>
+
+          <p id="fpConfirmStatus" class="hint"></p>
+          <p id="fpConfirmErr" class="err"></p>
+        </form>
+      </article>
+    </dialog>
+
+    <script src="/static/js/logout_shared.js"></script>
+    <script>
+      (async function () {
+        const elEmail = document.getElementById("email");
+        const elPassword = document.getElementById("password");
+        const elStatus = document.getElementById("status");
+        const elErr = document.getElementById("error");
+        const btnLogout = document.getElementById("btnLogout");
+        const loginForm = document.getElementById("loginForm");
+        const loginVerifyForm = document.getElementById("loginVerifyForm");
+        const loginVerifyCode = document.getElementById("loginVerifyCode");
+        const btnCancelLoginVerify = document.getElementById("btnCancelLoginVerify");
+        const loginVerifyStatus = document.getElementById("loginVerifyStatus");
+        const loginVerifyError = document.getElementById("loginVerifyError");
+
+        const dlg = document.getElementById("signupDialog");
+        const btnOpenSignup = document.getElementById("btnOpenSignup");
+        const btnCloseSignup = document.getElementById("btnCloseSignup");
+        const btnCancelSignup = document.getElementById("btnCancelSignup");
+        const signupForm = document.getElementById("signupForm");
+        const signupStatus = document.getElementById("signupStatus");
+        const signupVerifyForm = document.getElementById("signupVerifyForm");
+        const signupVerifyCode = document.getElementById("signupVerifyCode");
+        const btnCancelSignupVerify = document.getElementById("btnCancelSignupVerify");
+        const signupVerifyStatus = document.getElementById("signupVerifyStatus");
+
+        const forgotDlg = document.getElementById("forgotDialog");
+        const btnForgotPassword = document.getElementById("btnForgotPassword");
+        const btnCloseForgot = document.getElementById("btnCloseForgot");
+        const btnCancelForgot = document.getElementById("btnCancelForgot");
+
+        const pwResetRequestForm = document.getElementById("pwResetRequestForm");
+        const pwResetConfirmForm = document.getElementById("pwResetConfirmForm");
+        const fpEmail = document.getElementById("fpEmail");
+        const fpCode = document.getElementById("fpCode");
+        const fpNewPassword = document.getElementById("fpNewPassword");
+        const fpReqStatus = document.getElementById("fpReqStatus");
+        const fpReqErr = document.getElementById("fpReqErr");
+        const fpConfirmStatus = document.getElementById("fpConfirmStatus");
+        const fpConfirmErr = document.getElementById("fpConfirmErr");
+
+        const suName = document.getElementById("suName");
+        const suEmail = document.getElementById("suEmail");
+        const suPhone = document.getElementById("suPhone");
+        const suPassword = document.getElementById("suPassword");
+        const suLicense = document.getElementById("suLicense");
+        let pendingSignupEmail = "";
+        let pendingLoginEmail = "";
+
+        function setErr(msg) { elErr.textContent = msg || ""; }
+        function setStatus(msg) { elStatus.textContent = msg || ""; }
+
+        async function apiPost(path, body) {
+          const r = await fetch(path, {
+            method: "POST",
+            headers: { "content-type": "application/json", Accept: "application/json" },
+            body: JSON.stringify(body || {})
+          });
+          const out = await r.json().catch(() => null);
+          return { status: r.status, out };
+        }
+
+        function openRequestAccess() {
+          pendingSignupEmail = "";
+          if (signupStatus) signupStatus.textContent = "";
+          if (signupVerifyStatus) signupVerifyStatus.textContent = "";
+          if (signupForm) signupForm.hidden = false;
+          if (signupVerifyForm) signupVerifyForm.hidden = true;
+          if (signupVerifyCode) signupVerifyCode.value = "";
+          if (dlg) dlg.showModal();
+          if (suName) suName.focus();
+        }
+
+        function openCalendlyRequestAccess() {
+          window.location.assign("https://calendly.com/ncsolarelectric/token-depot-call");
+        }
+
+        function openForgotPassword() {
+          if (fpEmail && elEmail) fpEmail.value = String(elEmail.value || "").trim();
+          if (fpCode) fpCode.value = "";
+          if (fpNewPassword) fpNewPassword.value = "";
+          if (fpReqStatus) fpReqStatus.textContent = "";
+          if (fpReqErr) fpReqErr.textContent = "";
+          if (fpConfirmStatus) fpConfirmStatus.textContent = "";
+          if (fpConfirmErr) fpConfirmErr.textContent = "";
+          if (forgotDlg) forgotDlg.showModal();
+          if (fpEmail) fpEmail.focus();
+        }
+
+        if (btnOpenSignup) {
+          btnOpenSignup.addEventListener("click", (e) => {
+            e.preventDefault();
+            openCalendlyRequestAccess();
+          });
+        }
+
+        btnForgotPassword.addEventListener("click", (e) => {
+          e.preventDefault();
+          openForgotPassword();
+        });
+
+        if (window.location.hash === "#request") {
+          openRequestAccess();
+        }
+
+        if (window.location.hash === "#forgot") {
+          openForgotPassword();
+        }
+
+        function closeSignupDialog() {
+          pendingSignupEmail = "";
+          if (signupVerifyStatus) signupVerifyStatus.textContent = "";
+          if (signupForm) signupForm.hidden = false;
+          if (signupVerifyForm) signupVerifyForm.hidden = true;
+          if (signupVerifyCode) signupVerifyCode.value = "";
+          if (dlg) dlg.close();
+        }
+
+        btnCloseSignup.addEventListener("click", closeSignupDialog);
+        btnCancelSignup.addEventListener("click", closeSignupDialog);
+        btnCancelSignupVerify.addEventListener("click", closeSignupDialog);
+
+        btnCloseForgot.addEventListener("click", () => forgotDlg.close());
+        btnCancelForgot.addEventListener("click", () => forgotDlg.close());
+
+        if (pwResetRequestForm) {
+          pwResetRequestForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            if (!fpEmail || !fpReqStatus || !fpReqErr) return;
+
+            const email = String(fpEmail.value || "").trim();
+            fpReqErr.textContent = "";
+            fpReqStatus.textContent = "Sending...";
+
+            const { status, out } = await apiPost("/api/v1/password/reset/request", { email });
+
+            if (!out || !out.ok) {
+              const reason = (out && out.reason) ? String(out.reason) : ("http_" + status);
+              fpReqStatus.textContent = "";
+              fpReqErr.textContent = reason;
+              return;
+            }
+
+            fpReqStatus.textContent = "If that email is registered, an authorization code has been sent.";
+          });
+        }
+
+        if (pwResetConfirmForm) {
+          pwResetConfirmForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            if (!fpEmail || !fpCode || !fpNewPassword || !fpConfirmStatus || !fpConfirmErr) return;
+
+            const email = String(fpEmail.value || "").trim();
+            const code = String(fpCode.value || "").trim();
+            const new_password = String(fpNewPassword.value || "");
+
+            fpConfirmErr.textContent = "";
+            fpConfirmStatus.textContent = "Updating password...";
+
+            const { status, out } = await apiPost("/api/v1/password/reset/confirm", { email, code, new_password });
+
+            if (!out || !out.ok) {
+              const reason = (out && out.reason) ? String(out.reason) : ("http_" + status);
+              fpConfirmStatus.textContent = "";
+              fpConfirmErr.textContent = reason;
+              return;
+            }
+
+            fpConfirmStatus.textContent = "Password updated. You can now log in.";
+            if (elEmail) elEmail.value = email;
+            if (elPassword) elPassword.value = "";
+            setStatus("Password updated. Please log in.");
+            forgotDlg.close();
+          });
+        }
+
+        signupForm.addEventListener("submit", async (e) => {
+          e.preventDefault();
+          if (!signupStatus) return;
+
+          const name = (suName && suName.value) ? String(suName.value).trim() : "";
+          const email = (suEmail && suEmail.value) ? String(suEmail.value).trim() : "";
+          const phone = (suPhone && suPhone.value) ? String(suPhone.value).trim() : "";
+          const password = (suPassword && suPassword.value) ? String(suPassword.value) : "";
+          const wants_license = !!(suLicense && suLicense.checked);
+
+          if (!name) { signupStatus.textContent = "Missing name."; return; }
+          if (!email) { signupStatus.textContent = "Missing email."; return; }
+          if (!phone) { signupStatus.textContent = "Missing phone."; return; }
+          if (!password) { signupStatus.textContent = "Missing password."; return; }
+
+          // client-side mirror (server remains authoritative)
+          const allowed = /^[A-Za-z0-9$#@*&\-?]+$/;
+          if (password.length < 10) { signupStatus.textContent = "Password too short (min 10)."; return; }
+          if (!allowed.test(password)) { signupStatus.textContent = "Password has invalid characters."; return; }
+          if (!/[a-z]/.test(password)) { signupStatus.textContent = "Password needs a lowercase letter."; return; }
+          if (!/[A-Z]/.test(password)) { signupStatus.textContent = "Password needs an uppercase letter."; return; }
+          if (!/[0-9]/.test(password)) { signupStatus.textContent = "Password needs a number."; return; }
+
+          signupStatus.textContent = "Submitting...";
+
+          const { status, out } = await apiPost("/api/v1/signup/request", {
+            name,
+            email,
+            phone,
+            password,
+            wants_license
+          });
+
+          if (!out || !out.ok) {
+            const reason = (out && out.reason) ? String(out.reason) : ("http_" + status);
+            signupStatus.textContent = "Request failed: " + reason;
+            return;
+          }
+
+          if (out.email_verification_required) {
+            pendingSignupEmail = String(out.email || email || "").trim();
+            signupStatus.textContent = "Verification code sent. Check your email.";
+            if (signupForm) signupForm.hidden = true;
+            if (signupVerifyForm) signupVerifyForm.hidden = false;
+            if (signupVerifyStatus) signupVerifyStatus.textContent = "";
+            if (signupVerifyCode) signupVerifyCode.focus();
+            return;
+          }
+
+          signupStatus.textContent = "Request submitted. Account created. You may now log in.";
+          if (elEmail) elEmail.value = email;
+          if (dlg) dlg.close();
+        });
+
+        signupVerifyForm.addEventListener("submit", async (e) => {
+          e.preventDefault();
+          if (!signupVerifyStatus) return;
+
+          const code = signupVerifyCode ? String(signupVerifyCode.value || "").trim() : "";
+
+          if (!pendingSignupEmail) {
+            signupVerifyStatus.textContent = "Missing signup email. Please submit the request again.";
+            return;
+          }
+
+          if (!code) {
+            signupVerifyStatus.textContent = "Missing verification code.";
+            return;
+          }
+
+          signupVerifyStatus.textContent = "Verifying...";
+
+          const { status, out } = await apiPost("/api/v1/signup/verify", {
+            email: pendingSignupEmail,
+            code
+          });
+
+          if (!out || !out.ok) {
+            const reason = (out && out.reason) ? String(out.reason) : ("http_" + status);
+            signupVerifyStatus.textContent = "Verification failed: " + reason;
+            return;
+          }
+
+          signupVerifyStatus.textContent = "Email verified. Account created. You may now log in.";
+          if (elEmail) elEmail.value = pendingSignupEmail;
+          pendingSignupEmail = "";
+          if (signupVerifyCode) signupVerifyCode.value = "";
+          if (dlg) dlg.close();
+        });
+
+        function showLoginForm() {
+          pendingLoginEmail = "";
+          if (loginVerifyCode) loginVerifyCode.value = "";
+          if (loginVerifyStatus) loginVerifyStatus.textContent = "";
+          if (loginVerifyError) loginVerifyError.textContent = "";
+          if (loginVerifyForm) loginVerifyForm.hidden = true;
+          if (loginForm) loginForm.hidden = false;
+          if (elPassword) elPassword.value = "";
+          if (elEmail) elEmail.focus();
+        }
+
+        loginForm.addEventListener("submit", async (e) => {
+          e.preventDefault();
+          setErr("");
+          setStatus("Logging in...");
+
+          const email = elEmail.value.trim();
+          const password = elPassword.value;
+
+          const { status, out } = await apiPost("/api/v1/session/login", { email, password });
+
+          if (!out || !out.ok) {
+            setStatus("");
+            const reason = (out && out.reason) ? String(out.reason) : ("http_" + status);
+            setErr("Login failed: " + reason);
+            return;
+          }
+
+          if (out.two_factor_required) {
+            pendingLoginEmail = String(out.email || email || "").trim();
+            setStatus("");
+            setErr("");
+            if (loginForm) loginForm.hidden = true;
+            if (loginVerifyForm) loginVerifyForm.hidden = false;
+            if (loginVerifyStatus) loginVerifyStatus.textContent = "Login code sent. Check your email.";
+            if (loginVerifyError) loginVerifyError.textContent = "";
+            if (loginVerifyCode) loginVerifyCode.focus();
+            return;
+          }
+
+          setStatus("Login ok. Redirecting...");
+          window.location.href = "/wallet.html";
+        });
+
+        if (loginVerifyForm) {
+          loginVerifyForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+
+            const code = loginVerifyCode ? String(loginVerifyCode.value || "").trim() : "";
+
+            if (!pendingLoginEmail) {
+              if (loginVerifyError) loginVerifyError.textContent = "Missing login email. Please log in again.";
+              return;
+            }
+
+            if (!code) {
+              if (loginVerifyError) loginVerifyError.textContent = "Missing login code.";
+              return;
+            }
+
+            if (loginVerifyStatus) loginVerifyStatus.textContent = "Verifying...";
+            if (loginVerifyError) loginVerifyError.textContent = "";
+
+            const { status, out } = await apiPost("/api/v1/session/login/verify", {
+              email: pendingLoginEmail,
+              code
+            });
+
+            if (!out || !out.ok) {
+              const reason = (out && out.reason) ? String(out.reason) : ("http_" + status);
+              if (loginVerifyStatus) loginVerifyStatus.textContent = "";
+              if (loginVerifyError) loginVerifyError.textContent = "Login verification failed: " + reason;
+              return;
+            }
+
+            if (loginVerifyStatus) loginVerifyStatus.textContent = "Login verified. Redirecting...";
+            window.location.href = "/wallet.html";
+          });
+        }
+
+        if (btnCancelLoginVerify) {
+          btnCancelLoginVerify.addEventListener("click", showLoginForm);
+        }
+
+        btnLogout.addEventListener("click", async () => {
+          setErr("");
+          setStatus("Logging out...");
+          await window.CwLogoutShared.logoutNow({ redirect: false });
+          setStatus("Logged out.");
+        });
+      })();
+    </script>
+        <footer style="
+      margin-top: 48px;
+      background: #000;
+      color: #fff;
+      padding: 22px 16px;
+      border-top: 1px solid rgba(255,255,255,0.12);
+    ">
+      <div style="
+        max-width: 1100px;
+        margin: 0 auto;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 18px 28px;
+        align-items: center;
+        justify-content: space-between;
+      ">
+        <div style="line-height: 1.35;">
+          <div style="font-weight: 700; letter-spacing: 0.06em;">
+            TOKEN DEPOT CORP.
+          </div>
+          <div style="opacity: 0.9;">
+            Statesville, NC 28625
+          </div>
+          <div style="opacity: 0.9;">
+            Contact Us: <a href="tel:+17046037347" style="color:#fff; text-decoration: underline;">(704) 603-7347</a>
+          </div>
+        </div>
+
+        <div style="text-align: right; line-height: 1.35;">
+          <div style="opacity: 0.9;">
+            © <span id="td-footer-year">2026</span> Token Depot Corp. All rights reserved.
+          </div>
+          <div style="opacity: 0.75; font-size: 0.92em;">
+            Secure digital asset operations • Compliance-first workflows
+          </div>
+        </div>
+      </div>
+
+      <script>
+        // Safe, tiny enhancement: keep the year current
+        (function () {
+          var el = document.getElementById("td-footer-year");
+          if (el) el.textContent = String(new Date().getFullYear());
+        })();
+      </script>
+    </footer>
+  </main>
+</body>
+</html>

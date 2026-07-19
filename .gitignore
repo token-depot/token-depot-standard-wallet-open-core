@@ -1,7 +1,7 @@
-.DS_Store
 node_modules/
-.env
-.env.*
-data/
-*.zip
-*.bak
+dist/
+.DS_Store
+*.log
+
+# Future secrets (will be added in later change budgets)
+data/*.enc

@@ -1,0 +1,465 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>KCC20 Issue, Burn &amp; Ownership</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+  <link rel="stylesheet" href="/static/css/style.css">
+  <script defer src="/static/js/skin_shared.js"></script>
+  <style>
+    .two-col { display:grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items:start; }
+    @media (max-width: 720px) { .two-col { grid-template-columns: 1fr; } }
+    .stack > label { display:block; margin-bottom:12px; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .muted { opacity: 0.92; color: var(--td-skin-text-soft); }
+    .cr-alert {
+      margin-top:1rem;
+      padding:1rem;
+      border-left:4px solid var(--td-skin-primary);
+      border-radius:12px;
+      background:rgba(var(--td-skin-primary-rgb), .10);
+    }
+    .cr-alert[data-state="failed"] {
+      border-left-color:rgba(210, 70, 70, .92);
+      background:rgba(210, 70, 70, .10);
+    }
+    .cr-alert[data-state="pending"] {
+      border-left-color:rgba(226, 174, 71, .92);
+      background:rgba(226, 174, 71, .10);
+    }
+    .hidden { display:none; }
+    .logbox {
+      background:
+        radial-gradient(circle at top left, rgba(var(--td-skin-primary-rgb), 0.20), rgba(var(--td-skin-panel-rgb), 0.98));
+      border: 1px solid rgba(var(--td-skin-teal-border-rgb), 0.7);
+      border-radius: 16px;
+      padding: 12px;
+      white-space: pre-wrap;
+      overflow: auto;
+      max-height: 280px;
+      color: var(--td-skin-text-field);
+      box-shadow:
+        0 0 0 1px rgba(var(--td-skin-panel-rgb), 1),
+        0 0 18px rgba(var(--td-skin-primary-rgb), 0.65);
+    }
+    .dot-list dt { font-weight:600; }
+    .dot-list dd { margin:0 0 .5rem 0; }
+    .card { overflow-wrap:anywhere; word-break:break-word; }
+    .kcc20-pill-row { display:flex; flex-wrap:wrap; gap:.5rem; margin:.75rem 0; }
+    .kcc20-pill {
+      border:1px solid rgba(var(--td-skin-teal-border-rgb), .65);
+      border-radius:999px;
+      padding:.25rem .6rem;
+      background:rgba(var(--td-skin-panel-rgb), .82);
+      color:var(--td-skin-text-soft);
+      font-size:.88rem;
+    }
+    .kcc20-proof-grid { display:grid; grid-template-columns: 1fr 1fr; gap:.75rem; margin:.75rem 0; }
+    @media (max-width: 720px) { .kcc20-proof-grid { grid-template-columns: 1fr; } }
+    .kcc20-proof-card {
+      border:1px solid rgba(var(--td-skin-white-rgb), .14);
+      border-radius:14px;
+      padding:.75rem;
+      background:rgba(var(--td-skin-panel-rgb), .72);
+    }
+    .kcc20-subcard {
+      border:1px solid rgba(var(--td-skin-teal-border-rgb), .45);
+      border-radius:16px;
+      padding:14px;
+      margin-bottom:16px;
+      background:rgba(var(--td-skin-panel-rgb), .78);
+    }
+    .kcc20-token-table-click {
+      appearance:none;
+      border:0;
+      background:transparent;
+      padding:0;
+      margin:0;
+      color:inherit;
+      font:inherit;
+      text-align:left;
+      cursor:pointer;
+    }
+    .kcc20-token-table-click:hover { text-decoration: underline; }
+    #kcc20IssueTokenTable th:first-child,
+    #kcc20IssueTokenRows td:first-child,
+    #kcc20IssueTokenRows td:first-child .kcc20-token-table-click {
+      min-width: 16ch;
+      white-space: nowrap;
+      word-break: normal;
+      overflow-wrap: normal;
+    }
+    #kcc20IssueTokenTable table {
+      width: 100%;
+    }
+    #kcc20IssueTokenTable th:nth-child(3),
+    #kcc20IssueTokenRows td:nth-child(3) {
+      min-width: 5ch;
+      width: 5ch;
+      white-space: nowrap;
+      text-align: right;
+    }
+    #kcc20IssueTokenTable th:nth-child(4),
+    #kcc20IssueTokenRows td:nth-child(4) {
+      min-width: 9ch;
+      width: 9ch;
+      white-space: nowrap;
+      text-align: right;
+    }
+    #kcc20IssueTokenTable th:nth-child(5),
+    #kcc20IssueTokenRows td:nth-child(5) {
+      min-width: 8ch;
+      width: 8ch;
+      white-space: nowrap;
+      text-align: right;
+    }
+    @media (max-width: 760px){
+      nav.container-fluid{ display:flex !important; flex-wrap:wrap !important; justify-content:flex-start !important; align-items:stretch !important; gap:.75rem 1rem !important; }
+      nav.container-fluid > ul:first-child{ width:100% !important; display:flex !important; justify-content:center !important; }
+      nav.container-fluid > ul:first-child img{ height:52px !important; }
+      nav.container-fluid > ul:nth-of-type(2){ width:100% !important; display:flex !important; flex-wrap:wrap !important; justify-content:center !important; gap:.35rem .9rem !important; }
+      nav.container-fluid > ul:nth-of-type(2) li{ flex:0 0 auto !important; }
+    }
+  </style>
+</head>
+<body data-skin="classic_teal">
+<script>
+(function () {
+  var key = 'td_active_skin_id';
+  var allowed = { classic_teal: true, pink: true, pink_black: true, gold: true, gold_black: true, blue: true, blue_black: true, green: true, green_black: true, red: true, red_black: true, yellow: true, yellow_black: true, cyan: true, cyan_black: true, orange: true, orange_black: true };
+  try {
+    var skinId = String(sessionStorage.getItem(key) || '').trim();
+    if (allowed[skinId]) document.body.setAttribute('data-skin', skinId);
+  } catch (_) {}
+})();
+</script>
+
+  <main class="container">
+    <nav class="container-fluid">
+      <ul>
+        <li>
+          <a href="/wallet.html">
+            <img src="static/icon/logo.png" alt="Token Depot logo" style="height:60px; display:block;">
+          </a>
+        </li>
+      </ul>
+      <ul>
+        <li><a href="/deploy.html">Deploy</a></li>
+        <li><a href="/issue.html" aria-current="page">Issue</a></li>
+        <li><a href="/covenants.html">Cov Tools</a></li>
+        <li><a href="/redeem.html">Redeem</a></li>
+        <li><a href="/energy.html">Energy</a></li>
+        <li><a href="/manage.html">Settings</a></li>
+        <li><a href="#" id="btnLogout">Logout</a></li>
+      </ul>
+    </nav>
+    <script type="module" src="/static/js/nav_choice_modal.js"></script>
+
+    <script>
+      (function () {
+        var a = document.getElementById('btnLogout');
+        if (!a) return;
+        a.addEventListener('click', async function (e) {
+          e.preventDefault();
+          await window.CwLogoutShared.logoutNow({ redirectTo: '/login.html' });
+        });
+      })();
+    </script>
+
+    <article class="card">
+      <header>
+        <h3>KCC20 Issue, Burn &amp; Ownership</h3>
+        <p class="muted">Issue tokens, burn tokens, or transfer token ownership through the standard KCC20 workflow.</p>
+        <div class="kcc20-pill-row">
+          <span class="kcc20-pill">testnet-10: available to authenticated users</span>
+          <span class="kcc20-pill">mainnet: OMA PRO / TDPRO required</span>
+          <span class="kcc20-pill">signing stays local in browser</span>
+        </div>
+      </header>
+
+      <section id="kcc20ActionResultBanner" class="cr-alert" data-state="success" style="margin-bottom:1rem;" hidden>
+        <strong id="kcc20ActionResultTitle">KCC20 transaction result</strong>
+        <p id="kcc20ActionResultMessage" class="muted" style="margin:.35rem 0 .65rem;">The Issue or Burn result will appear here.</p>
+        <dl class="dot-list" style="margin:0;">
+          <dt id="kcc20ActionResultLabel1">Token</dt>
+          <dd id="kcc20ActionResultValue1">—</dd>
+          <dt id="kcc20ActionResultLabel2">Amount RAW</dt>
+          <dd id="kcc20ActionResultValue2" class="mono">—</dd>
+          <dt id="kcc20ActionResultLabel3">Asset Covenant ID</dt>
+          <dd id="kcc20ActionResultValue3" class="mono">—</dd>
+          <dt id="kcc20ActionResultLabel4">Primary Transaction</dt>
+          <dd id="kcc20ActionResultValue4" class="mono">—</dd>
+          <dt id="kcc20ActionResultLabel5">Status</dt>
+          <dd id="kcc20ActionResultValue5">—</dd>
+          <dt id="kcc20ActionResultLabel6">Next Step</dt>
+          <dd id="kcc20ActionResultValue6">—</dd>
+        </dl>
+        <div id="kcc20SupplyRecoveryAction" style="margin-top:.85rem;" hidden>
+          <button id="kcc20CompleteSupplyUpdateBtn" type="button">Complete Supply Update</button>
+        </div>
+      </section>
+
+      <section class="kcc20-subcard" aria-label="Active KCC20 wallet status">
+        <div class="two-col">
+          <label>
+            Active Wallet
+            <input id="kcc20IssueActiveWallet" type="text" class="mono" readonly placeholder="Load wallet status">
+            <small class="muted">Prefilled from the unlocked wallet.</small>
+          </label>
+
+          <label>
+            Network
+            <input id="kcc20IssueNetwork" type="text" class="mono" readonly placeholder="testnet-10 or mainnet">
+            <small class="muted">Uses the active wallet network. Network values cannot be entered manually.</small>
+          </label>
+        </div>
+
+        <div class="kcc20-proof-grid">
+          <div class="kcc20-proof-card">
+            <strong>Network guard</strong>
+            <p id="kcc20IssueNetworkStatus" class="muted">Waiting for wallet status.</p>
+          </div>
+          <div class="kcc20-proof-card">
+            <strong>License guard</strong>
+            <p id="kcc20IssueLicenseStatus" class="muted">Mainnet actions require OMA PRO / TDPRO.</p>
+          </div>
+        </div>
+
+        <p id="kcc20IssueMsg" class="muted" role="status" aria-live="polite" aria-atomic="true">Ready.</p>
+      </section>
+
+      <div class="two-col">
+        <section class="kcc20-subcard stack">
+          <h5>Issue Tokens</h5>
+          <label>
+            Token
+            <select id="kcc20IssueAssetSelect">
+              <option value="">Select KCC20 token</option>
+            </select>
+            <small class="muted">Only live-chain-verified KCC20 tokens controlled by this wallet can be issued.</small>
+          </label>
+
+          <label>
+            Issue Amount (RAW)
+            <input id="kcc20IssueAmountRaw" type="text" inputmode="numeric" class="mono" placeholder="1">
+            <small class="muted">Must be positive and remain within max supply.</small>
+          </label>
+
+          <label>
+            Recipient Address
+            <input id="kcc20IssueRecipientAddress" type="text" class="mono" placeholder="defaults to active wallet">
+            <small class="muted">Enter a same-network PubKey wallet address, or leave blank to use the active wallet.</small>
+          </label>
+
+          <label>
+            Holder Carrier (KAS)
+            <input id="kcc20IssueHolderCarrierKas" type="number" min="1" step="0.01" value="1">
+            <small class="muted">KAS carried by the new token output. The token amount is separate.</small>
+          </label>
+
+          <input id="kcc20IssueFeeReserveKas" type="hidden" value="0.01">
+          <button id="kcc20IssueBuildBtn" type="button" aria-controls="kcc20IssuePreviewWrap kcc20IssueOutputWrap kcc20IssueMsg">Issue Tokens</button>
+          <button id="kcc20IssueSignBtn" type="button" hidden aria-hidden="true" disabled>Sign Issue Locally</button>
+          <button id="kcc20IssueSubmitBtn" type="button" hidden aria-hidden="true" disabled>Submit Issue Once</button>
+        </section>
+
+        <section class="kcc20-subcard stack">
+          <h5>Burn Tokens</h5>
+          <label>
+            Token
+            <select id="kcc20BurnAssetSelect">
+              <option value="">Select KCC20 token</option>
+            </select>
+            <small class="muted">The wallet automatically selects the required live token sources.</small>
+          </label>
+
+          <label>
+            Burn Amount (RAW)
+            <input id="kcc20BurnAmountRaw" type="text" inputmode="numeric" class="mono" placeholder="1">
+            <small class="muted">Must be positive and no greater than the live-verified token balance.</small>
+          </label>
+
+          <input id="kcc20BurnFeeReserveKas" type="hidden" value="0.01">
+          <button id="kcc20BurnBuildBtn" type="button" aria-controls="kcc20IssuePreviewWrap kcc20IssueOutputWrap kcc20IssueMsg">Burn Tokens</button>
+          <button id="kcc20BurnSignBtn" type="button" hidden aria-hidden="true" disabled>Sign Burn Locally</button>
+          <button id="kcc20BurnSubmitBtn" type="button" hidden aria-hidden="true" disabled>Submit Burn Once</button>
+          <details id="kcc20SupplyRecoveryDetails" style="margin-top:.75rem;">
+            <summary>Pending supply recovery</summary>
+            <p class="small muted" style="margin:.5rem 0;">Use only when a Burn was accepted but its automatic supply update failed. This action never repeats the accepted Burn.</p>
+            <button id="kcc20CompleteSupplyUpdateFallbackBtn" type="button">Complete Supply Update</button>
+          </details>
+        </section>
+      </div>
+    </article>
+
+    <section class="card">
+      <h4>Controlled KCC20 Tokens</h4>
+      <p class="small muted">KCC20 tokens controlled by the active wallet. Select a token name or Covenant ID to populate the Issue, Burn, and Ownership selectors.</p>
+
+      <div id="kcc20IssueTokenEmpty" class="small muted">Loading…</div>
+
+      <div id="kcc20IssueTokenTable" class="table-wrap hidden" style="overflow-x:auto;">
+        <table role="grid">
+          <thead>
+            <tr>
+              <th>Token</th>
+              <th>Covenant ID</th>
+              <th>Decimals</th>
+              <th>Holdings</th>
+              <th>Pending Supply</th>
+            </tr>
+          </thead>
+          <tbody id="kcc20IssueTokenRows"></tbody>
+        </table>
+      </div>
+
+      <div id="kcc20IssuePreviewWrap" class="hidden" style="margin-top:1rem">
+        <h6>Build Preview</h6>
+        <pre id="kcc20IssuePreview" class="logbox mono"></pre>
+      </div>
+
+      <div id="kcc20IssueOutputWrap" class="hidden" style="margin-top:1rem">
+        <h6>Output</h6>
+        <pre id="kcc20IssueOutput" class="logbox mono"></pre>
+      </div>
+    </section>
+
+    <section class="card">
+      <details>
+        <summary><strong>About KCC20 actions</strong></summary>
+        <div class="two-col" style="margin-top:1rem;">
+          <dl class="dot-list">
+            <dt>Controlled Token</dt>
+            <dd>A live-chain-verified KCC20 token controlled by the active wallet. Stored records are re-verified before use.</dd>
+            <dt>Issue Tokens</dt>
+            <dd>Creates additional supply within the token’s fixed maximum supply.</dd>
+            <dt>Burn Tokens</dt>
+            <dd>Permanently removes the selected raw amount and automatically updates supply accounting.</dd>
+          </dl>
+          <dl class="dot-list">
+            <dt>RAW Amount</dt>
+            <dd>Token amount in raw units. Human display uses RAW ÷ 10^decimals.</dd>
+            <dt>Pending Supply Recovery</dt>
+            <dd>Available only when a Burn was accepted but its automatic supply update failed. It never repeats the accepted Burn.</dd>
+          </dl>
+        </div>
+      </details>
+    </section>
+
+    <article class="card">
+      <header>
+        <h3>Ownership Transfer</h3>
+        <p class="muted">Transfer token ownership and issuance authority to another same-network wallet.</p>
+      </header>
+
+      <section id="kcc20OwnershipResultBanner" class="cr-alert" data-state="success" style="margin-bottom:1rem;" hidden>
+        <strong id="kcc20OwnershipResultTitle">KCC20 ownership result</strong>
+        <p id="kcc20OwnershipResultMessage" class="muted" style="margin:.35rem 0 .65rem;">The ownership-transfer result will appear here.</p>
+        <dl class="dot-list" style="margin:0;">
+          <dt>Token</dt>
+          <dd id="kcc20OwnershipResultToken">—</dd>
+          <dt>Asset Covenant ID</dt>
+          <dd id="kcc20OwnershipResultAssetCovenantId" class="mono">—</dd>
+          <dt>Previous Owner</dt>
+          <dd id="kcc20OwnershipResultPreviousOwner" class="mono">—</dd>
+          <dt>New Owner</dt>
+          <dd id="kcc20OwnershipResultNewOwner" class="mono">—</dd>
+          <dt>Ownership Transaction</dt>
+          <dd id="kcc20OwnershipResultTxid" class="mono">—</dd>
+          <dt>Next Step</dt>
+          <dd id="kcc20OwnershipResultNextStep">The new owner can refresh Holdings and use the KCC20 Issue page.</dd>
+        </dl>
+      </section>
+
+      <section class="kcc20-subcard stack">
+        <p class="muted">
+          The current owner authorizes the transfer. The new owner receives token control and a zero-token recognition anchor so the wallet can display and manage the token.
+        </p>
+        <dl class="dot-list">
+          <dt>New Owner Address</dt>
+          <dd>Any same-network PubKey wallet address known to this wallet.</dd>
+          <dt>Recognition Anchor</dt>
+          <dd>A zero-token recognition record that makes the transferred token visible to the recipient wallet.</dd>
+        </dl>
+
+        <label>
+          Token
+          <select id="kcc20ChangeOwnerAssetSelect">
+            <option value="">Select KCC20 token</option>
+          </select>
+          <small class="muted">Only tokens controlled by the active wallet can be transferred.</small>
+        </label>
+
+        <label>
+          New Owner Address
+          <input id="kcc20ChangeOwnerNewOwnerAddress" type="text" class="mono" placeholder="kaspatest:...">
+          <small class="muted">Enter a same-network PubKey wallet address known to this wallet.</small>
+        </label>
+
+        <label>
+          Recognition Anchor Carrier (KAS)
+          <input id="kcc20ChangeOwnerHolderCarrierKas" type="number" min="1" step="0.01" value="1">
+          <small class="muted">Creates a zero-token recognition anchor so the new owner can see and control the token.</small>
+        </label>
+
+        <input id="kcc20ChangeOwnerFeeReserveKas" type="hidden" value="0.01">
+        <button id="kcc20ChangeOwnerBuildBtn" type="button" aria-controls="kcc20IssuePreviewWrap kcc20IssueOutputWrap kcc20IssueMsg">Change Ownership</button>
+        <button id="kcc20ChangeOwnerSignBtn" type="button" hidden aria-hidden="true" disabled>Sign Change Ownership Locally</button>
+        <button id="kcc20ChangeOwnerSubmitBtn" type="button" hidden aria-hidden="true" disabled>Submit Change Ownership Once</button>
+      </section>
+    </article>
+
+  <script src="/static/js/network_shared.js"></script>
+  <script src="/static/js/logout_shared.js"></script>
+  <script type="module" src="/static/js/kaspa-bridge.mjs"></script>
+  <script type="module" src="/static/js/kcc20-issue-ui.js?v=20260718-ui-polish"></script>
+
+      <footer style="
+      margin-top: 48px;
+      background: var(--td-skin-black);
+      color: var(--td-skin-white);
+      padding: 22px 16px;
+      border-top: 1px solid rgba(var(--td-skin-white-rgb), 0.12);
+    ">
+      <div style="
+        max-width: 1100px;
+        margin: 0 auto;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 18px 28px;
+        align-items: center;
+        justify-content: space-between;
+      ">
+        <div style="line-height: 1.35;">
+          <div style="font-weight: 700; letter-spacing: 0.06em;">
+            TOKEN DEPOT CORP.
+          </div>
+          <div style="opacity: 0.9;">
+            Statesville, NC 28625
+          </div>
+          <div style="opacity: 0.9;">
+            Contact Us: <a href="tel:+17046037347" style="color:var(--td-skin-white); text-decoration: underline;">(704) 603-7347</a>
+          </div>
+        </div>
+
+        <div style="text-align: right; line-height: 1.35;">
+          <div style="opacity: 0.9;">
+            © <span id="td-footer-year">2026</span> Token Depot Corp. All rights reserved.
+          </div>
+          <div style="opacity: 0.75; font-size: 0.92em;">
+            Secure digital asset operations • Compliance-first workflows
+          </div>
+        </div>
+      </div>
+
+      <script>
+        (function () {
+          var el = document.getElementById("td-footer-year");
+          if (el) el.textContent = String(new Date().getFullYear());
+        })();
+      </script>
+    </footer>
+  </main>
+</body>
+</html>

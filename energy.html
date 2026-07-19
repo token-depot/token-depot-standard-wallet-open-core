@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Token Depot — Energy</title>
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+  <link rel="stylesheet" href="/static/css/style.css">
+  <script defer src="/static/js/skin_shared.js"></script>
+
+  <style>
+    .energy-shell { display:grid; gap: 18px; }
+    .energy-selector-row {
+      display:grid;
+      grid-template-columns: minmax(0, 1fr) auto auto;
+      gap: 12px;
+      align-items:end;
+    }
+    .energy-site-summary-compact {
+      display:grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      align-items:start;
+    }
+    .energy-preview-card {
+      min-height: 100%;
+    }
+    .energy-preview-shell {
+      display:grid;
+      gap: 12px;
+    }
+    .energy-preview-empty {
+      padding: 12px 14px;
+      border: 1px dashed rgba(var(--td-skin-white-rgb), 0.18);
+      border-radius: 12px;
+    }
+    .energy-preview-grid {
+      display:grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+    .energy-ledger-grid {
+      display:grid;
+      grid-template-columns: minmax(0, 320px) minmax(0, 320px);
+      gap: 16px;
+      justify-content:center;
+    }
+    .energy-ledger-card {
+      text-align:center;
+      padding: 18px 16px;
+    }
+    .energy-ledger-label {
+      font-size: 0.92rem;
+      opacity: 0.9;
+      margin-bottom: 8px;
+    }
+    .energy-ledger-value {
+      font-size: 1.8rem;
+      font-weight: 700;
+      line-height: 1.15;
+    }
+    .energy-actions-row {
+      display:flex;
+      flex-wrap:wrap;
+      gap: 12px;
+      align-items:center;
+    }
+    .energy-status-pill {
+      display:inline-flex;
+      align-items:center;
+      gap: 8px;
+      min-height: 2.6rem;
+      padding: 0 0.95rem;
+      border: 1px solid rgba(var(--td-skin-white-rgb), 0.16);
+      border-radius: 999px;
+      color: var(--td-skin-white);
+    }
+    .energy-status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: rgba(var(--td-skin-white-rgb), 0.55);
+      flex: 0 0 auto;
+    }
+    .energy-lower-grid {
+      display:grid;
+      grid-template-columns: minmax(0, 560px) minmax(0, 400px);
+      gap: 16px;
+      align-items:start;
+      justify-content:center;
+    }
+    .energy-field-stack > label { display:block; margin-bottom:12px; }
+    .energy-summary-grid {
+      display:grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+    .energy-summary-item {
+      padding: 12px 14px;
+      border: 1px solid rgba(var(--td-skin-white-rgb), 0.12);
+      border-radius: 12px;
+    }
+    .energy-summary-item strong {
+      display:block;
+      margin-bottom: 6px;
+    }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .muted { opacity: 0.92; color: var(--td-skin-white); }
+    .card { overflow-wrap:anywhere; word-break:break-word; }
+
+    @media (max-width: 900px) {
+      .energy-selector-row,
+      .energy-lower-grid,
+      .energy-summary-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .energy-ledger-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    details > summary { color: var(--td-skin-white) !important; }
+    details > summary::marker { color: var(--td-skin-white) !important; }
+    details > summary::-webkit-details-marker { color: var(--td-skin-white) !important; }
+
+    html, body { font-size: 15px; }
+    h1 { font-size: 30px; line-height: 1.2; }
+    h2 { font-size: 24px; line-height: 1.25; }
+    h3 { font-size: 20px; line-height: 1.3; }
+
+    /* Energy nav mobile fix: keep logo visible above wrapped links */
+    @media (max-width: 760px){
+      nav.container-fluid{
+        display: flex !important;
+        flex-wrap: wrap !important;
+        justify-content: flex-start !important;
+        align-items: stretch !important;
+        gap: .75rem 1rem !important;
+      }
+      nav.container-fluid > ul:first-child{
+        width: 100% !important;
+        display: flex !important;
+        justify-content: center !important;
+      }
+      nav.container-fluid > ul:first-child img{
+        height: 52px !important;
+      }
+      nav.container-fluid > ul:nth-of-type(2){
+        width: 100% !important;
+        display: flex !important;
+        flex-wrap: wrap !important;
+        justify-content: center !important;
+        gap: .35rem .9rem !important;
+      }
+      nav.container-fluid > ul:nth-of-type(2) li{
+        flex: 0 0 auto !important;
+      }
+    }
+  </style>
+</head>
+
+<body data-skin="classic_teal">
+<script>
+(function () {
+  var key = 'td_active_skin_id';
+  var allowed = { classic_teal: true, pink: true, pink_black: true, gold: true, gold_black: true, blue: true, blue_black: true, green: true, green_black: true, red: true, red_black: true, yellow: true, yellow_black: true, cyan: true, cyan_black: true, orange: true, orange_black: true };
+  try {
+    var skinId = String(sessionStorage.getItem(key) || '').trim();
+    if (allowed[skinId]) document.body.setAttribute('data-skin', skinId);
+  } catch (_) {}
+})();
+</script>
+  <main class="container" data-page="energy">
+    <nav class="container-fluid">
+      <ul>
+        <li>
+          <a href="/wallet.html">
+            <img src="static/icon/logo.png" alt="Token Depot logo" style="height:60px; display:block;">
+          </a>
+        </li>
+      </ul>
+      <ul>
+        <li><a href="/deploy.html">Deploy</a></li>
+        <li><a href="/issue.html">Issue</a></li>
+        <li><a href="/covenants.html">Cov Tools</a></li>
+        <li><a href="/redeem.html">Redeem</a></li>
+        <li><a href="/energy.html" aria-current="page">Energy</a></li>
+        <li><a href="/manage.html">Settings</a></li>
+        <li><a href="#" id="btnLogout">Logout</a></li>
+      </ul>
+    </nav>
+    <script type="module" src="/static/js/nav_choice_modal.js"></script>
+    <script>
+      (function () {
+        var a = document.getElementById('btnLogout');
+        if (!a) return;
+        a.addEventListener('click', async function (e) {
+          e.preventDefault();
+          await window.CwLogoutShared.logoutNow({ redirectTo: '/login.html' });
+        });
+      })();
+    </script>
+    <section class="energy-shell">
+      <article class="card">
+        <header>
+          <h2>Energy</h2>
+          <p class="muted" style="margin:0;">
+            Download production once per day, review the running KWH ledger near the top of the page, and manually issue from the active wallet when you are ready.
+          </p>
+        </header>
+
+        <p class="muted" style="margin:.25rem 0 .75rem 0;border:1px solid rgba(255,210,92,.55);border-radius:10px;padding:.55rem .7rem;background:rgba(255,210,92,.08)">
+          <strong>Energy token compatibility:</strong> Energy tools currently support KRC20 energy tokens only. KCC20 token support is not available yet.
+        </p>
+
+        <div class="energy-selector-row">
+          <label style="margin:0;">
+            Site
+            <select id="siteSelect" name="siteSelect">
+              <option value="">Select a site…</option>
+            </select>
+          </label>
+          <button id="btnAddSite" type="button">Add Site</button>
+          <button id="btnRemoveSite" type="button" class="secondary">Remove Site</button>
+        </div>
+      </article>
+
+      <article class="card" id="siteSummaryCard">
+        <header>
+          <h3>Site Summary</h3>
+        </header>
+
+        <div class="energy-site-summary-compact">
+          <div class="energy-summary-item">
+            <strong>Site Name</strong>
+            <div id="siteNameValue" class="mono muted">—</div>
+          </div>
+
+          <div class="energy-summary-item">
+            <strong>Site Timezone</strong>
+            <div id="siteTimezoneValue" class="mono muted">—</div>
+          </div>
+
+          <div class="energy-summary-item">
+            <strong>Activation Start Date</strong>
+            <div id="siteActivationStartValue" class="mono muted">—</div>
+          </div>
+
+          <div class="energy-summary-item">
+            <strong>Last Downloaded Through</strong>
+            <div id="siteLastDownloadedValue" class="mono muted">—</div>
+          </div>
+        </div>
+      </article>
+
+      <div class="energy-ledger-grid">
+        <article class="card energy-ledger-card">
+          <div class="energy-ledger-label">Owed KWH</div>
+          <div class="energy-ledger-value" id="owedKwhValue">—</div>
+        </article>
+
+        <article class="card energy-ledger-card">
+          <div class="energy-ledger-label">Issued KWH</div>
+          <div class="energy-ledger-value" id="issuedKwhValue">—</div>
+        </article>
+      </div>
+
+      <article class="card">
+        <header>
+          <h3>Actions</h3>
+        </header>
+
+        <div class="energy-actions-row">
+          <button id="btnDownloadEnergy" type="button">Download</button>
+          <button id="btnPreviewIssue" type="button" class="secondary">Preview Issue</button>
+          <button id="btnIssueViaCW" type="button">Issue via CW</button>
+
+          <div class="energy-status-pill" id="energyStatusPill" aria-live="polite">
+            <span class="energy-status-dot" id="energyStatusDot"></span>
+            <span id="energyStatusText">Select a site to begin.</span>
+          </div>
+        </div>
+      </article>
+
+      <div class="energy-lower-grid">
+        <article class="card energy-preview-card" id="issuePreviewCard">
+          <header>
+            <h3>Issue Preview</h3>
+          </header>
+
+          <div class="energy-preview-shell">
+            <div id="issuePreviewEmpty" class="energy-preview-empty muted">
+              Preview Issue to review the selected site, token, amount, and resulting owed/issued changes before issuing through the active wallet.
+            </div>
+
+            <div id="issuePreviewBody" class="energy-preview-grid" hidden></div>
+          </div>
+        </article>
+
+        <article class="card">
+          <header>
+            <h3>Energy Token</h3>
+          </header>
+
+          <div class="energy-field-stack">
+            <label>
+              Locked Energy Token
+              <select id="energyTokenSelect" name="energyTokenSelect">
+                <option value="">Select an energy token…</option>
+              </select>
+            </label>
+          </div>
+
+          <p class="muted" style="margin:0 0 12px 0;">
+            Only energy-locked CAs that are issuable by the active wallet should appear here.
+          </p>
+
+          <p class="muted" style="margin:0;">
+            Setup and site details live below the ledger so day-to-day KWH status stays visible near the top of the page.
+          </p>
+        </article>
+      </div>
+
+      <article class="card">
+        <header>
+          <h3>Instructions</h3>
+        </header>
+
+        <div class="energy-field-stack">
+          <p class="muted" style="margin:0;">
+            Add each Hoymiles site once, choose the locked Energy token for the active wallet, and use Download to bring production history into the ledger.
+          </p>
+          <p class="muted" style="margin:0;">
+            Download should only run once per day. Preview Issue should prepare the manual issuance flow, and Issue via CW should only complete after the wallet is unlocked and the staged issue succeeds.
+          </p>
+        </div>
+      </article>
+    </section>
+
+    <dialog id="addSiteDialog" style="border:none; padding:0; background:transparent;">
+      <article class="card" style="min-width:min(32rem, 92vw); margin:0; background:linear-gradient(90deg,var(--td-skin-primary) 0%, var(--td-skin-bg-2) 100%); color:var(--td-skin-white); border:1px solid var(--td-skin-primary-hover); border-radius:24px; box-shadow:0 0 28px rgba(var(--td-skin-primary-hover-rgb), 0.28);">
+        <header style="border-bottom:1px solid rgba(var(--td-skin-white-rgb), 0.12); margin-bottom:16px;">
+          <h3 style="margin:0; color:var(--td-skin-white);">Add Site</h3>
+          <p class="muted" style="margin:10px 0 0 0;">Enter the site details to connect Hoymiles production history to your Energy ledger.</p>
+        </header>
+
+        <div class="energy-field-stack">
+          <label style="display:block; color:var(--td-skin-white);">
+            Site ID (sid)
+            <input id="siteSidInput" name="siteSidInput" placeholder="e.g. 123456789" autocomplete="off" style="margin-top:8px; background:rgba(var(--td-skin-panel-rgb), 0.92); color:var(--td-skin-white); border:1px solid var(--td-skin-primary-hover);">
+          </label>
+
+          <label style="display:block; color:var(--td-skin-white);">
+            Site Name
+            <input id="siteNameInput" name="siteNameInput" placeholder="Friendly site name" autocomplete="off" style="margin-top:8px; background:rgba(var(--td-skin-panel-rgb), 0.92); color:var(--td-skin-white); border:1px solid var(--td-skin-primary-hover);">
+          </label>
+
+          <label style="display:block; color:var(--td-skin-white);">
+            Activation Start Date
+            <input id="siteActivationStartInput" name="siteActivationStartInput" type="date" style="margin-top:8px; background:rgba(var(--td-skin-panel-rgb), 0.92); color:var(--td-skin-white); border:1px solid var(--td-skin-primary-hover);">
+          </label>
+        </div>
+
+        <footer style="display:flex; gap:10px; justify-content:flex-end; margin-top:16px; border-top:1px solid rgba(var(--td-skin-white-rgb), 0.12); padding-top:16px;">
+          <button id="btnCancelAddSite" type="button" class="secondary">Cancel</button>
+          <button id="btnSaveSite" type="button">Save Site</button>
+        </footer>
+      </article>
+    </dialog>
+
+    <script src="/static/js/network_shared.js"></script>
+    <script src="/static/js/logout_shared.js"></script>
+    <script>
+      window.TD_SPONSORED_OFFERS_PAGE_PLACEMENT = 'energy_page';
+    </script>
+    <script src="/static/js/sponsored_offers_shared.js" defer></script>
+    <script type="module" src="/static/js/energy-ui.js"></script>
+        <footer style="
+      margin-top: 48px;
+      background: var(--td-skin-black);
+      color: var(--td-skin-white);
+      padding: 22px 16px;
+      border-top: 1px solid rgba(var(--td-skin-white-rgb), 0.12);
+    ">
+      <div style="
+        max-width: 1100px;
+        margin: 0 auto;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 18px 28px;
+        align-items: center;
+        justify-content: space-between;
+      ">
+        <div style="line-height: 1.35;">
+          <div style="font-weight: 700; letter-spacing: 0.06em;">
+            TOKEN DEPOT CORP.
+          </div>
+          <div style="opacity: 0.9;">
+            Statesville, NC 28625
+          </div>
+          <div style="opacity: 0.9;">
+            Contact Us: <a href="tel:+17046037347" style="color:var(--td-skin-white); text-decoration: underline;">(704) 603-7347</a>
+          </div>
+        </div>
+
+        <div style="text-align: right; line-height: 1.35;">
+          <div style="opacity: 0.9;">
+            © <span id="td-footer-year">2026</span> Token Depot Corp. All rights reserved.
+          </div>
+          <div style="opacity: 0.75; font-size: 0.92em;">
+            Secure digital asset operations • Compliance-first workflows
+          </div>
+        </div>
+      </div>
+
+      <script>
+        // Safe, tiny enhancement: keep the year current
+        (function () {
+          var el = document.getElementById("td-footer-year");
+          if (el) el.textContent = String(new Date().getFullYear());
+        })();
+      </script>
+    </footer>
+  </main>
+</body>
+</html>

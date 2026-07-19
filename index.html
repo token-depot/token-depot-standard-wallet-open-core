@@ -1,0 +1,748 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>OMA Wallet — Kaspa Toccata, Covenants++ and Token Utility</title>
+  <link rel="icon" href="/static/icon/favicon.ico">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+  <link rel="stylesheet" href="/static/css/style.css">
+  <style>
+    :root {
+      --td-page-max: 1180px;
+    }
+
+    body {
+      --td-page-panel: rgba(var(--td-home-panel-rgb), 0.90);
+      --td-page-panel-strong: rgba(var(--td-home-panel-strong-rgb), 0.96);
+      --td-page-panel-soft: rgba(var(--td-skin-panel-rgb), 0.72);
+      --td-page-border: rgba(var(--td-skin-border-rgb), 0.36);
+      --td-page-border-strong: rgba(var(--td-skin-border-rgb), 0.62);
+      --td-page-glow: 0 0 0 1px rgba(var(--td-skin-border-rgb), 0.24), 0 0 26px rgba(var(--td-skin-primary-glow-rgb), 0.30), 0 22px 62px rgba(var(--td-skin-black-rgb), 0.34);
+      --td-page-glow-warm: 0 0 0 1px rgba(var(--td-skin-warning-rgb), 0.24), 0 0 28px rgba(var(--td-skin-warning-rgb), 0.25), 0 22px 62px rgba(var(--td-skin-black-rgb), 0.34);
+      --td-page-soft: rgba(var(--td-home-text-soft-rgb), 0.88);
+    }
+
+    html,
+    body {
+      min-height: 100%;
+      background:
+        radial-gradient(circle at top left, rgba(var(--td-skin-primary-glow-rgb), 0.18), transparent 34%),
+        radial-gradient(circle at 82% 18%, rgba(var(--td-skin-warning-rgb), 0.10), transparent 28%),
+        linear-gradient(180deg, var(--td-skin-bg) 0%, var(--td-skin-bg-2) 100%);
+      color: var(--td-skin-text);
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background:
+        linear-gradient(135deg, rgba(var(--td-skin-primary-rgb), 0.06), transparent 42%),
+        repeating-linear-gradient(90deg, rgba(var(--td-skin-border-rgb), 0.05) 0, rgba(var(--td-skin-border-rgb), 0.05) 1px, transparent 1px, transparent 72px);
+      opacity: 0.70;
+    }
+
+    body > * {
+      position: relative;
+      z-index: 1;
+    }
+
+    main.container {
+      max-width: var(--td-page-max);
+      padding-top: 1rem;
+      padding-bottom: 4rem;
+    }
+
+    .topnav {
+      margin-bottom: 1.2rem;
+      padding: 0.7rem 1rem;
+      border: 1px solid var(--td-page-border);
+      border-radius: 18px;
+      background: rgba(var(--td-skin-panel-rgb), 0.82);
+      box-shadow: var(--td-page-glow);
+      backdrop-filter: blur(14px);
+    }
+
+    .brand-logo {
+      display: block;
+      height: 60px;
+      width: auto;
+      filter: drop-shadow(0 0 12px rgba(var(--td-skin-primary-glow-rgb), 0.30));
+    }
+
+    .topnav a:not([role="button"]) {
+      color: var(--td-skin-link);
+    }
+
+    .secondary-btn {
+      color: var(--td-skin-button-text);
+      border-color: var(--td-page-border-strong);
+      background: rgba(var(--td-skin-panel-rgb), 0.62);
+    }
+
+    .hero {
+      overflow: hidden;
+      border: 1px solid var(--td-page-border-strong);
+      border-radius: 28px;
+      padding: clamp(1.25rem, 3vw, 2.2rem);
+      margin-bottom: 1.25rem;
+      background:
+        radial-gradient(circle at 12% 10%, rgba(var(--td-skin-warning-rgb), 0.16), transparent 28%),
+        radial-gradient(circle at 78% 8%, rgba(var(--td-skin-primary-glow-rgb), 0.26), transparent 34%),
+        linear-gradient(135deg, var(--td-page-panel-strong), var(--td-page-panel-soft));
+      box-shadow: var(--td-page-glow);
+    }
+
+    .hero-grid,
+    .split-grid,
+    .pricing-grid,
+    .tool-grid,
+    .proof-grid,
+    .steps-grid,
+    .market-grid,
+    .workflow-steps {
+      display: grid;
+      gap: 1rem;
+    }
+
+    .hero-grid {
+      grid-template-columns: minmax(0, 1.08fr) minmax(320px, 0.92fr);
+      align-items: stretch;
+    }
+
+    .split-grid {
+      grid-template-columns: minmax(0, 0.96fr) minmax(0, 1.04fr);
+      align-items: start;
+    }
+
+    .pricing-grid,
+    .steps-grid,
+    .proof-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .tool-grid,
+    .market-grid,
+    .workflow-steps {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .eyebrow,
+    .pill,
+    .kicker,
+    .tag {
+      color: var(--td-skin-primary);
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+      padding: 0.42rem 0.78rem;
+      border: 1px solid var(--td-page-border);
+      border-radius: 999px;
+      background: rgba(var(--td-skin-panel-rgb), 0.62);
+      font-size: 0.84rem;
+    }
+
+    .hero h1 {
+      max-width: 12ch;
+      margin-bottom: 1rem;
+      color: var(--td-skin-text-strong);
+      font-size: clamp(2.45rem, 5.2vw, 4.8rem);
+      line-height: 0.98;
+    }
+
+    .lead,
+    .section-lead,
+    .card p,
+    .tool-card p,
+    .price-card p,
+    .proof-card p,
+    .step-card p,
+    .market-card p,
+    footer p,
+    footer div {
+      color: var(--td-page-soft);
+    }
+
+    .lead {
+      max-width: 66ch;
+      margin-bottom: 1.15rem;
+      font-size: 1.12rem;
+    }
+
+    .cta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      align-items: center;
+      margin-top: 1rem;
+    }
+
+    .hero-points {
+      display: grid;
+      gap: 0.62rem;
+      max-width: 66ch;
+      margin: 1rem 0 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .hero-points li {
+      display: flex;
+      gap: 0.68rem;
+      align-items: flex-start;
+      padding: 0.72rem 0.82rem;
+      border: 1px solid rgba(var(--td-skin-border-rgb), 0.22);
+      border-radius: 16px;
+      background: rgba(var(--td-skin-panel-rgb), 0.42);
+      color: var(--td-page-soft);
+    }
+
+    .hero-points li::before {
+      content: "✦";
+      color: var(--td-skin-gold);
+      flex: 0 0 auto;
+    }
+
+    .signal-panel,
+    .section-card,
+    .price-card,
+    .tool-card,
+    .proof-card,
+    .step-card,
+    .market-card,
+    .mini-panel,
+    footer {
+      border: 1px solid var(--td-page-border);
+      background: linear-gradient(135deg, var(--td-page-panel), rgba(var(--td-skin-panel-rgb), 0.70));
+      box-shadow: var(--td-page-glow);
+    }
+
+    .signal-panel {
+      display: grid;
+      gap: 0.85rem;
+      align-content: stretch;
+      padding: 1rem;
+      border-radius: 24px;
+    }
+
+    .signal-card,
+    .mini-panel {
+      padding: 1rem;
+      border: 1px solid rgba(var(--td-skin-border-rgb), 0.26);
+      border-radius: 20px;
+      background: rgba(var(--td-skin-panel-rgb), 0.52);
+    }
+
+    .signal-card strong,
+    .price,
+    .proof-card strong,
+    .step-card strong,
+    .market-card strong {
+      display: block;
+      color: var(--td-skin-text-strong);
+    }
+
+    .signal-card p {
+      margin: 0.32rem 0 0;
+      color: var(--td-page-soft);
+    }
+
+    .tool-status {
+      display: inline-flex;
+      align-items: center;
+      width: fit-content;
+      margin-bottom: 0.52rem;
+      padding: 0.22rem 0.55rem;
+      border: 1px solid rgba(var(--td-skin-warning-rgb), 0.36);
+      border-radius: 999px;
+      color: var(--td-skin-gold);
+      background: rgba(var(--td-skin-warning-rgb), 0.10);
+      font-size: 0.78rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .section-card,
+    footer {
+      margin-top: 1.25rem;
+      padding: clamp(1.12rem, 2.4vw, 1.75rem);
+      border-radius: 24px;
+    }
+
+    .section-card h2,
+    .question-banner h2,
+    .cta-panel h2 {
+      color: var(--td-skin-text-strong);
+      font-size: clamp(1.75rem, 3.2vw, 2.8rem);
+      line-height: 1.05;
+    }
+
+    .section-lead {
+      max-width: 82ch;
+      font-size: 1.03rem;
+    }
+
+    .price-card,
+    .tool-card,
+    .proof-card,
+    .step-card,
+    .market-card {
+      padding: 1rem;
+      border-radius: 20px;
+    }
+
+    .price-card.featured {
+      border-color: var(--td-page-border-strong);
+      background:
+        radial-gradient(circle at top left, rgba(var(--td-skin-primary-glow-rgb), 0.18), transparent 34%),
+        linear-gradient(135deg, var(--td-page-panel-strong), rgba(var(--td-skin-panel-rgb), 0.74));
+    }
+
+    .price {
+      margin: 0.25rem 0 0.5rem;
+      font-size: clamp(1.55rem, 3vw, 2.35rem);
+    }
+
+    .price span {
+      color: var(--td-page-soft);
+      font-size: 0.55em;
+      font-weight: 600;
+    }
+
+    .price-card ul,
+    .tool-card ul {
+      margin: 0;
+      padding-left: 1.05rem;
+      color: var(--td-page-soft);
+    }
+
+    .question-banner {
+      margin-top: 1.25rem;
+      padding: clamp(1.12rem, 2.4vw, 1.9rem);
+      border: 1px solid rgba(var(--td-skin-warning-rgb), 0.34);
+      border-radius: 24px;
+      background:
+        radial-gradient(circle at 14% 0%, rgba(var(--td-skin-warning-rgb), 0.18), transparent 34%),
+        linear-gradient(135deg, rgba(var(--td-home-panel-strong-rgb), 0.90), rgba(var(--td-skin-panel-rgb), 0.70));
+      box-shadow: var(--td-page-glow-warm);
+    }
+
+    .pill-row,
+    .badge-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.55rem;
+      margin-top: 1rem;
+    }
+
+    .pill,
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.34rem 0.62rem;
+      border: 1px solid var(--td-page-border);
+      border-radius: 999px;
+      background: rgba(var(--td-skin-panel-rgb), 0.48);
+      font-size: 0.78rem;
+    }
+
+    .tag.gold,
+    .kicker.gold {
+      color: var(--td-skin-gold);
+    }
+
+    .tag.green,
+    .kicker.green {
+      color: var(--td-skin-success);
+    }
+
+    .tool-card h3,
+    .step-card h3,
+    .market-card h3 {
+      color: var(--td-skin-text-strong);
+    }
+
+    .teaser-card {
+      min-height: 100%;
+    }
+
+    .flow-preview {
+      overflow: hidden;
+    }
+
+    .flow-showcase {
+      display: grid;
+      gap: 1.1rem;
+      margin-top: 1.1rem;
+    }
+
+    .flow-figure {
+      margin: 0;
+      padding: clamp(0.32rem, 0.9vw, 0.55rem);
+      border: 1px solid var(--td-page-border-strong);
+      border-radius: 24px;
+      background:
+        radial-gradient(circle at 12% 8%, rgba(var(--td-skin-primary-glow-rgb), 0.16), transparent 28%),
+        linear-gradient(135deg, rgba(var(--td-skin-panel-rgb), 0.60), rgba(var(--td-skin-panel-rgb), 0.30));
+      box-shadow: var(--td-page-glow);
+    }
+
+    .flow-figure img {
+      display: block;
+      width: 100%;
+      height: auto;
+      border-radius: 18px;
+    }
+
+    .mystery-copy {
+      font-size: 1.07rem;
+      color: var(--td-skin-text-strong);
+    }
+
+    .cta-panel {
+      text-align: center;
+      background:
+        radial-gradient(circle at top, rgba(var(--td-skin-primary-glow-rgb), 0.20), transparent 38%),
+        linear-gradient(135deg, var(--td-page-panel-strong), rgba(var(--td-skin-panel-rgb), 0.72));
+    }
+
+    .cta-panel .section-lead {
+      margin-inline: auto;
+    }
+
+    .cta-panel .cta-row {
+      justify-content: center;
+      margin-bottom: 0;
+    }
+
+    footer {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem 1.5rem;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .footer-brand {
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      color: var(--td-skin-text-strong);
+    }
+
+    .footer-right {
+      text-align: right;
+      max-width: 560px;
+    }
+
+    footer a {
+      color: var(--td-skin-link);
+      text-decoration: underline;
+    }
+
+    @media (max-width: 940px) {
+      .hero-grid,
+      .split-grid,
+      .pricing-grid,
+      .proof-grid,
+      .steps-grid,
+      .tool-grid,
+      .market-grid,
+      .workflow-steps {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .topnav {
+        flex-wrap: wrap;
+        gap: 0.75rem;
+      }
+
+      .topnav > ul:first-child,
+      .topnav > ul:nth-of-type(2) {
+        width: 100%;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+
+      .brand-logo {
+        height: 52px;
+      }
+
+      .footer-right {
+        text-align: left;
+      }
+    }
+  </style>
+</head>
+<body data-skin="classic_teal">
+  <main class="container">
+    <nav class="topnav" aria-label="Primary">
+      <ul>
+        <li>
+          <a href="/index.html" aria-label="Token Depot home">
+            <img class="brand-logo" src="/static/icon/logo.png" alt="Token Depot logo">
+          </a>
+        </li>
+      </ul>
+      <ul>
+        <li><a href="/login.html" role="button">Login</a></li>
+        <li><a href="/login.html#request" role="button">Try it for Free</a></li>
+        <li><a href="https://calendly.com/ncsolarelectric/token-depot-call" target="_blank" rel="noopener noreferrer" role="button" class="secondary-btn">Book a Demo</a></li>
+      </ul>
+    </nav>
+
+    <section class="hero" aria-label="OMA Wallet hero">
+      <div class="hero-grid">
+        <div>
+          <div class="eyebrow">Free OMA Wallet • Token Utility • Toccata-era Tools</div>
+          <h1>Create the wallet. Unlock the tools.</h1>
+          <p class="lead">
+            OMA is the Token Depot wallet for people who want Kaspa to do more than sit in an address. Start with a free wallet, use practical KRC-20 token tools, explore rewards and swaps, and use the next layer of wallet-controlled utility as Kaspa Toccata and Covenants++ open new doors.
+          </p>
+          <div class="cta-row">
+            <a href="/login.html#request" role="button">Create Free OMA Wallet</a>
+            <a href="/login.html" role="button" class="secondary-btn">Login</a>
+            <a href="https://calendly.com/ncsolarelectric/token-depot-call" target="_blank" rel="noopener noreferrer" role="button" class="secondary-btn">Talk Through PRO</a>
+          </div>
+          <ul class="hero-points">
+            <li><strong>OMA is free to sign up and use:</strong> create a wallet, manage KAS and tokens, and begin learning the Token Depot toolset.</li>
+            <li><strong>OMA PLUS is 2,000 KAS per year:</strong> upgrade for a cleaner everyday wallet experience with no ads and 16 colorful skins.</li>
+            <li><strong>OMA PRO is 6,000 KAS per year:</strong> unlock the serious tool tier, including all available OMA tools, Covenant Tools, and KCC20 / OMA L1 Token workflows on mainnet.</li>
+          </ul>
+        </div>
+        <aside class="signal-panel" aria-label="Covenant and token flow signal panel">
+          <div class="signal-card teaser-card">
+            <span class="tool-status">Live in OMA PRO</span>
+            <strong>Covenant Tools</strong>
+            <p>Create and inspect Programmable KAS workflows: Protect KAS, Owner Release, Absolute Time Lock, Relative Sequence Lock, Allowed Destination, Immediate Recovery, Escrow / Refund, Owner Release + Time Lock + Allowed Destination, and Owner Release + Delayed Recovery.</p>
+          </div>
+          <div class="signal-card teaser-card">
+            <span class="tool-status">Live token tools</span>
+            <strong>KCC20 / OMA L1 Tokens</strong>
+            <p>Deploy, import, issue, transfer, review holdings, burn, reconcile supply, track wallet-visible records, and prepare business utility through guided token flows.</p>
+          </div>
+          <div class="signal-card teaser-card">
+            <span class="tool-status">Guided workflow</span>
+            <strong>No SilverScript requirement</strong>
+            <p>Builders and businesses choose the workflow, inspect the proof, sign locally, and understand the result without starting from raw contract code.</p>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="section-card" aria-label="OMA subscription options">
+      <h2>Choose the OMA level that matches how deep you want to go.</h2>
+      <p class="section-lead">
+        OMA starts as a free wallet and grows into a tool system. Use the free tier to get comfortable, step into OMA PLUS for the polished wallet experience, or move to OMA PRO when you want every available tool and the mainnet path for Covenant-era features.
+      </p>
+      <div class="pricing-grid">
+        <article class="price-card">
+          <div class="kicker">OMA</div>
+          <strong class="price">Free <span>to use</span></strong>
+          <p>The starting point for Kaspa users, shoppers, sellers, and token-curious builders who want a working OMA wallet before they upgrade.</p>
+          <ul>
+            <li>Create and use an OMA wallet.</li>
+            <li>Manage KAS and supported KRC-20 tokens.</li>
+            <li>Includes ads and one wallet skin.</li>
+          </ul>
+        </article>
+        <article class="price-card">
+          <div class="kicker">OMA PLUS</div>
+          <strong class="price">2,000 KAS <span>/ year</span></strong>
+          <p>For users who want OMA to feel like a premium everyday wallet, with personalization and fewer interruptions.</p>
+          <ul>
+            <li>12 months of PLUS access.</li>
+            <li>1-month grace period.</li>
+            <li>No ad interruptions and 16 wallet skins.</li>
+          </ul>
+        </article>
+        <article class="price-card featured">
+          <div class="kicker">OMA PRO</div>
+          <strong class="price">6,000 KAS <span>/ year</span></strong>
+          <p>For serious Kaspa users, token issuers, sellers, and builders who want the complete OMA tool set.</p>
+          <ul>
+            <li>12 months of PRO access plus 1-month grace period.</li>
+            <li>Mainnet Deploy, Issue, Burn, swap, and token utility tools.</li>
+            <li>Includes Covenant Tools and KCC20 / OMA L1 Token workflows on mainnet.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section class="question-banner" aria-label="Toccata and Covenants++ teaser">
+      <h2>Toccata makes the next question impossible to ignore.</h2>
+      <p class="section-lead">
+        With Kaspa supporting deeper layer-one policy, the wallet becomes more than a send button. OMA gives people a guided way to create, inspect, sign, track, and release Covenants++ workflows without staring at a blank script editor.
+      </p>
+      <div class="pill-row">
+        <span class="pill">Toccata</span>
+        <span class="pill">Covenants++</span>
+        <span class="pill">Programmable KAS</span>
+        <span class="pill">KCC20 / OMA L1 Tokens</span>
+        <span class="pill">No SilverScript required</span>
+      </div>
+    </section>
+
+    <section class="section-card flow-preview" aria-label="Covenant Tools and token flow preview">
+      <h2>Covenant Tools and KCC20 / OMA L1 Token flows.</h2>
+      <p class="section-lead">
+        These two guided flows show the OMA PRO tool surface: Covenant Creation on one side, and KCC20 / OMA L1 Token Creation on the other.
+      </p>
+      <div class="flow-showcase">
+        <figure class="flow-figure">
+          <img src="/static/images/covenant_tools_flow_for_oma_users.png" alt="Covenant Tools flow showing choose a covenant, set the rules, build, inspect, sign and submit, then track and release, plus the available Covenant Tools list." loading="lazy">
+        </figure>
+        <figure class="flow-figure">
+          <img src="/static/images/token_creation_flow_and_tools_guide.png" alt="KCC20 and OMA L1 Token flow showing define the token, deploy the profile, issue supply, transfer to holders, review and manage, then burn and reconcile, plus the available token tools list." loading="lazy">
+        </figure>
+      </div>
+    </section>
+
+    <section class="section-card" aria-label="What OMA does today">
+      <h2>What OMA already brings to the table.</h2>
+      <p class="section-lead">
+        OMA is the wallet layer Token Depot uses to make Kaspa utility practical: token operations, wallet personalization, offers, swaps, coupon broadcasting, AMEKAS preparation, and enterprise workflows that grow into node-backed business tools.
+      </p>
+      <div class="proof-grid">
+        <article class="proof-card">
+          <strong>Wallet-first token tools</strong>
+          <p>Deploy, import, issue, burn, manage, and review token activity from a wallet interface instead of scattered scripts.</p>
+        </article>
+        <article class="proof-card">
+          <strong>Direct and Open Swaps</strong>
+          <p>Use OMA workflows for peer-to-peer token activity, reviewable offers, and safer user-controlled signing.</p>
+        </article>
+        <article class="proof-card">
+          <strong>Coupon Broadcasting</strong>
+          <p>Turn tokens into discounts, rewards, access rights, memberships, and seller campaigns.</p>
+        </article>
+        <article class="proof-card">
+          <strong>Wallet skins</strong>
+          <p>OMA can look like a product instead of an admin panel, especially for users who upgrade into PLUS.</p>
+        </article>
+        <article class="proof-card">
+          <strong>Local unlock posture</strong>
+          <p>OMA is built around local wallet unlock and signing paths, not server-side private-key custody claims.</p>
+        </article>
+        <article class="proof-card">
+          <strong>Analyzer-guided review</strong>
+          <p>Token and wallet activity stays understandable before the user signs something important.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section-card" aria-label="Business runway">
+      <div class="split-grid">
+        <div>
+          <h2>From free wallet to token-powered business.</h2>
+          <p class="section-lead">
+            Token Depot starts with OMA wallets and practical token tools. The runway leads into seller campaigns, entitlement coupons, AMEKAS marketplace participation, measured-output records, and enterprise subscription workflows that can monetize a Kaspa Node.
+          </p>
+          <div class="badge-row">
+            <span class="tag">OMA Wallet</span>
+            <span class="tag gold">Coupon Broadcasting</span>
+            <span class="tag green">AMEKAS utility</span>
+            <span class="tag">Oracle Node path</span>
+          </div>
+        </div>
+        <div class="mini-panel">
+          <p class="mystery-copy">
+            The free wallet gets users in the door. PLUS makes the wallet feel personal. PRO is where the heavy tools live: mainnet token operations, Covenant Tools, KCC20 / OMA L1 Token workflows, and a serious look at what Toccata-era Kaspa utility becomes in practice.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section-card" aria-label="Commerce utility">
+      <h2>Coupons, rewards, swaps, and marketplace demand.</h2>
+      <p class="section-lead">
+        OMA gives businesses a practical way to turn token campaigns into wallet activity as AMEKAS becomes the full marketplace surface. Sellers prepare buyers with wallet-held reasons to return: discounts, rewards, memberships, access passes, store credits, and Kaspa checkout utility.
+      </p>
+      <div class="market-grid">
+        <article class="market-card">
+          <h3>Entitlement coupons</h3>
+          <p>Issue token-based discounts, rewards, subscriber benefits, product access, or customer perks.</p>
+        </article>
+        <article class="market-card">
+          <h3>Seller campaigns</h3>
+          <p>Build demand before the full marketplace by giving shoppers wallet-held utility they can understand.</p>
+        </article>
+        <article class="market-card">
+          <h3>Swaps and offers</h3>
+          <p>Use Direct Swaps and Open Swaps to let users review token offers through familiar OMA flows.</p>
+        </article>
+        <article class="market-card">
+          <h3>Measured output</h3>
+          <p>Energy, inventory, usage, throughput, memberships, and custom business records can become wallet-connected activity.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section-card" aria-label="No programming requirement">
+      <h2>The goal is not to turn every user into a covenant programmer.</h2>
+      <p class="section-lead">
+        SilverScript matters, but OMA PRO is for people who want to use the result. A seller, token issuer, curious Kaspa holder, or business operator can choose an action, review the proof, sign locally, and understand the outcome without learning a contract language first.
+      </p>
+      <div class="steps-grid">
+        <article class="step-card">
+          <div class="kicker">1. Choose</div>
+          <h3>Select the workflow</h3>
+          <p>Wallet, token, coupon, swap, KCC20, or Covenant Tools workflow.</p>
+        </article>
+        <article class="step-card">
+          <div class="kicker">2. Review</div>
+          <h3>Review the proof</h3>
+          <p>OMA shows the route, proof packet, addresses, supply, and safety state before signing.</p>
+        </article>
+        <article class="step-card">
+          <div class="kicker">3. Sign</div>
+          <h3>Act from the wallet</h3>
+          <p>The user signs intentionally, with the server kept out of the private-key role.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section-card cta-panel" aria-label="Call to action">
+      <h2>Start free. Upgrade when you want the deeper tools.</h2>
+      <p class="section-lead">
+        Create a free OMA wallet today. Move to OMA PLUS for 2,000 KAS per year when you want the polished wallet experience. Move to OMA PRO for 6,000 KAS per year when you want the complete OMA tool set, including mainnet Covenant Tools and KCC20 / OMA L1 Token workflows.
+      </p>
+      <div class="cta-row">
+        <a href="/login.html#request" role="button">Try it for Free</a>
+        <a href="https://calendly.com/ncsolarelectric/token-depot-call" target="_blank" rel="noopener noreferrer" role="button" class="secondary-btn">Book a Demo</a>
+        <a href="/login.html" role="button" class="secondary-btn">Login</a>
+      </div>
+    </section>
+
+    <footer>
+      <div>
+        <div class="footer-brand">TOKEN DEPOT CORP.</div>
+        <div>Statesville, NC 28625</div>
+        <div>Contact Us: <a href="https://t.me/Token_Depot" target="_blank" rel="noopener noreferrer">Telegram @Token_Depot</a></div>
+      </div>
+      <div class="footer-right">
+        <div>© <span id="td-footer-year">2026</span> Token Depot Corp. All rights reserved.</div>
+        <p>OMA Wallet, KCC20 / OMA L1 Tokens, Programmable KAS, Covenants++, and Token Depot tools on Kaspa.</p>
+      </div>
+    </footer>
+  </main>
+
+  <script>
+    (function () {
+      var el = document.getElementById("td-footer-year");
+      if (el) el.textContent = String(new Date().getFullYear());
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,345 @@
+{
+  "descriptor_kind": "kcc20_open_icc_regulated_holder_descriptor_preview_v1",
+  "descriptor_version": 1,
+  "application_status": "preview_only_interoperability_artifact",
+  "preview_only": true,
+  "final_byte_encoding_selected": false,
+  "final_common_state_field_offsets_selected": false,
+  "final_extension_preimage_byte_encoding_selected": false,
+  "source_anchor": {
+    "repository": "Compliance_Wallet",
+    "source_file": "server/src/server.ts",
+    "stage_3e1_source_sha256": "f818ad600580c9e9379affb1376692ac74dff51620a893b61faba69416b95f4c",
+    "source_function": "omaBuildKcc20OpenIccHolderExtensionCommitmentPreview",
+    "commitment_behavior_match_required": true
+  },
+  "canonicalization": {
+    "canonicalization_id": "oma_recursive_key_sorted_json_utf8_v1",
+    "rules": [
+      "Object keys are sorted lexicographically at every nesting level before serialization.",
+      "Array element order is preserved.",
+      "Big integers are represented as base-10 strings before serialization.",
+      "Undefined application values normalize to JSON null; descriptor vectors contain no undefined values.",
+      "Serialization is compact JSON with no insignificant whitespace.",
+      "The serialized canonical JSON text is encoded as UTF-8.",
+      "SHA-256 output is lowercase 64-character hexadecimal."
+    ],
+    "commitment_algorithm": "sha256",
+    "digest_size_bytes": 32
+  },
+  "owner_identifier_commitment": {
+    "commitment_domain": "kcc20_open_icc_owner_identifier_preview_v1",
+    "input_schema": {
+      "commitment_domain": {
+        "type": "string",
+        "required": true
+      },
+      "identifier_type": {
+        "type": "string",
+        "required": true,
+        "current_value": "address"
+      },
+      "identifier": {
+        "type": "nonempty_string",
+        "required": true
+      }
+    },
+    "output_encoding": "32_byte_sha256_hex_preview",
+    "final_owner_identifier_encoding_selected": false
+  },
+  "common_state_candidate": {
+    "schema_kind": "kcc20_open_icc_common_state_preview_v1",
+    "purpose": "Stable externally inspectable holder state plus an opaque implementation-owned extension commitment.",
+    "fields": [
+      {
+        "name": "schema_kind",
+        "type": "string",
+        "required": true,
+        "final_byte_encoding_selected": false
+      },
+      {
+        "name": "owner_identifier",
+        "type": "lowercase_hex_64",
+        "required": true,
+        "candidate_size_bytes": 32,
+        "final_byte_encoding_selected": false
+      },
+      {
+        "name": "owner_identifier_encoding",
+        "type": "string",
+        "required": true,
+        "current_value": "32_byte_sha256_hex_preview",
+        "final_byte_encoding_selected": false
+      },
+      {
+        "name": "identifier_type",
+        "type": "string",
+        "required": true,
+        "current_value": "address",
+        "final_numeric_tag_selected": false
+      },
+      {
+        "name": "amount_raw",
+        "type": "unsigned_base10_integer_string",
+        "required": true,
+        "final_integer_width_selected": false,
+        "final_endianness_selected": false
+      },
+      {
+        "name": "extension_digest",
+        "type": "lowercase_hex_64",
+        "required": true,
+        "candidate_size_bytes": 32,
+        "final_byte_encoding_selected": false
+      },
+      {
+        "name": "extension_digest_encoding",
+        "type": "string",
+        "required": true,
+        "current_value": "32_byte_sha256_hex_preview",
+        "final_byte_encoding_selected": false
+      }
+    ]
+  },
+  "regulated_holder_extension_preimage": {
+    "schema_kind": "kcc20_regulated_extension_preimage_preview_v1",
+    "commitment_domain": "kcc20_regulated_extension_commitment_preview_v1",
+    "role": "holder",
+    "fields": [
+      {
+        "name": "commitment_domain",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "schema_kind",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "schema_version",
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 1,
+        "required": true
+      },
+      {
+        "name": "role",
+        "type": "string",
+        "allowed_values": [
+          "holder"
+        ],
+        "required": true
+      },
+      {
+        "name": "rg",
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 1,
+        "required": true
+      },
+      {
+        "name": "rv",
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 1,
+        "required": true
+      },
+      {
+        "name": "pr",
+        "type": "lowercase_hex_64",
+        "required": true,
+        "semantic": "policy_registry_covenant_id"
+      },
+      {
+        "name": "pe",
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 4294967295,
+        "required": true,
+        "semantic": "policy_epoch"
+      },
+      {
+        "name": "fc",
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 63,
+        "required": true,
+        "semantic": "control_flags"
+      }
+    ],
+    "control_flag_bits": {
+      "1": "rulebook_transfer_required",
+      "2": "freeze_supported",
+      "4": "seize_supported",
+      "8": "forced_burn_supported",
+      "16": "recipient_allowlist_enabled",
+      "32": "recipient_blacklist_enabled"
+    },
+    "opaque_to_generic_external_covenant": true,
+    "validated_by_concrete_asset_covenant": true,
+    "final_byte_encoding_selected": false
+  },
+  "conformance_vectors": {
+    "base_vector": {
+      "vector_id": "kcc20_open_icc_regulated_holder_base_preview_v1",
+      "owner_identifier_source": "kaspatest:qrv4hypvyfku6zu4pu3navk5g94seedlltsng86nxxargj257lhl2ezlkuhh2",
+      "holder_amount_raw": "2500000",
+      "regulated_profile": {
+        "rg": 1,
+        "rv": 1,
+        "pr": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "pe": 7,
+        "fc": 63
+      },
+      "owner_identifier_preimage": {
+        "commitment_domain": "kcc20_open_icc_owner_identifier_preview_v1",
+        "identifier_type": "address",
+        "identifier": "kaspatest:qrv4hypvyfku6zu4pu3navk5g94seedlltsng86nxxargj257lhl2ezlkuhh2"
+      },
+      "owner_identifier_canonical_json": "{\"commitment_domain\":\"kcc20_open_icc_owner_identifier_preview_v1\",\"identifier\":\"kaspatest:qrv4hypvyfku6zu4pu3navk5g94seedlltsng86nxxargj257lhl2ezlkuhh2\",\"identifier_type\":\"address\"}",
+      "owner_identifier_sha256_hex": "5ac996b24507cb99e276201df806df8362d91fa81e0953923e5997715d9d362d",
+      "extension_preimage": {
+        "commitment_domain": "kcc20_regulated_extension_commitment_preview_v1",
+        "schema_kind": "kcc20_regulated_extension_preimage_preview_v1",
+        "schema_version": 1,
+        "role": "holder",
+        "rg": 1,
+        "rv": 1,
+        "pr": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "pe": 7,
+        "fc": 63
+      },
+      "extension_preimage_canonical_json": "{\"commitment_domain\":\"kcc20_regulated_extension_commitment_preview_v1\",\"fc\":63,\"pe\":7,\"pr\":\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\",\"rg\":1,\"role\":\"holder\",\"rv\":1,\"schema_kind\":\"kcc20_regulated_extension_preimage_preview_v1\",\"schema_version\":1}",
+      "extension_sha256_hex": "25dbec7d6c6342414921ce0e5846ffb5b6fd334cce5545cc9c11718d010637a2",
+      "common_state_candidate": {
+        "schema_kind": "kcc20_open_icc_common_state_preview_v1",
+        "owner_identifier": "5ac996b24507cb99e276201df806df8362d91fa81e0953923e5997715d9d362d",
+        "owner_identifier_encoding": "32_byte_sha256_hex_preview",
+        "identifier_type": "address",
+        "amount_raw": "2500000",
+        "extension_digest": "25dbec7d6c6342414921ce0e5846ffb5b6fd334cce5545cc9c11718d010637a2",
+        "extension_digest_encoding": "32_byte_sha256_hex_preview"
+      },
+      "assertions": {
+        "owner_identifier_is_32_bytes": true,
+        "extension_digest_is_32_bytes": true,
+        "owner_identifier_digest_deterministic": true,
+        "extension_digest_deterministic": true
+      }
+    },
+    "mutation_vectors": [
+      {
+        "vector_id": "extension_mutation_pr_v1",
+        "mutated_field": "pr",
+        "base_value": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "mutated_value": "1123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "extension_preimage": {
+          "commitment_domain": "kcc20_regulated_extension_commitment_preview_v1",
+          "schema_kind": "kcc20_regulated_extension_preimage_preview_v1",
+          "schema_version": 1,
+          "role": "holder",
+          "rg": 1,
+          "rv": 1,
+          "pr": "1123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+          "pe": 7,
+          "fc": 63
+        },
+        "canonical_json": "{\"commitment_domain\":\"kcc20_regulated_extension_commitment_preview_v1\",\"fc\":63,\"pe\":7,\"pr\":\"1123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\",\"rg\":1,\"role\":\"holder\",\"rv\":1,\"schema_kind\":\"kcc20_regulated_extension_preimage_preview_v1\",\"schema_version\":1}",
+        "sha256_hex": "81e83bd64c71ac17ee934613f3eb74ab6104506e4f5cc918a167e48898e71fa0",
+        "changes_base_digest": true
+      },
+      {
+        "vector_id": "extension_mutation_pe_v1",
+        "mutated_field": "pe",
+        "base_value": 7,
+        "mutated_value": 8,
+        "extension_preimage": {
+          "commitment_domain": "kcc20_regulated_extension_commitment_preview_v1",
+          "schema_kind": "kcc20_regulated_extension_preimage_preview_v1",
+          "schema_version": 1,
+          "role": "holder",
+          "rg": 1,
+          "rv": 1,
+          "pr": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+          "pe": 8,
+          "fc": 63
+        },
+        "canonical_json": "{\"commitment_domain\":\"kcc20_regulated_extension_commitment_preview_v1\",\"fc\":63,\"pe\":8,\"pr\":\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\",\"rg\":1,\"role\":\"holder\",\"rv\":1,\"schema_kind\":\"kcc20_regulated_extension_preimage_preview_v1\",\"schema_version\":1}",
+        "sha256_hex": "52e07fed9e6ba23b187fedc546ac12dd288c5bfdc8d3d509b552777378745cb9",
+        "changes_base_digest": true
+      },
+      {
+        "vector_id": "extension_mutation_fc_v1",
+        "mutated_field": "fc",
+        "base_value": 63,
+        "mutated_value": 62,
+        "extension_preimage": {
+          "commitment_domain": "kcc20_regulated_extension_commitment_preview_v1",
+          "schema_kind": "kcc20_regulated_extension_preimage_preview_v1",
+          "schema_version": 1,
+          "role": "holder",
+          "rg": 1,
+          "rv": 1,
+          "pr": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+          "pe": 7,
+          "fc": 62
+        },
+        "canonical_json": "{\"commitment_domain\":\"kcc20_regulated_extension_commitment_preview_v1\",\"fc\":62,\"pe\":7,\"pr\":\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\",\"rg\":1,\"role\":\"holder\",\"rv\":1,\"schema_kind\":\"kcc20_regulated_extension_preimage_preview_v1\",\"schema_version\":1}",
+        "sha256_hex": "fc3b12344c84587f445d2b6cb863e09a6b467acf6bef5ed3e2044736bac63fff",
+        "changes_base_digest": true
+      }
+    ],
+    "required_assertions": {
+      "all_mutations_change_extension_digest": true,
+      "mutation_fields_covered": [
+        "pr",
+        "pe",
+        "fc"
+      ],
+      "base_common_state_extension_digest_matches_base_extension_digest": true
+    }
+  },
+  "interoperability_boundary": {
+    "generic_external_covenant_may_inspect": [
+      "owner_identifier",
+      "identifier_type",
+      "amount_raw",
+      "extension_digest"
+    ],
+    "generic_external_covenant_need_not_decode": [
+      "rg",
+      "rv",
+      "pr",
+      "pe",
+      "fc"
+    ],
+    "concrete_asset_covenant_must_verify": [
+      "provided extension preimage canonicalizes under the descriptor rules",
+      "SHA-256 of canonical extension preimage equals the committed extension_digest",
+      "typed regulated state transition is valid",
+      "successor output commits the expected successor extension_digest"
+    ],
+    "not_selected_in_this_descriptor": [
+      "final on-chain byte layout",
+      "field offsets",
+      "integer widths",
+      "endianness",
+      "script push framing",
+      "selector or entrypoint encoding",
+      "controller or minter common-state layout",
+      "registry spend model"
+    ]
+  },
+  "safety": {
+    "live_output_construction_changed": false,
+    "regulated_live_issuance_enabled": false,
+    "transaction_constructed": false,
+    "signing": false,
+    "broadcasting": false,
+    "minting": false,
+    "registry_deployed": false,
+    "aws_changed": false,
+    "mainnet_action": false
+  }
+}

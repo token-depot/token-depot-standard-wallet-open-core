@@ -1,0 +1,704 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Token Depot — Manage Vaults</title>
+
+  <link rel="icon" href="/static/icon/favicon.ico">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+  <link rel="stylesheet" href="/static/css/style.css">
+  <script defer src="/static/js/skin_shared.js"></script>
+
+  <style>
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .muted { opacity: 0.92; color: var(--td-skin-text-soft); }
+    .small { font-size: 0.92rem; }
+    .toolbar { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    .table-wrap { overflow:auto; }
+
+    /* Reduce “white box glare” without changing global theme */
+    input[type="password"], input[type="text"], input[type="number"], input[type="file"], select {
+      background: rgba(var(--td-skin-panel-rgb), 0.65);
+      color: var(--td-skin-text-muted);
+      border: 1px solid rgba(var(--td-skin-border-rgb), 0.35);
+    }
+
+    /* Table styling to remove “black on white” surfaces */
+    .table-wrap table[role="grid"] {
+      background: rgba(var(--td-skin-panel-rgb), 0.35);
+      color: var(--td-skin-text-muted);
+      border: 1px solid rgba(var(--td-skin-border-rgb), 0.25);
+      border-collapse: collapse;
+      width: 100%;
+    }
+    .table-wrap table[role="grid"] thead th {
+      background: rgba(var(--td-skin-panel-rgb), 0.65);
+      color: var(--td-skin-text-muted);
+      border-bottom: 1px solid rgba(var(--td-skin-border-rgb), 0.25);
+    }
+    .table-wrap table[role="grid"] tbody td {
+      background: rgba(var(--td-skin-panel-rgb), 0.25);
+      color: var(--td-skin-text-muted);
+      border-bottom: 1px solid rgba(var(--td-skin-border-rgb), 0.12);
+    }
+    .table-wrap table[role="grid"] tbody tr:hover td {
+      background: rgba(var(--td-skin-panel-rgb), 0.4);
+    }
+
+    /* Controlled Assets: keep rows single-line and give Net column room */
+    #controlledAssetsTable th, #controlledAssetsTable td {
+      white-space: nowrap;
+    }
+    #controlledAssetsTable th:nth-child(4), #controlledAssetsTable td:nth-child(4) {
+      min-width: 120px;
+    }
+
+    /* Manage nav mobile fix: keep logo visible above wrapped links */
+    @media (max-width: 760px){
+      nav.container-fluid{
+        display: flex !important;
+        flex-wrap: wrap !important;
+        justify-content: flex-start !important;
+        align-items: stretch !important;
+        gap: .75rem 1rem !important;
+      }
+      nav.container-fluid > ul:first-child{
+        width: 100% !important;
+        display: flex !important;
+        justify-content: center !important;
+      }
+      nav.container-fluid > ul:first-child img{
+        height: 52px !important;
+      }
+      nav.container-fluid > ul:nth-of-type(2){
+        width: 100% !important;
+        display: flex !important;
+        flex-wrap: wrap !important;
+        justify-content: center !important;
+        gap: .35rem .9rem !important;
+      }
+      nav.container-fluid > ul:nth-of-type(2) li{
+        flex: 0 0 auto !important;
+      }
+    }
+  </style>
+</head>
+
+<body data-skin="classic_teal">
+<script>
+(function () {
+  var key = 'td_active_skin_id';
+  var allowed = { classic_teal: true, pink: true, pink_black: true, gold: true, gold_black: true, blue: true, blue_black: true, green: true, green_black: true, red: true, red_black: true, yellow: true, yellow_black: true, cyan: true, cyan_black: true, orange: true, orange_black: true };
+  try {
+    var skinId = String(sessionStorage.getItem(key) || '').trim();
+    if (allowed[skinId]) document.body.setAttribute('data-skin', skinId);
+  } catch (_) {}
+})();
+</script>
+  <main class="container">
+    <nav class="container-fluid">
+      <ul>
+        <li>
+          <a href="/wallet.html">
+            <img src="static/icon/logo.png" alt="Token Depot logo" style="height:60px; display:block;">
+          </a>
+        </li>
+      </ul>
+      <ul>
+        <li><a href="/deploy.html">Deploy</a></li>
+        <li><a href="/issue.html">Issue</a></li>
+        <li><a href="/redeem.html">Redeem</a></li>
+        <li><a href="/energy.html">Energy</a></li>
+        <li><a href="/manage.html" aria-current="page">Settings</a></li>
+        <li><a href="#" id="btnLogout">Logout</a></li>
+      </ul>
+    </nav>
+    <script src="/static/js/logout_shared.js"></script>
+    <script>
+      window.TD_SPONSORED_OFFERS_PAGE_PLACEMENT = 'settings_page';
+    </script>
+    <script src="/static/js/sponsored_offers_shared.js" defer></script>
+    <script>
+      (function () {
+        var a = document.getElementById('btnLogout');
+        if (!a) return;
+        a.addEventListener('click', async function (e) {
+          e.preventDefault();
+          await window.CwLogoutShared.logoutNow({ redirectTo: '/login.html' });
+        });
+      })();
+    </script>
+
+    <article class="card">
+      <h3>Profile</h3>
+      <p class="small muted">Your Broker ID and CN public key are required to create a Compliance Wallet.</p>
+
+      <div class="grid">
+        <label>
+          USR ID
+          <input id="profileUsrId" type="text" class="mono" readonly>
+        </label>
+
+        <label>
+          Broker ID
+          <input id="profileBrokerId" type="text" class="mono" readonly>
+        </label>
+      </div>
+
+      <label>
+        Broker public key (CN cosigner pubkey)
+        <input id="profileBrokerPubkey" type="text" class="mono" readonly>
+      </label>
+
+      <small id="profileBrokerWarn" class="muted"></small>
+
+      <hr>
+
+      <div class="grid">
+        <label>
+          Email (required)
+          <input id="profileEmail" type="email" autocomplete="email" required>
+        </label>
+
+        <label>
+          Phone (required)
+          <input id="profilePhone" type="tel" autocomplete="tel" required>
+        </label>
+      </div>
+
+      <div class="grid">
+        <label>
+          First name
+          <input id="profileFirstName" type="text" autocomplete="given-name">
+        </label>
+
+        <label>
+          Last name
+          <input id="profileLastName" type="text" autocomplete="family-name">
+        </label>
+      </div>
+
+      <label>
+        Address
+        <input id="profileAddress" type="text" autocomplete="street-address">
+      </label>
+
+      <div class="grid">
+        <label>
+          City
+          <input id="profileCity" type="text" autocomplete="address-level2">
+        </label>
+
+        <label>
+          Region / State
+          <input id="profileRegion" type="text" autocomplete="address-level1">
+        </label>
+      </div>
+
+      <div class="grid">
+        <label>
+          Postal code
+          <input id="profilePostalCode" type="text" autocomplete="postal-code">
+        </label>
+
+        <label>
+          Country
+          <input id="profileCountry" type="text" autocomplete="country-name">
+        </label>
+      </div>
+
+      <div class="toolbar" style="margin-top:10px;">
+        <button id="btnProfileSave" class="secondary" type="button">Save profile</button>
+        <span id="profileSaveMsg" class="small muted"></span>
+      </div>
+
+      <div id="profileEmailVerifyBox" hidden style="margin-top:12px;">
+        <label>
+          Email verification code
+          <input id="profileEmailVerifyCode" type="text" inputmode="numeric" pattern="[0-9]{8}" minlength="8" maxlength="8" autocomplete="one-time-code">
+        </label>
+
+        <p class="small muted">Enter the 8-digit code sent to the new email address.</p>
+
+        <div class="toolbar" style="margin-top:10px;">
+          <button id="btnProfileEmailVerify" class="secondary" type="button">Verify email change</button>
+          <button id="btnProfileEmailVerifyCancel" type="button">Cancel</button>
+          <span id="profileEmailVerifyMsg" class="small muted"></span>
+        </div>
+      </div>
+
+      <hr>
+
+      <div class="grid">
+        <label>
+          Current password
+          <input id="profileCurrentPassword" type="password" autocomplete="current-password">
+        </label>
+
+        <label>
+          New password (min 10 chars)
+          <input id="profileNewPassword" type="password" autocomplete="new-password">
+        </label>
+      </div>
+
+      <div class="toolbar" style="margin-top:10px;">
+        <button id="btnProfilePw" class="secondary" type="button">Update password</button>
+        <span id="profilePwMsg" class="small muted"></span>
+      </div>
+    </article>
+
+
+    <article class="card">
+      <h3>Appearance</h3>
+      <p class="small muted">Choose your preferred Token Depot wallet skin. Premium skins apply when this account has an active or grace-period TDPLUS Wallet Plus receipt.</p>
+      <p id="walletPlusGateStatus" class="small muted"></p>
+
+      <label>
+        Wallet skin
+        <select id="profileSkinId">
+          <option value="classic_teal">Classic teal</option>
+          <option value="pink">Pink</option>
+          <option value="pink_black">Pink on black</option>
+          <option value="gold">Gold</option>
+          <option value="gold_black">Gold on black</option>
+          <option value="blue">Blue</option>
+          <option value="blue_black">Blue on black</option>
+          <option value="green">Green</option>
+          <option value="green_black">Green on black</option>
+          <option value="red">Red</option>
+          <option value="red_black">Red on black</option>
+          <option value="yellow">Yellow</option>
+          <option value="yellow_black">Yellow on black</option>
+          <option value="cyan">Cyan</option>
+          <option value="cyan_black">Cyan on black</option>
+          <option value="orange">Orange</option>
+          <option value="orange_black">Orange on black</option>
+        </select>
+      </label>
+
+      <div class="toolbar" style="margin-top:10px;">
+        <button id="btnSkinSave" class="secondary" type="button">Save appearance</button>
+        <span id="skinSaveMsg" class="small muted"></span>
+      </div>
+    </article>
+
+    <article class="card">
+      <h3>Notifications</h3>
+      <p class="small muted">Set one destination for per-user notifications and choose which events you want to receive.</p>
+
+      <label>
+        Notification destination
+        <input id="notificationDestination" type="text" autocomplete="off" placeholder="email-to-text or email destination">
+      </label>
+
+      <div class="grid">
+        <label><input id="notifFundsSent" type="checkbox"> Funds sent</label>
+        <label><input id="notifWhitelistAdded" type="checkbox"> Whitelist address added</label>
+      </div>
+
+      <div class="grid">
+        <label><input id="notifWhitelistRemoved" type="checkbox"> Whitelist address removed</label>
+        <label><input id="notifNewOffers" type="checkbox"> New offers (direct + open)</label>
+      </div>
+
+      <div class="grid">
+        <label><input id="notifMakerOfferCreated" type="checkbox"> Maker offer created</label>
+        <label><input id="notifMakerOfferFilled" type="checkbox"> Maker offer filled</label>
+      </div>
+
+      <div class="grid">
+        <label><input id="notifWalletCreatedStandard" type="checkbox"> New standard wallet created</label>
+        <label><input id="notifWalletCreatedCompliance" type="checkbox"> New compliance wallet created</label>
+      </div>
+
+      <div class="grid">
+        <label><input id="notifWalletDeleted" type="checkbox"> Wallet deleted</label>
+        <span></span>
+      </div>
+
+      <div class="toolbar" style="margin-top:10px;">
+        <button id="btnNotificationSave" class="secondary" type="button">Save notifications</button>
+        <span id="notifSaveMsg" class="small muted"></span>
+      </div>
+    </article>
+
+    <script>
+      (function () {
+        function $(id) { return document.getElementById(id); }
+        function isAllowedSkinId(value) {
+          return value === 'classic_teal' || value === 'pink' || value === 'pink_black' || value === 'gold' || value === 'gold_black' || value === 'blue' || value === 'blue_black' || value === 'green' || value === 'green_black' || value === 'red' || value === 'red_black' || value === 'yellow' || value === 'yellow_black' || value === 'cyan' || value === 'cyan_black' || value === 'orange' || value === 'orange_black';
+        }
+        function setText(id, text) {
+          var el = $(id);
+          if (el) el.textContent = text || '';
+        }
+
+        function formatGateDate(value) {
+          if (!value) return '';
+          var d = new Date(value);
+          if (!Number.isFinite(d.getTime())) return '';
+          return d.toLocaleDateString();
+        }
+
+        function describeWalletPlusGate(walletPlus) {
+          if (!walletPlus || !walletPlus.status) return 'Wallet Plus status unavailable.';
+          if (walletPlus.status === 'active') {
+            return 'Wallet Plus active. Sponsored offers are disabled and your saved skin is active until ' + formatGateDate(walletPlus.active_until) + '.';
+          }
+          if (walletPlus.status === 'grace') {
+            return 'Wallet Plus grace period. Sponsored offers remain disabled and your saved skin is active until ' + formatGateDate(walletPlus.grace_until) + '. Renew TDPLUS to avoid interruption.';
+          }
+          return 'Basic mode. Sponsored offers are enabled and the effective skin is Classic teal. Your saved skin is kept for Wallet Plus renewal.';
+        }
+
+        var pendingProfileEmailChange = '';
+
+        function fillProfile(u, b, warnings, walletPlus) {
+          $('profileUsrId').value = u.id || '';
+
+          $('profileEmail').value = u.email || '';
+          $('profilePhone').value = u.phone || '';
+
+          $('profileFirstName').value = u.first_name || '';
+          $('profileLastName').value = u.last_name || '';
+          $('profileAddress').value = u.address || '';
+          $('profileCity').value = u.city || '';
+          $('profileRegion').value = u.region || '';
+          $('profilePostalCode').value = u.postal_code || '';
+          $('profileCountry').value = u.country || '';
+
+          $('notificationDestination').value = u.notification_destination || '';
+
+          var skinId = (u && isAllowedSkinId(u.skin_id)) ? u.skin_id : 'classic_teal';
+          var effectiveSkinId = (walletPlus && isAllowedSkinId(walletPlus.effective_skin_id)) ? walletPlus.effective_skin_id : skinId;
+          if ($('profileSkinId')) $('profileSkinId').value = skinId;
+          setText('walletPlusGateStatus', describeWalletPlusGate(walletPlus));
+          if (window.TdSkinShared && typeof window.TdSkinShared.applySkin === 'function') {
+            window.TdSkinShared.applySkin(effectiveSkinId);
+          }
+
+          var n = (u && u.notifications) ? u.notifications : {};
+          $('notifFundsSent').checked = !!n.funds_sent;
+          $('notifWhitelistAdded').checked = !!n.whitelist_added;
+          $('notifWhitelistRemoved').checked = !!n.whitelist_removed;
+          $('notifNewOffers').checked = !!n.new_offers;
+          $('notifMakerOfferCreated').checked = !!n.maker_offer_created;
+          $('notifMakerOfferFilled').checked = !!n.maker_offer_filled;
+          $('notifWalletCreatedStandard').checked = !!n.wallet_created_standard;
+          $('notifWalletCreatedCompliance').checked = !!n.wallet_created_compliance;
+          $('notifWalletDeleted').checked = !!n.wallet_deleted;
+
+          $('profileBrokerId').value = (b && b.broker_id) ? b.broker_id : '';
+          $('profileBrokerPubkey').value = (b && b.broker_pubkey) ? b.broker_pubkey : '';
+
+          if (warnings && warnings.length) {
+            setText('profileBrokerWarn', 'Warnings: ' + warnings.join(', '));
+          } else {
+            setText('profileBrokerWarn', '');
+          }
+        }
+
+        async function loadProfile() {
+          setText('profileSaveMsg', '');
+          setText('profilePwMsg', '');
+          setText('notifSaveMsg', '');
+          setText('skinSaveMsg', '');
+
+          try {
+            var r = await fetch('/api/v1/profile/me', { credentials: 'include' });
+            var j = await r.json().catch(function () { return null; });
+
+            if (!j || !j.ok) {
+              if (j && j.reason === 'auth_required') {
+                window.location.href = '/login.html';
+                return;
+              }
+              setText('profileBrokerWarn', 'Failed to load profile.');
+              return;
+            }
+
+            fillProfile(j.user || {}, j.broker || {}, Array.isArray(j.warnings) ? j.warnings : [], j.wallet_plus || null);
+          } catch {
+            setText('profileBrokerWarn', 'Failed to load profile (network error).');
+          }
+        }
+
+        async function saveProfile() {
+          setText('profileSaveMsg', '');
+          setText('profileEmailVerifyMsg', '');
+
+          var payload = {
+            email: $('profileEmail').value,
+            phone: $('profilePhone').value,
+            first_name: $('profileFirstName').value,
+            last_name: $('profileLastName').value,
+            address: $('profileAddress').value,
+            city: $('profileCity').value,
+            region: $('profileRegion').value,
+            postal_code: $('profilePostalCode').value,
+            country: $('profileCountry').value,
+            notification_destination: $('notificationDestination').value,
+            notifications: {
+              funds_sent: !!$('notifFundsSent').checked,
+              whitelist_added: !!$('notifWhitelistAdded').checked,
+              whitelist_removed: !!$('notifWhitelistRemoved').checked,
+              new_offers: !!$('notifNewOffers').checked,
+              maker_offer_created: !!$('notifMakerOfferCreated').checked,
+              maker_offer_filled: !!$('notifMakerOfferFilled').checked,
+              wallet_created_standard: !!$('notifWalletCreatedStandard').checked,
+              wallet_created_compliance: !!$('notifWalletCreatedCompliance').checked,
+              wallet_deleted: !!$('notifWalletDeleted').checked
+            }
+          };
+
+          try {
+            var r = await fetch('/api/v1/profile/save', {
+              method: 'POST',
+              credentials: 'include',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify(payload)
+            });
+
+            var j = await r.json().catch(function () { return null; });
+            if (!j || !j.ok) {
+              setText('profileSaveMsg', 'Save failed: ' + (j ? j.reason : 'unknown_error'));
+              return;
+            }
+
+            if (j.email_verification_required) {
+              pendingProfileEmailChange = String(j.email || payload.email || '').trim();
+              if ($('profileEmailVerifyBox')) $('profileEmailVerifyBox').hidden = false;
+              if ($('profileEmailVerifyCode')) $('profileEmailVerifyCode').value = '';
+              setText('profileSaveMsg', 'Verification code sent. Check the new email address.');
+              setText('profileEmailVerifyMsg', '');
+              if ($('profileEmailVerifyCode')) $('profileEmailVerifyCode').focus();
+              return;
+            }
+
+            pendingProfileEmailChange = '';
+            if ($('profileEmailVerifyBox')) $('profileEmailVerifyBox').hidden = true;
+            setText('profileSaveMsg', 'Saved.');
+            await loadProfile();
+          } catch {
+            setText('profileSaveMsg', 'Save failed (network error).');
+          }
+        }
+
+        async function verifyProfileEmailChange() {
+          setText('profileEmailVerifyMsg', '');
+
+          var code = $('profileEmailVerifyCode') ? String($('profileEmailVerifyCode').value || '').trim() : '';
+
+          if (!pendingProfileEmailChange) {
+            setText('profileEmailVerifyMsg', 'Missing pending email change. Please save profile again.');
+            return;
+          }
+
+          if (!code) {
+            setText('profileEmailVerifyMsg', 'Missing verification code.');
+            return;
+          }
+
+          try {
+            var r = await fetch('/api/v1/profile/email/verify', {
+              method: 'POST',
+              credentials: 'include',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({
+                email: pendingProfileEmailChange,
+                code: code
+              })
+            });
+
+            var j = await r.json().catch(function () { return null; });
+            if (!j || !j.ok) {
+              setText('profileEmailVerifyMsg', 'Verification failed: ' + (j ? j.reason : 'unknown_error'));
+              return;
+            }
+
+            pendingProfileEmailChange = '';
+            if ($('profileEmailVerifyCode')) $('profileEmailVerifyCode').value = '';
+            if ($('profileEmailVerifyBox')) $('profileEmailVerifyBox').hidden = true;
+            setText('profileSaveMsg', 'Email updated.');
+            setText('profileEmailVerifyMsg', '');
+            await loadProfile();
+          } catch {
+            setText('profileEmailVerifyMsg', 'Verification failed (network error).');
+          }
+        }
+
+        async function saveSkin() {
+          setText('skinSaveMsg', '');
+
+          var selectedSkinId = $('profileSkinId') ? $('profileSkinId').value : 'classic_teal';
+          var skinId = isAllowedSkinId(selectedSkinId) ? selectedSkinId : 'classic_teal';
+
+          try {
+            var r = await fetch('/api/v1/profile/save', {
+              method: 'POST',
+              credentials: 'include',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({ skin_id: skinId })
+            });
+
+            var j = await r.json().catch(function () { return null; });
+            if (!j || !j.ok) {
+              setText('skinSaveMsg', 'Save failed: ' + (j ? j.reason : 'unknown_error'));
+              return;
+            }
+
+            setText('skinSaveMsg', 'Saved.');
+            await loadProfile();
+          } catch {
+            setText('skinSaveMsg', 'Save failed (network error).');
+          }
+        }
+
+        async function saveNotifications() {
+          setText('notifSaveMsg', '');
+
+          var payload = {
+            notification_destination: $('notificationDestination').value,
+            notifications: {
+              funds_sent: !!$('notifFundsSent').checked,
+              whitelist_added: !!$('notifWhitelistAdded').checked,
+              whitelist_removed: !!$('notifWhitelistRemoved').checked,
+              new_offers: !!$('notifNewOffers').checked,
+              maker_offer_created: !!$('notifMakerOfferCreated').checked,
+              maker_offer_filled: !!$('notifMakerOfferFilled').checked,
+              wallet_created_standard: !!$('notifWalletCreatedStandard').checked,
+              wallet_created_compliance: !!$('notifWalletCreatedCompliance').checked,
+              wallet_deleted: !!$('notifWalletDeleted').checked
+            }
+          };
+
+          try {
+            var r = await fetch('/api/v1/profile/save', {
+              method: 'POST',
+              credentials: 'include',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify(payload)
+            });
+
+            var j = await r.json().catch(function () { return null; });
+            if (!j || !j.ok) {
+              setText('notifSaveMsg', 'Save failed: ' + (j ? j.reason : 'unknown_error'));
+              return;
+            }
+
+            setText('notifSaveMsg', 'Saved.');
+            await loadProfile();
+          } catch {
+            setText('notifSaveMsg', 'Save failed (network error).');
+          }
+        }
+
+        async function updatePassword() {
+          setText('profilePwMsg', '');
+
+          var payload = {
+            current_password: $('profileCurrentPassword').value,
+            new_password: $('profileNewPassword').value
+          };
+
+          try {
+            var r = await fetch('/api/v1/profile/password', {
+              method: 'POST',
+              credentials: 'include',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify(payload)
+            });
+
+            var j = await r.json().catch(function () { return null; });
+            if (!j || !j.ok) {
+              setText('profilePwMsg', 'Password update failed: ' + (j ? j.reason : 'unknown_error'));
+              return;
+            }
+
+            $('profileCurrentPassword').value = '';
+            $('profileNewPassword').value = '';
+            setText('profilePwMsg', 'Password updated.');
+          } catch {
+            setText('profilePwMsg', 'Password update failed (network error).');
+          }
+        }
+
+        var btnSave = $('btnProfileSave');
+        if (btnSave) btnSave.addEventListener('click', function () { saveProfile(); });
+
+        var btnProfileEmailVerify = $('btnProfileEmailVerify');
+        if (btnProfileEmailVerify) btnProfileEmailVerify.addEventListener('click', function () { verifyProfileEmailChange(); });
+
+        var btnProfileEmailVerifyCancel = $('btnProfileEmailVerifyCancel');
+        if (btnProfileEmailVerifyCancel) {
+          btnProfileEmailVerifyCancel.addEventListener('click', function () {
+            pendingProfileEmailChange = '';
+            if ($('profileEmailVerifyCode')) $('profileEmailVerifyCode').value = '';
+            if ($('profileEmailVerifyBox')) $('profileEmailVerifyBox').hidden = true;
+            setText('profileEmailVerifyMsg', '');
+            setText('profileSaveMsg', 'Email change canceled.');
+          });
+        }
+
+        var btnNotificationSave = $('btnNotificationSave');
+        if (btnNotificationSave) btnNotificationSave.addEventListener('click', function () { saveNotifications(); });
+
+        var btnSkinSave = $('btnSkinSave');
+        if (btnSkinSave) btnSkinSave.addEventListener('click', function () { saveSkin(); });
+
+        var btnPw = $('btnProfilePw');
+        if (btnPw) btnPw.addEventListener('click', function () { updatePassword(); });
+
+        loadProfile();
+      })();
+    </script>
+        <footer style="
+      margin-top: 48px;
+      background: var(--td-skin-black);
+      color: var(--td-skin-white);
+      padding: 22px 16px;
+      border-top: 1px solid rgba(var(--td-skin-white-rgb), 0.12);
+    ">
+      <div style="
+        max-width: 1100px;
+        margin: 0 auto;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 18px 28px;
+        align-items: center;
+        justify-content: space-between;
+      ">
+        <div style="line-height: 1.35;">
+          <div style="font-weight: 700; letter-spacing: 0.06em;">
+            TOKEN DEPOT CORP.
+          </div>
+          <div style="opacity: 0.9;">
+            Statesville, NC 28625
+          </div>
+          <div style="opacity: 0.9;">
+            Contact Us: <a href="tel:+17046037347" style="color:var(--td-skin-white); text-decoration: underline;">(704) 603-7347</a>
+          </div>
+        </div>
+
+        <div style="text-align: right; line-height: 1.35;">
+          <div style="opacity: 0.9;">
+            © <span id="td-footer-year">2026</span> Token Depot Corp. All rights reserved.
+          </div>
+          <div style="opacity: 0.75; font-size: 0.92em;">
+            Secure digital asset operations • Compliance-first workflows
+          </div>
+        </div>
+      </div>
+
+      <script>
+        // Safe, tiny enhancement: keep the year current
+        (function () {
+          var el = document.getElementById("td-footer-year");
+          if (el) el.textContent = String(new Date().getFullYear());
+        })();
+      </script>
+    </footer>
+  </main>
+</body>
+</html>

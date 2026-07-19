@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Token Depot — Redeem</title>
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+  <link rel="stylesheet" href="/static/css/style.css">
+  <script defer src="/static/js/skin_shared.js"></script>
+
+  <style>
+    .two-col { display:grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items:start; }
+    @media (max-width: 720px) { .two-col { grid-template-columns: 1fr; } }
+    .stack > label { display:block; margin-bottom:12px; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .muted { opacity: 0.92; color: var(--td-skin-white); }
+    .codebox { overflow-wrap:anywhere; word-break:break-word; white-space:pre-wrap; color: var(--td-skin-white); }
+    .card { overflow-wrap:anywhere; word-break:break-word; }
+
+    .table-wrap { overflow:auto; }
+    .table-wrap table[role="grid"] {
+      background: rgba(var(--td-skin-panel-rgb), 0.35);
+      color: var(--td-skin-text-muted);
+      border: 1px solid rgba(var(--td-skin-border-rgb), 0.25);
+      border-collapse: collapse;
+      width: 100%;
+    }
+    .table-wrap table[role="grid"] thead th {
+      background: rgba(var(--td-skin-panel-rgb), 0.65);
+      color: var(--td-skin-text-muted);
+      border-bottom: 1px solid rgba(var(--td-skin-border-rgb), 0.25);
+    }
+    .table-wrap table[role="grid"] tbody td {
+      background: rgba(var(--td-skin-panel-rgb), 0.25);
+      color: var(--td-skin-text-muted);
+      border-bottom: 1px solid rgba(var(--td-skin-border-rgb), 0.12);
+    }
+    .table-wrap table[role="grid"] tbody tr:hover td {
+      background: rgba(var(--td-skin-panel-rgb), 0.4);
+    }
+    #controlledAssetsTable th, #controlledAssetsTable td {
+      white-space: nowrap;
+    }
+    #controlledAssetsTable th:nth-child(4), #controlledAssetsTable td:nth-child(4) {
+      min-width: 120px;
+    }
+
+    html, body { font-size: 15px; }
+    h1 { font-size: 30px; line-height: 1.2; }
+    h2 { font-size: 24px; line-height: 1.25; }
+    h3 { font-size: 20px; line-height: 1.3; }
+
+    /* Redeem nav mobile fix: keep logo visible above wrapped links */
+    @media (max-width: 760px){
+      nav.container-fluid{
+        display: flex !important;
+        flex-wrap: wrap !important;
+        justify-content: flex-start !important;
+        align-items: stretch !important;
+        gap: .75rem 1rem !important;
+      }
+      nav.container-fluid > ul:first-child{
+        width: 100% !important;
+        display: flex !important;
+        justify-content: center !important;
+      }
+      nav.container-fluid > ul:first-child img{
+        height: 52px !important;
+      }
+      nav.container-fluid > ul:nth-of-type(2){
+        width: 100% !important;
+        display: flex !important;
+        flex-wrap: wrap !important;
+        justify-content: center !important;
+        gap: .35rem .9rem !important;
+      }
+      nav.container-fluid > ul:nth-of-type(2) li{
+        flex: 0 0 auto !important;
+      }
+    }
+  </style>
+</head>
+
+<body data-skin="classic_teal">
+<script>
+(function () {
+  var key = 'td_active_skin_id';
+  var allowed = { classic_teal: true, pink: true, pink_black: true, gold: true, gold_black: true, blue: true, blue_black: true, green: true, green_black: true, red: true, red_black: true, yellow: true, yellow_black: true, cyan: true, cyan_black: true, orange: true, orange_black: true };
+  try {
+    var skinId = String(sessionStorage.getItem(key) || '').trim();
+    if (allowed[skinId]) document.body.setAttribute('data-skin', skinId);
+  } catch (_) {}
+})();
+</script>
+  <main class="container" data-page="redeem">
+    <nav class="container-fluid">
+      <ul>
+        <li>
+          <a href="/wallet.html">
+            <img src="static/icon/logo.png" alt="Token Depot logo" style="height:60px; display:block;">
+          </a>
+        </li>
+      </ul>
+      <ul>
+        <li><a href="/deploy.html">Deploy</a></li>
+        <li><a href="/issue.html">Issue</a></li>
+        <li><a href="/redeem.html" aria-current="page">Redeem</a></li>
+        <li><a href="/energy.html">Energy</a></li>
+        <li><a href="/manage.html">Settings</a></li>
+        <li><a href="#" id="btnLogout">Logout</a></li>
+      </ul>
+    </nav>
+    <script>
+      (function () {
+        var a = document.getElementById('btnLogout');
+        if (!a) return;
+        a.addEventListener('click', async function (e) {
+          e.preventDefault();
+          await window.CwLogoutShared.logoutNow({ redirectTo: '/login.html' });
+        });
+      })();
+    </script>
+    <article class="card">
+      <header><h3>Redeem Wrapped Assets</h3></header>
+      <p class="muted">This page is for broker-controlled redeem requests from your active CW wallet.</p>
+      <p class="muted">Only assets enabled by the broker for redeem will appear here. Redeem minimums, payout effects, and destination handling are controlled by broker policy.</p>
+      <p class="muted">External-wallet redeem is not part of this page yet.</p>
+    </article>
+
+    <article class="card" id="redeem">
+      <header><h3>Redeem from Active Wallet</h3></header>
+      <p class="muted">Review the broker-controlled redemption preview below before submitting. The receipt area will show the exact wrapped amount, intake details, and the external payout destination.</p>
+
+      <div class="two-col">
+        <section>
+          <h6>Redemption Preview + Receipt</h6>
+          <pre id="redeemReceipt" class="codebox mono"></pre>
+          <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-top:10px;">
+            <button id="btnStartRedeemMonitor" type="button" disabled>Redeem from Active Wallet</button>
+            <button id="btnStopRedeemMonitor" class="secondary" type="button" disabled>Clear</button>
+          </div>
+        </section>
+
+        <section class="stack">
+          <label>
+            Redeem asset
+            <select id="redeemAsset"></select>
+          </label>
+
+          <label>
+            Amount (wrapped)
+            <input id="redeemAmount" type="text" placeholder="e.g. 10.00">
+          </label>
+
+          <label>
+            External payout address
+            <input id="redeemToEvm" type="text" class="mono" placeholder="0x...">
+          </label>
+        </section>
+      </div>
+    </article>
+
+    <script src="/static/js/logout_shared.js"></script>
+    <script>
+      window.TD_SPONSORED_OFFERS_PAGE_PLACEMENT = 'redeem_page';
+    </script>
+    <script src="/static/js/sponsored_offers_shared.js" defer></script>
+    <script type="module" src="/static/js/wrapped-ui.js"></script>
+        <footer style="
+      margin-top: 48px;
+      background: var(--td-skin-black);
+      color: var(--td-skin-white);
+      padding: 22px 16px;
+      border-top: 1px solid rgba(var(--td-skin-white-rgb), 0.12);
+    ">
+      <div style="
+        max-width: 1100px;
+        margin: 0 auto;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 18px 28px;
+        align-items: center;
+        justify-content: space-between;
+      ">
+        <div style="line-height: 1.35;">
+          <div style="font-weight: 700; letter-spacing: 0.06em;">
+            TOKEN DEPOT CORP.
+          </div>
+          <div style="opacity: 0.9;">
+            Statesville, NC 28625
+          </div>
+          <div style="opacity: 0.9;">
+            Contact Us: <a href="tel:+17046037347" style="color:var(--td-skin-white); text-decoration: underline;">(704) 603-7347</a>
+          </div>
+        </div>
+
+        <div style="text-align: right; line-height: 1.35;">
+          <div style="opacity: 0.9;">
+            © <span id="td-footer-year">2026</span> Token Depot Corp. All rights reserved.
+          </div>
+          <div style="opacity: 0.75; font-size: 0.92em;">
+            Secure digital asset operations • Compliance-first workflows
+          </div>
+        </div>
+      </div>
+
+      <script>
+        // Safe, tiny enhancement: keep the year current
+        (function () {
+          var el = document.getElementById("td-footer-year");
+          if (el) el.textContent = String(new Date().getFullYear());
+        })();
+      </script>
+    </footer>
+  </main>
+</body>
+</html>

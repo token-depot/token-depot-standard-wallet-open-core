@@ -1,0 +1,651 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NC Solar Electric — Energy Rewards Subscription</title>
+  <meta name="description" content="NC Solar Electric customers with Hoymiles solar equipment can subscribe for $199/year to issue verified solar production tokens and redeem them for NC Solar Electric equipment discounts.">
+  <link rel="icon" href="/brands/BRD_1/static/icon/favicon.ico">
+  <link rel="preconnect" href="https://cdn.jsdelivr.net">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+  <link rel="stylesheet" href="/brands/BRD_1/static/css/style.css">
+  <style>
+    :root {
+      --ncse-navy: #25294f;
+      --ncse-red: #df4d55;
+      --ncse-yellow: #ffd229;
+      --ncse-blue: #1ca7d8;
+      --ncse-green: #1eaf69;
+      --ncse-ink: #1e2335;
+      --ncse-soft: #5e6679;
+      --ncse-cloud: #f7f9fc;
+      --ncse-line: rgba(37, 41, 79, .14);
+      --ncse-shadow: 0 24px 70px rgba(25, 31, 58, .16);
+      --td-cyan: #43d7ea;
+      --td-gold: #f4bf56;
+      --td-glow: 0 0 0 1px rgba(67, 215, 234, .18), 0 0 18px rgba(67, 215, 234, .28), 0 14px 34px rgba(25, 31, 58, .18);
+      --max: 1180px;
+    }
+
+    html, body {
+      background:
+        radial-gradient(circle at 15% 0%, rgba(255, 210, 41, .22), transparent 28%),
+        radial-gradient(circle at 88% 12%, rgba(28, 167, 216, .18), transparent 26%),
+        linear-gradient(180deg, #ffffff 0%, #f5f8fb 48%, #eef5f8 100%);
+      color: var(--ncse-ink);
+      min-height: 100%;
+      scroll-behavior: smooth;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background:
+        linear-gradient(115deg, transparent 0 42%, rgba(255, 210, 41, .09) 42% 44%, transparent 44% 100%),
+        linear-gradient(65deg, transparent 0 72%, rgba(223, 77, 85, .08) 72% 75%, transparent 75% 100%);
+      z-index: 0;
+    }
+
+    body > * { position: relative; z-index: 1; }
+
+    main.container {
+      max-width: var(--max);
+      padding-top: 1rem;
+      padding-bottom: 4rem;
+    }
+
+    a { color: #0877a6; }
+    a:hover { color: var(--ncse-red); }
+
+    h1, h2, h3, h4, h5, h6 { color: var(--ncse-navy); letter-spacing: -.015em; }
+    p, li { color: #334155; }
+    small { color: var(--ncse-soft); }
+
+    .topnav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: .72rem 1rem;
+      margin: .4rem 0 1.4rem;
+      border: 1px solid rgba(37, 41, 79, .12);
+      border-radius: 20px;
+      background: rgba(255,255,255,.86);
+      box-shadow: 0 16px 44px rgba(25,31,58,.10);
+      backdrop-filter: blur(14px);
+    }
+
+    .brand-lockup {
+      display: flex;
+      align-items: center;
+      gap: .8rem;
+      min-width: 0;
+      color: var(--ncse-navy);
+      text-decoration: none;
+    }
+
+    .brand-lockup img {
+      width: 82px;
+      height: 58px;
+      object-fit: contain;
+      border-radius: 10px;
+      background: #fff;
+    }
+
+    .brand-lockup strong {
+      display: block;
+      color: var(--ncse-navy);
+      font-size: 1.03rem;
+      line-height: 1.05;
+      letter-spacing: .02em;
+    }
+
+    .brand-lockup span {
+      display: block;
+      color: var(--ncse-red);
+      font-size: .76rem;
+      font-weight: 800;
+      letter-spacing: .07em;
+      text-transform: uppercase;
+    }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: .65rem;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    [role="button"], button, .buttonish {
+      border-radius: 999px;
+      font-weight: 800;
+      letter-spacing: .035em;
+      border: 0;
+      text-decoration: none;
+      text-transform: uppercase;
+      box-shadow: 0 12px 26px rgba(25,31,58,.12);
+    }
+
+    .primary-btn {
+      background: var(--ncse-red) !important;
+      color: #fff !important;
+      border: 2px solid var(--ncse-red) !important;
+      text-shadow: 0 1px 0 rgba(0,0,0,.18);
+      box-shadow: 0 14px 28px rgba(223,77,85,.25) !important;
+    }
+
+    .primary-btn:hover,
+    .primary-btn:focus {
+      background: #c93f47 !important;
+      border-color: #c93f47 !important;
+      color: #fff !important;
+      transform: translateY(-1px);
+    }
+
+    .secondary-btn {
+      background: #fff !important;
+      color: var(--ncse-navy) !important;
+      border: 2px solid rgba(37,41,79,.28) !important;
+      box-shadow: 0 12px 26px rgba(25,31,58,.10) !important;
+    }
+
+    .secondary-btn:hover,
+    .secondary-btn:focus {
+      background: var(--ncse-yellow) !important;
+      color: var(--ncse-navy) !important;
+      border-color: var(--ncse-yellow) !important;
+      transform: translateY(-1px);
+    }
+
+    .token-btn {
+      background: var(--ncse-navy) !important;
+      color: #fff !important;
+      border: 2px solid var(--ncse-navy) !important;
+      box-shadow: 0 14px 28px rgba(37,41,79,.22) !important;
+    }
+
+    .token-btn:hover,
+    .token-btn:focus {
+      background: #161a3e !important;
+      border-color: #161a3e !important;
+      color: #fff !important;
+    }
+
+    .hero {
+      overflow: hidden;
+      border-radius: 32px;
+      border: 1px solid rgba(37,41,79,.12);
+      background:
+        radial-gradient(circle at 82% 18%, rgba(255, 210, 41, .24), transparent 24%),
+        linear-gradient(135deg, rgba(255,255,255,.96), rgba(248,251,255,.86));
+      box-shadow: var(--ncse-shadow);
+      padding: clamp(1.35rem, 3vw, 2.6rem);
+      margin-bottom: 1.4rem;
+    }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 1.08fr .92fr;
+      gap: clamp(1.2rem, 3vw, 2rem);
+      align-items: center;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: .5rem;
+      padding: .48rem .78rem;
+      margin-bottom: .95rem;
+      border-radius: 999px;
+      border: 1px solid rgba(223, 77, 85, .22);
+      background: rgba(255, 245, 235, .88);
+      color: var(--ncse-red);
+      text-transform: uppercase;
+      font-size: .78rem;
+      font-weight: 900;
+      letter-spacing: .08em;
+    }
+
+    .hero h1 {
+      font-size: clamp(2.25rem, 5.2vw, 4.6rem);
+      line-height: .98;
+      margin-bottom: 1rem;
+      max-width: 12ch;
+    }
+
+    .hero .lead {
+      font-size: clamp(1.05rem, 1.7vw, 1.22rem);
+      max-width: 66ch;
+      color: #39455a;
+      margin-bottom: 1.25rem;
+    }
+
+    .cta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .8rem;
+      margin: 1.15rem 0 1.2rem;
+    }
+
+    .hero-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .55rem;
+      margin-top: .8rem;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: .45rem;
+      border-radius: 999px;
+      padding: .42rem .68rem;
+      border: 1px solid rgba(37,41,79,.12);
+      background: rgba(255,255,255,.76);
+      color: var(--ncse-navy);
+      font-size: .86rem;
+      font-weight: 800;
+    }
+
+    .visual-card {
+      position: relative;
+      min-height: 470px;
+      border-radius: 28px;
+      padding: 1.2rem;
+      background:
+        linear-gradient(180deg, rgba(37,41,79,.92), rgba(13, 25, 44, .94)),
+        url("/brands/BRD_1/static/images/ncse-hybrid-ground-mount.webp") center/cover no-repeat;
+      box-shadow: 0 22px 58px rgba(25,31,58,.24);
+      overflow: hidden;
+      color: #fff;
+    }
+
+    .visual-card::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle at 24% 16%, rgba(255,210,41,.32), transparent 18%),
+        linear-gradient(180deg, rgba(12, 19, 33, .20), rgba(12, 19, 33, .86));
+      z-index: 0;
+    }
+
+    .visual-card > * { position: relative; z-index: 1; }
+
+    .price-panel {
+      position: absolute;
+      right: 1.2rem;
+      bottom: 1.2rem;
+      left: 1.2rem;
+      border-radius: 22px;
+      border: 1px solid rgba(255,255,255,.18);
+      background: rgba(255,255,255,.94);
+      color: var(--ncse-navy);
+      padding: 1rem;
+      box-shadow: 0 18px 42px rgba(0,0,0,.20);
+    }
+
+    .price-panel strong {
+      display: block;
+      font-size: clamp(2rem, 4vw, 3.2rem);
+      line-height: 1;
+      color: var(--ncse-red);
+    }
+
+    .price-panel span { display: block; color: var(--ncse-soft); font-weight: 700; }
+
+    .metric-strip {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: .85rem;
+      margin: 1.2rem 0 1.4rem;
+    }
+
+    .metric {
+      border-radius: 20px;
+      border: 1px solid rgba(37,41,79,.12);
+      background: rgba(255,255,255,.88);
+      padding: 1rem;
+      box-shadow: 0 12px 34px rgba(25,31,58,.08);
+    }
+
+    .metric strong { display: block; color: var(--ncse-navy); font-size: 1.3rem; }
+    .metric span { color: var(--ncse-soft); font-size: .9rem; }
+
+    .section {
+      margin-top: 1.35rem;
+      padding: clamp(1.25rem, 2.5vw, 2rem);
+      border-radius: 28px;
+      border: 1px solid rgba(37,41,79,.12);
+      background: rgba(255,255,255,.82);
+      box-shadow: 0 18px 50px rgba(25,31,58,.10);
+      backdrop-filter: blur(10px);
+    }
+
+    .section.dark {
+      background:
+        radial-gradient(circle at top left, rgba(67,215,234,.20), transparent 30%),
+        linear-gradient(135deg, #06121f, #11182d 74%, #241f37);
+      color: #f7fbff;
+      border-color: rgba(67,215,234,.20);
+      box-shadow: 0 24px 70px rgba(6,18,31,.28);
+    }
+
+    .section.dark h2, .section.dark h3, .section.dark strong { color: #fff; }
+    .section.dark p, .section.dark li { color: rgba(236,246,255,.82); }
+
+    .section-head {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .section-head h2 { margin-bottom: .25rem; }
+    .section-head p { margin-bottom: 0; max-width: 54ch; }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 1rem;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1rem;
+    }
+
+    .info-card {
+      border-radius: 22px;
+      border: 1px solid rgba(37,41,79,.12);
+      background: rgba(255,255,255,.80);
+      padding: 1.08rem;
+      box-shadow: 0 12px 34px rgba(25,31,58,.08);
+    }
+
+    .section.dark .info-card {
+      background: rgba(255,255,255,.07);
+      border-color: rgba(255,255,255,.12);
+      box-shadow: none;
+    }
+
+    .number {
+      width: 2.25rem;
+      height: 2.25rem;
+      display: inline-grid;
+      place-items: center;
+      border-radius: 999px;
+      margin-bottom: .7rem;
+      color: #111827;
+      font-weight: 900;
+      background: linear-gradient(135deg, var(--ncse-yellow), #fff2a8);
+      box-shadow: 0 8px 18px rgba(255, 210, 41, .30);
+    }
+
+    .discount-table {
+      overflow: hidden;
+      border-radius: 22px;
+      border: 1px solid rgba(37,41,79,.12);
+      background: rgba(255,255,255,.90);
+    }
+
+    .discount-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 0;
+      border-top: 1px solid rgba(37,41,79,.10);
+    }
+
+    .discount-row:first-child { border-top: 0; background: var(--ncse-navy); }
+    .discount-row:first-child div { color: #fff; font-weight: 900; }
+    .discount-row div { padding: .85rem .95rem; color: var(--ncse-ink); }
+    .discount-row:not(:first-child) strong { color: var(--ncse-ink); font-weight: 900; }
+    .discount-row.highlight { background: rgba(255,210,41,.18); }
+    .discount-row.highlight strong { color: var(--ncse-red); }
+
+    .product-split {
+      display: grid;
+      grid-template-columns: .8fr 1.2fr;
+      gap: 1.15rem;
+      align-items: center;
+    }
+
+    .product-shot {
+      border-radius: 24px;
+      border: 1px solid rgba(37,41,79,.10);
+      background: #fff;
+      padding: 1rem;
+      box-shadow: 0 16px 44px rgba(25,31,58,.10);
+      text-align: center;
+    }
+
+    .product-shot img { max-height: 270px; width: 100%; object-fit: contain; }
+
+    .mini-logo {
+      max-width: 180px;
+      margin-bottom: .65rem;
+      background: #fff;
+      border-radius: 12px;
+    }
+
+    .quote {
+      border-left: 5px solid var(--ncse-yellow);
+      padding: 1rem 1.1rem;
+      background: rgba(255,255,255,.64);
+      border-radius: 18px;
+      color: #334155;
+      box-shadow: 0 12px 30px rgba(25,31,58,.07);
+    }
+
+    footer {
+      margin-top: 1.4rem;
+      padding: 1.5rem 0 0;
+      color: var(--ncse-navy);
+      text-align: center;
+    }
+
+    footer p,
+    footer strong {
+      color: var(--ncse-navy) !important;
+    }
+
+    .fine-print {
+      font-size: .88rem;
+      color: #455166 !important;
+    }
+
+    @media (max-width: 900px) {
+      .hero-grid, .product-split, .grid-2 { grid-template-columns: 1fr; }
+      .metric-strip, .grid-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .visual-card { min-height: 390px; }
+      .section-head { align-items: flex-start; flex-direction: column; }
+    }
+
+    @media (max-width: 640px) {
+      .topnav { align-items: stretch; flex-direction: column; }
+      .brand-lockup { justify-content: center; text-align: center; }
+      .nav-actions { justify-content: center; }
+      .metric-strip, .grid-3 { grid-template-columns: 1fr; }
+      .discount-row { grid-template-columns: 1fr; }
+      .discount-row div { border-top: 1px solid rgba(37,41,79,.08); }
+      .discount-row:first-child div:first-child { border-top: 0; }
+      .hero h1 { max-width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <nav class="topnav" aria-label="Primary navigation">
+      <a class="brand-lockup" href="/" aria-label="NC Solar Electric Energy Rewards home">
+        <img src="/brands/BRD_1/static/images/ncse-logo.webp" alt="NC Solar Electric LLC logo">
+        <span>
+          <strong>NC Solar Electric</strong>
+          <span>Energy Rewards</span>
+        </span>
+      </a>
+      <div class="nav-actions">
+        <a href="https://www.themicroinverterstore.com/" class="secondary-btn" role="button">Shop Solar</a>
+        <a href="https://www.ncsolarelectric.com/book-a-consultation" class="primary-btn" role="button">Schedule a Call</a>
+      </div>
+    </nav>
+
+    <section class="hero" aria-label="NC Solar Energy Rewards hero">
+      <div class="hero-grid">
+        <div>
+          <span class="eyebrow">Hoymiles customers • Tokenized solar production</span>
+          <h1>Turn your solar production into Energy Rewards.</h1>
+          <p class="lead">NC Solar Electric customers with qualifying Hoymiles equipment can subscribe to issue verified solar-production tokens on mainnet, track their MWh milestones, and redeem eligible tokens for NC Solar Electric equipment discounts.</p>
+          <div class="cta-row">
+            <a class="primary-btn" href="https://www.ncsolarelectric.com/book-a-consultation" role="button">Start Energy Rewards</a>
+            <a class="token-btn" href="#discounts" role="button">See Discount Tiers</a>
+            <a class="secondary-btn" href="https://www.themicroinverterstore.com/" role="button">Shop Hoymiles Gear</a>
+          </div>
+          <div class="hero-badges" aria-label="Program highlights">
+            <span class="badge">$199/year</span>
+            <span class="badge">Tenant-backed mainnet license</span>
+            <span class="badge">1 MWHK = 1 verified MWh</span>
+            <span class="badge">Up to 12.5% equipment discount</span>
+          </div>
+        </div>
+        <div class="visual-card" aria-label="Solar kit and tokenized rewards visual">
+          <span class="eyebrow" style="background: rgba(255,255,255,.14); color:#fff; border-color:rgba(255,255,255,.22);">DIY solar made measurable</span>
+          <div class="price-panel">
+            <strong>$199/yr</strong>
+            <span>Energy Rewards subscription for NC Solar Electric customers with qualifying Hoymiles equipment.</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="metric-strip" aria-label="Program summary">
+      <div class="metric"><strong>25 MWh</strong><span>First redemption step</span></div>
+      <div class="metric"><strong>2.5%</strong><span>Discount per 25 MWh block</span></div>
+      <div class="metric"><strong>125 MWh</strong><span>Maximum redemption block</span></div>
+      <div class="metric"><strong>12.5%</strong><span>Maximum eligible order discount</span></div>
+    </div>
+
+    <section class="section" id="how-it-works">
+      <div class="section-head">
+        <div>
+          <h2>Solar production becomes a usable reward balance.</h2>
+          <p>Energy Rewards connects your Hoymiles production record to Token Depot’s Energy workflow so verified output can become a wallet-held KRC-20 energy token.</p>
+        </div>
+      </div>
+      <div class="grid-3">
+        <article class="info-card">
+          <span class="number">1</span>
+          <h3>Buy qualifying Hoymiles equipment</h3>
+          <p>Start with an NC Solar Electric solar kit, Hoymiles inverter, microinverter equipment, or compatible system package.</p>
+        </article>
+        <article class="info-card">
+          <span class="number">2</span>
+          <h3>Subscribe for Energy Rewards</h3>
+          <p>Your $199/year subscription includes tenant-backed Token Depot mainnet license access for the Energy workflow.</p>
+        </article>
+        <article class="info-card">
+          <span class="number">3</span>
+          <h3>Issue verified MWHK tokens</h3>
+          <p>Use production data from your system to issue energy tokens that represent verified MWh milestones.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section dark">
+      <div class="product-split">
+        <div class="product-shot">
+          <img class="mini-logo" src="/brands/BRD_1/static/images/hoymiles-logo.webp" alt="Hoymiles logo">
+          <img src="/brands/BRD_1/static/images/hoymiles-inverter.webp" alt="Hoymiles hybrid inverter">
+        </div>
+        <div>
+          <span class="eyebrow" style="background:rgba(255,255,255,.08); color:var(--td-cyan); border-color:rgba(67,215,234,.30);">Built around real equipment</span>
+          <h2>For customers who build solar systems that actually produce.</h2>
+          <p>Energy Rewards is designed for customers using qualifying Hoymiles equipment purchased through NC Solar Electric. Your solar system creates the measurable output. Token Depot provides the tokenization workflow. NC Solar Electric defines the redemption discount.</p>
+          <ul>
+            <li>Use production data from your system instead of arbitrary reward points.</li>
+            <li>Track MWh progress toward clear discount tiers.</li>
+            <li>Redeem eligible energy tokens for NC Solar Electric equipment discounts.</li>
+            <li>Keep ownership of your energy tokens in your KRC-20 wallet.</li>
+          </ul>
+          <div class="cta-row">
+            <a class="primary-btn" href="https://www.ncsolarelectric.com/HYS-XXLV-USG1-HOYMILES-HYBRID-INVERTER" role="button">View Hoymiles Inverter</a>
+            <a class="secondary-btn" href="https://www.ncsolarelectric.com/solar-kits" role="button">View Solar Kits</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="discounts">
+      <div class="section-head">
+        <div>
+          <h2>Simple discount tiers. No prize-race problem.</h2>
+          <p>Redeem eligible energy tokens in 25 MWh blocks. The maximum NC Solar Electric discount is capped at 12.5% per eligible order.</p>
+        </div>
+      </div>
+      <div class="discount-table" role="table" aria-label="Energy Rewards discount tiers">
+        <div class="discount-row" role="row">
+          <div role="columnheader">Redeemed production</div>
+          <div role="columnheader">Eligible discount</div>
+          <div role="columnheader">Program rule</div>
+        </div>
+        <div class="discount-row" role="row"><div>25 MWh</div><div><strong>2.5%</strong></div><div>First reward block</div></div>
+        <div class="discount-row" role="row"><div>50 MWh</div><div><strong>5.0%</strong></div><div>Two reward blocks</div></div>
+        <div class="discount-row" role="row"><div>75 MWh</div><div><strong>7.5%</strong></div><div>Three reward blocks</div></div>
+        <div class="discount-row" role="row"><div>100 MWh</div><div><strong>10.0%</strong></div><div>Four reward blocks</div></div>
+        <div class="discount-row highlight" role="row"><div>125 MWh or more</div><div><strong>12.5% max</strong></div><div>Maximum discount per eligible order</div></div>
+      </div>
+      <p class="fine-print" style="margin-top: .85rem;">Energy tokens above 125 MWh remain yours to hold, send, or use in compatible wallet tools, but NC Solar Electric redemption value is capped by the published discount schedule and current program terms.</p>
+    </section>
+
+    <section class="section">
+      <div class="grid-2">
+        <article class="info-card">
+          <h2>What the subscription includes</h2>
+          <ul>
+            <li>Token Depot tenant-backed mainnet license access for Energy token issuance.</li>
+            <li>Energy dashboard access for production-token workflow and reward tracking.</li>
+            <li>Eligibility to redeem qualifying MWHK energy tokens with NC Solar Electric.</li>
+            <li>Support for getting started with the production-token process.</li>
+          </ul>
+        </article>
+        <article class="info-card">
+          <h2>What the tokens are for</h2>
+          <ul>
+            <li>Energy tokens document verified production milestones.</li>
+            <li>NC Solar Electric accepts eligible tokens for published equipment discounts.</li>
+            <li>Tokens are not a promise of cash value, profit, or investment return.</li>
+            <li>Discount redemption requires active subscription status and program eligibility.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section class="section dark" id="start">
+      <div class="section-head">
+        <div>
+          <h2>Ready to make your solar production count?</h2>
+          <p>Start with the equipment, subscribe for Energy Rewards, then issue verified production tokens as your system produces power.</p>
+        </div>
+        <div class="cta-row" style="margin:0;">
+          <a class="primary-btn" href="https://www.ncsolarelectric.com/book-a-consultation" role="button">Schedule a Free Consultation</a>
+          <a class="secondary-btn" href="tel:18775876527" role="button">Call 877-58-SOLAR</a>
+        </div>
+      </div>
+      <div class="quote">
+        “Todd went above and beyond helping me design and install my DIY grid tie system. It would not have happened without his guidance!” — Andrew
+      </div>
+    </section>
+
+    <footer>
+      <img src="/brands/BRD_1/static/images/ncse-logo-phone.webp" alt="NC Solar Electric LLC logo with phone number" style="max-width: 260px; width: 80%; border-radius: 14px; background:#fff; margin-bottom:.7rem;">
+      <p><strong>NC Solar Electric, LLC</strong> • Statesville, North Carolina • Call Toll-Free 877-58-SOLAR</p>
+      <p class="fine-print">Energy Rewards is a customer reward and equipment-discount program for qualifying NC Solar Electric customers and qualifying Hoymiles equipment. KRC-20 token ownership, transferability, and compatible wallet tools are separate from NC Solar Electric’s published redemption rules. Program terms, eligibility, and discount availability may change.</p>
+      <p class="fine-print">© 2026 NC Solar Electric, LLC. Energy token workflow powered by Token Depot.</p>
+    </footer>
+  </main>
+</body>
+</html>
